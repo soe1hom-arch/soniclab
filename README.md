@@ -64,7 +64,7 @@ Player dengan efek DSP real-time, audio toolkit, analyzer, dan AI enhancement on
 - Bahasa Indonesia konsisten di seluruh aplikasi.
 - Tema gelap premium (palet ungu/cyan) dengan opsi AMOLED.
 - Ikon launcher premium: adaptive icon (gradient + waveform EQ dengan glow), `round` icon, dan `monochrome` untuk themed icon Android 13+.
-- Empty states, transisi antar layar (fade + slide), dan dialog About.
+- Empty states, transisi antar layar (fade + slide), dialog About, haptic feedback pada kontrol utama, dan cover album di-downsample untuk efisiensi RAM.
 
 ## Rantai DSP real-time
 
@@ -144,7 +144,7 @@ python3 scripts/train_separator.py  # regenerasi ai/.../assets/models/separator_
 - Model AI berkualitas lebih tinggi yang dilatih dari data musik asli.
 - Lebih banyak knob kualitas WSOLA (prasetel kualitas di UI).
 - Migrasi string UI ke resources (`strings.xml`) untuk dukungan multi-bahasa formal.
-- Polish tambahan: snackbar global, haptic feedback, downsampling cover album untuk efisiensi RAM.
+- Snackbar global untuk notifikasi lintas layar.
 - Release build dengan signing.
 
 ## Lisensi

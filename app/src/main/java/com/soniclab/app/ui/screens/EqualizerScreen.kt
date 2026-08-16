@@ -19,6 +19,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.soniclab.app.di.AppContainer
@@ -28,6 +30,7 @@ import java.util.Locale
 
 @Composable
 fun EqualizerScreen(container: AppContainer) {
+    val haptic = LocalHapticFeedback.current
     val vm: EqualizerViewModel = appViewModel { EqualizerViewModel(it) }
     val gains by vm.bandGains.collectAsStateWithLifecycle()
     val preset by vm.activePreset.collectAsStateWithLifecycle()
@@ -51,7 +54,10 @@ fun EqualizerScreen(container: AppContainer) {
                 style = MaterialTheme.typography.headlineLarge,
                 modifier = Modifier.weight(1f)
             )
-            TextButton(onClick = { vm.reset() }) { Text("Atur Ulang") }
+            TextButton(onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                vm.reset()
+            }) { Text("Atur Ulang") }
         }
 
         Text(
@@ -84,17 +90,26 @@ fun EqualizerScreen(container: AppContainer) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 4.dp)) {
             FilterChip(
                 selected = spatialMode == SpatialAudioProcessor.MODE_OFF,
-                onClick = { vm.selectSpatialMode(SpatialAudioProcessor.MODE_OFF) },
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    vm.selectSpatialMode(SpatialAudioProcessor.MODE_OFF)
+                },
                 label = { Text("Mati") }
             )
             FilterChip(
                 selected = spatialMode == SpatialAudioProcessor.MODE_3D,
-                onClick = { vm.selectSpatialMode(SpatialAudioProcessor.MODE_3D) },
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    vm.selectSpatialMode(SpatialAudioProcessor.MODE_3D)
+                },
                 label = { Text("3D") }
             )
             FilterChip(
                 selected = spatialMode == SpatialAudioProcessor.MODE_8D,
-                onClick = { vm.selectSpatialMode(SpatialAudioProcessor.MODE_8D) },
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    vm.selectSpatialMode(SpatialAudioProcessor.MODE_8D)
+                },
                 label = { Text("8D") }
             )
         }

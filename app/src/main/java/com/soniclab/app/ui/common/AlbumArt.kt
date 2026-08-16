@@ -27,10 +27,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.soniclab.app.ui.theme.PurpleAccent
 import com.soniclab.app.ui.theme.SurfaceVariantDark
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
- * Loads the album art for [albumId] from MediaStore and falls back to a
- * gradient + music-note placeholder when unavailable (offline, defensive).
+ * Loads the album art for [albumId] from MediaStore with
+ * downsampling (max ~512 px) so grid/list covers stay light on RAM,
+ * then falls back to a gradient + music-note placeholder when
+ * unavailable (offline, defensive).
  */
 @Composable
 fun AlbumArt(
@@ -41,7 +45,7 @@ fun AlbumArt(
     val context = LocalContext.current
     val bitmap = remember(albumId) { mutableStateOf<Bitmap?>(null) }
     LaunchedEffect(albumId) {
-        bitmap.value = loadAlbumArt(context, albumId)
+        bitmap.value = withContext(Dispatchers.IO) { loadAlbumArt(context, albumId) }
     }
     val art = bitmap.value
     if (art != null) {
@@ -68,6 +72,8 @@ fun AlbumArt(
     }
 }
 
+private const val MAX_COVER_SIZE = 512
+
 private fun loadAlbumArt(context: Context, albumId: Long): Bitmap? {
     if (albumId <= 0) return null
     val uri: Uri = ContentUris.withAppendedId(
@@ -75,8 +81,20 @@ private fun loadAlbumArt(context: Context, albumId: Long): Bitmap? {
         albumId
     )
     return runCatching {
-        context.contentResolver.openInputStream(uri)?.use { input ->
-            BitmapFactory.decodeStream(input)
-        }
+        val resolver = context.contentResolver
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        val sample = sampleSize(bounds.outWidth, bounds.outHeight)
+        val options = BitmapFactory.Options().apply { inSampleSize = sample }
+        resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
     }.getOrNull()
+}
+
+private fun sampleSize(width: Int, height: Int): Int {
+    if (width <= 0 || height <= 0) return 1
+    var sample = 1
+    while (width / (sample * 2) >= MAX_COVER_SIZE && height / (sample * 2) >= MAX_COVER_SIZE) {
+        sample *= 2
+    }
+    return sample
 }

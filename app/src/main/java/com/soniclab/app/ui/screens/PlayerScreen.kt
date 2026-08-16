@@ -40,6 +40,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -53,6 +55,7 @@ import kotlin.math.max
 
 @Composable
 fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit, onOpenStudio: () -> Unit) {
+    val haptic = LocalHapticFeedback.current
     val vm: PlayerViewModel = appViewModel { PlayerViewModel(it) }
     val state by vm.uiState.collectAsStateWithLifecycle()
     val spectrum by vm.spectrum.collectAsStateWithLifecycle()
@@ -119,7 +122,10 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit, onOpenStu
                 Icon(Icons.Rounded.SkipPrevious, contentDescription = "Previous", modifier = Modifier.size(40.dp))
             }
             FilledIconButton(
-                onClick = { vm.togglePlayPause() },
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    vm.togglePlayPause()
+                },
                 modifier = Modifier.size(72.dp)
             ) {
                 Icon(
@@ -128,10 +134,16 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit, onOpenStu
                     modifier = Modifier.size(44.dp)
                 )
             }
-            IconButton(onClick = { vm.next() }) {
-                Icon(Icons.Rounded.SkipNext, contentDescription = "Next", modifier = Modifier.size(40.dp))
+            IconButton(onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                vm.next()
+            }) {
+                Icon(Icons.Rounded.SkipNext, contentDescription = "Berikutnya", modifier = Modifier.size(40.dp))
             }
-            IconButton(onClick = { vm.cycleRepeat() }) {
+            IconButton(onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                vm.cycleRepeat()
+            }) {
                 Icon(
                     Icons.Rounded.Repeat,
                     contentDescription = "Ulangi",
@@ -145,7 +157,10 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit, onOpenStu
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf(0.75f, 1f, 1.25f, 1.5f, 2f).forEach { speed ->
                 OutlinedButton(
-                    onClick = { vm.setSpeed(speed) },
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        vm.setSpeed(speed)
+                    },
                     modifier = Modifier.height(36.dp)
                 ) {
                     Text(
@@ -173,12 +188,18 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit, onOpenStu
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(
                 selected = spatialMode == SpatialAudioProcessor.MODE_3D,
-                onClick = { vm.toggleSpatialMode(SpatialAudioProcessor.MODE_3D) },
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    vm.toggleSpatialMode(SpatialAudioProcessor.MODE_3D)
+                },
                 label = { Text("3D") }
             )
             FilterChip(
                 selected = spatialMode == SpatialAudioProcessor.MODE_8D,
-                onClick = { vm.toggleSpatialMode(SpatialAudioProcessor.MODE_8D) },
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    vm.toggleSpatialMode(SpatialAudioProcessor.MODE_8D)
+                },
                 label = { Text("8D") }
             )
         }

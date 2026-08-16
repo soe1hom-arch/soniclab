@@ -23,6 +23,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.soniclab.app.di.AppContainer
@@ -35,6 +37,7 @@ import com.soniclab.app.ui.theme.PurpleAccent
 @Composable
 fun MiniPlayerBar(container: AppContainer, onClick: () -> Unit) {
     val state by container.playerController.uiState.collectAsStateWithLifecycle()
+    val haptic = LocalHapticFeedback.current
     if (!state.hasTrack) return
 
     Surface(tonalElevation = 3.dp, modifier = Modifier.fillMaxWidth()) {
@@ -63,14 +66,20 @@ fun MiniPlayerBar(container: AppContainer, onClick: () -> Unit) {
                         maxLines = 1
                     )
                 }
-                IconButton(onClick = { container.playerController.togglePlayPause() }) {
+                IconButton(onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    container.playerController.togglePlayPause()
+                }) {
                     Icon(
                         if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                         contentDescription = if (state.isPlaying) "Jeda" else "Putar",
                         tint = PurpleAccent
                     )
                 }
-                IconButton(onClick = { container.playerController.next() }) {
+                IconButton(onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    container.playerController.next()
+                }) {
                     Icon(Icons.Rounded.SkipNext, contentDescription = "Berikutnya")
                 }
             }

@@ -54,6 +54,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -348,6 +350,7 @@ private fun TrackRow(
     onClick: () -> Unit,
     onFavorite: () -> Unit
 ) {
+    val haptic = LocalHapticFeedback.current
     Row(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -365,14 +368,20 @@ private fun TrackRow(
                 maxLines = 1
             )
         }
-        IconButton(onClick = onClick) {
+        IconButton(onClick = {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            onClick()
+        }) {
             Icon(
                 imageVector = Icons.Rounded.PlayCircle,
                 contentDescription = "Putar",
                 tint = MaterialTheme.colorScheme.primary
             )
         }
-        IconButton(onClick = onFavorite) {
+        IconButton(onClick = {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            onFavorite()
+        }) {
             Icon(
                 imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                 contentDescription = "Favorit",

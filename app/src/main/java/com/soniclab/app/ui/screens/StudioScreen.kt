@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import android.os.Build
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.soniclab.app.di.AppContainer
+import kotlinx.coroutines.delay
 import com.soniclab.app.ui.common.appViewModel
 import com.soniclab.visualizer.WaveformVisualizer
 import java.util.Locale
@@ -73,6 +74,15 @@ fun StudioScreen(container: AppContainer) {
     // Terhubung langsung: saat studio dibuka, lagu yang sedang diputar jadi File 1.
     LaunchedEffect(Unit) {
         vm.useCurrentTrack()
+    }
+
+    // Pesan sementara (mis. hasil simpan) ditutup otomatis.
+    LaunchedEffect(message) {
+        val current = message
+        if (current != null) {
+            delay(8000)
+            vm.clearMessageIfCurrent(current)
+        }
     }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->

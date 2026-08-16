@@ -94,6 +94,10 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
         lastResult = null
     }
 
+    fun clearMessageIfCurrent(text: String) {
+        if (message == text) message = null
+    }
+
     fun playResult() {
         val r = lastResult ?: return
         container.playerController.playSingleTrack(Uri.fromFile(File(r.path)), r.title)
