@@ -10,17 +10,66 @@ import kotlin.math.sin
  *
  * - 3D: mid/side stereo widening — pushes the image "out of the head".
  * - 8D: slow LFO-rotated pan with a feedback echo, the classic 8D effect.
+ * - 3D+8D: combination — the 8D rotation pans around while a center anchor
+ *   keeps the middle of the mix audible on headphones.
+ * - Surround: 3D widening with a gentle room echo, no rotation.
+ *
+ * The "pan depth" control limits how far the 8D pan travels, so one channel
+ * never goes fully silent on headphones.
  *
  * Works on PCM16 and PCM float, stereo and mono (mono is up-mixed to stereo
- * so 3D/8D no longer silently disables on mono tracks / podcasts). Runs on
- * the audio thread, so all buffering lives here and only UI-facing values
- * are volatile.
+ * so spatial modes no longer silently disable on mono tracks / podcasts).
+ * Runs on the audio thread, so all buffering lives here and only UI-facing
+ * values are volatile.
  */
 class SpatialAudioProcessor : PcmAudioProcessor() {
 
-    /** 0 = off, 1 = 3D, 2 = 8D. Written from the UI thread. */
+    /** Preset selector for the UI chips; becomes [MODE_CUSTOM] when the user mixes manually. */
+    var mode: Int = MODE_OFF
+        set(value) {
+            field = value
+            // Preset chips configure the switches; MODE_CUSTOM keeps whatever
+            // combination the user picked manually.
+            when (value) {
+                MODE_OFF -> {
+                    spatial3d = false
+                    spatial8d = false
+                    surround = false
+                }
+                MODE_3D -> {
+                    spatial3d = true
+                    spatial8d = false
+                    surround = false
+                }
+                MODE_8D -> {
+                    spatial3d = false
+                    spatial8d = true
+                    surround = false
+                }
+                MODE_3D_8D -> {
+                    spatial3d = true
+                    spatial8d = true
+                    surround = false
+                }
+                MODE_SURROUND -> {
+                    spatial3d = true
+                    spatial8d = false
+                    surround = true
+                }
+            }
+        }
+
+    /** 3D widening on/off (user can mix this freely with 8D/Surround). */
     @Volatile
-    var mode: Int = 0
+    var spatial3d: Boolean = false
+
+    /** 8D rotation on/off. */
+    @Volatile
+    var spatial8d: Boolean = false
+
+    /** Surround room-echo on/off (usually combined with 3D). */
+    @Volatile
+    var surround: Boolean = false
 
     /** 3D widening strength, 0..1. */
     @Volatile
@@ -29,6 +78,10 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
     /** 8D seconds per full rotation, 4..60. */
     @Volatile
     var rotationSeconds: Float = DEFAULT_ROTATION_SECONDS
+
+    /** 8D pan travel, 0..1 — lower keeps the center audible on headphones. */
+    @Volatile
+    var panDepth: Float = DEFAULT_PAN_DEPTH
 
     // 8D state, touched only on the audio thread.
     private var phase = 0.0
@@ -47,13 +100,16 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
         }
     }
 
-    override fun isEffectActive(): Boolean = mode != 0 || inputChannels == 1
+    override fun isEffectActive(): Boolean = spatial3d || spatial8d || surround || inputChannels == 1
 
     override fun processSamples(input: FloatArray, frames: Int): FloatArray {
         val out = if (inputChannels == 1 && outputChannels == 2) FloatArray(frames * 2) else input
-        when (mode) {
-            MODE_3D -> process3D(input, out, frames)
-            MODE_8D -> process8D(input, out, frames)
+        when {
+            spatial3d && spatial8d -> process3D8D(input, out, frames)
+            spatial8d -> process8D(input, out, frames)
+            spatial3d && surround -> processSurround(input, out, frames, widen = true)
+            surround -> processSurround(input, out, frames, widen = false)
+            spatial3d -> process3D(input, out, frames)
             else -> if (out !== input) duplicateMono(input, out)
         }
         return out
@@ -87,20 +143,23 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
     }
 
     private fun process8D(input: FloatArray, out: FloatArray, frames: Int) {
-        val rate = rotationSeconds.coerceIn(4f, 60f)
-        val phaseStep = (2.0 * PI) / (rate * sampleRateHz)
+        val phaseStep = phaseStep()
         if (inputChannels == 1) {
             var i = 0
             var o = 0
             repeat(frames) {
                 val v = input[i++]
-                val pan = sin(phase).toFloat()
+                val (gainL, gainR) = panGains()
                 phase += phaseStep
-                val theta = (pan + 1f) * (PI * 0.25f).toFloat()
-                val gainL = cos(theta)
-                val gainR = sin(theta)
-                out[o++] = v * gainL
-                out[o++] = v * gainR
+                val echoL = delayBufferL[(delayWritePos - delayReadOffset + delayBufferL.size) % delayBufferL.size]
+                val echoR = delayBufferR[(delayWritePos - delayReadOffset + delayBufferR.size) % delayBufferR.size]
+                val outL = v * gainL + echoL * ECHO_FEEDBACK
+                val outR = v * gainR + echoR * ECHO_FEEDBACK
+                delayBufferL[delayWritePos] = outL
+                delayBufferR[delayWritePos] = outR
+                delayWritePos = (delayWritePos + 1) % delayBufferL.size
+                out[o++] = outL
+                out[o++] = outR
             }
             return
         }
@@ -109,30 +168,124 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
         repeat(frames) {
             val l = input[i++]
             val r = input[i++]
-
-            // Equal-power L/R rotation.
-            val pan = sin(phase).toFloat()
+            val (gainL, gainR) = panGains()
             phase += phaseStep
-            val theta = (pan + 1f) * (PI * 0.25f).toFloat()
-            val gainL = cos(theta)
-            val gainR = sin(theta)
-
-            // Feedback echo (room feel) per channel.
             val readPos = (delayWritePos - delayReadOffset + delayBufferL.size) % delayBufferL.size
             val echoL = delayBufferL[readPos]
             val echoR = delayBufferR[readPos]
-            val dryL = l * gainL
-            val dryR = r * gainR
-            val outL = dryL + echoL * ECHO_FEEDBACK
-            val outR = dryR + echoR * ECHO_FEEDBACK
+            val outL = l * gainL + echoL * ECHO_FEEDBACK
+            val outR = r * gainR + echoR * ECHO_FEEDBACK
             delayBufferL[delayWritePos] = outL
             delayBufferR[delayWritePos] = outR
             delayWritePos = (delayWritePos + 1) % delayBufferL.size
-
             out[o++] = outL
             out[o++] = outR
         }
     }
+
+    /** 8D rotation over a 3D-widened image; a center anchor keeps the middle audible. */
+    private fun process3D8D(input: FloatArray, out: FloatArray, frames: Int) {
+        val width = 1f + widthStrength.coerceIn(0f, 1f) * 1.8f
+        val phaseStep = phaseStep()
+        if (inputChannels == 1) {
+            var i = 0
+            var o = 0
+            repeat(frames) {
+                val v = input[i++]
+                val (gainL, gainR) = panGains()
+                phase += phaseStep
+                val anchor = v * CENTER_ANCHOR
+                val readPos = (delayWritePos - delayReadOffset + delayBufferL.size) % delayBufferL.size
+                val echoL = delayBufferL[readPos]
+                val echoR = delayBufferR[readPos]
+                val outL = v * gainL + anchor + echoL * ECHO_FEEDBACK
+                val outR = v * gainR + anchor + echoR * ECHO_FEEDBACK
+                delayBufferL[delayWritePos] = outL
+                delayBufferR[delayWritePos] = outR
+                delayWritePos = (delayWritePos + 1) % delayBufferL.size
+                out[o++] = outL
+                out[o++] = outR
+            }
+            return
+        }
+        var i = 0
+        var o = 0
+        repeat(frames) {
+            val l = input[i++]
+            val r = input[i++]
+            val mid = (l + r) * 0.5f
+            val side = (l - r) * 0.5f
+            val widL = mid + side * width
+            val widR = mid - side * width
+            val (gainL, gainR) = panGains()
+            phase += phaseStep
+            val anchor = mid * CENTER_ANCHOR
+            val readPos = (delayWritePos - delayReadOffset + delayBufferL.size) % delayBufferL.size
+            val echoL = delayBufferL[readPos]
+            val echoR = delayBufferR[readPos]
+            val outL = widL * gainL + anchor + echoL * ECHO_FEEDBACK
+            val outR = widR * gainR + anchor + echoR * ECHO_FEEDBACK
+            delayBufferL[delayWritePos] = outL
+            delayBufferR[delayWritePos] = outR
+            delayWritePos = (delayWritePos + 1) % delayBufferL.size
+            out[o++] = outL
+            out[o++] = outR
+        }
+    }
+
+    /** 3D widening plus a gentle room echo, no rotation. */
+    private fun processSurround(input: FloatArray, out: FloatArray, frames: Int, widen: Boolean) {
+        val width = 1f + widthStrength.coerceIn(0f, 1f) * 1.8f
+        if (inputChannels == 1) {
+            var i = 0
+            var o = 0
+            repeat(frames) {
+                val v = input[i++]
+                val readPos = (delayWritePos - delayReadOffset + delayBufferL.size) % delayBufferL.size
+                val echoL = delayBufferL[readPos]
+                val echoR = delayBufferR[readPos]
+                val outL = v + echoL * ECHO_FEEDBACK
+                val outR = v + echoR * ECHO_FEEDBACK
+                delayBufferL[delayWritePos] = outL
+                delayBufferR[delayWritePos] = outR
+                delayWritePos = (delayWritePos + 1) % delayBufferL.size
+                out[o++] = outL
+                out[o++] = outR
+            }
+            return
+        }
+        var i = 0
+        var o = 0
+        repeat(frames) {
+            val l = input[i++]
+            val r = input[i++]
+            val mid = (l + r) * 0.5f
+            val side = (l - r) * 0.5f
+            val widL = if (widen) mid + side * width else l
+            val widR = if (widen) mid - side * width else r
+            val readPos = (delayWritePos - delayReadOffset + delayBufferL.size) % delayBufferL.size
+            val echoL = delayBufferL[readPos]
+            val echoR = delayBufferR[readPos]
+            val outL = widL + echoL * ECHO_FEEDBACK
+            val outR = widR + echoR * ECHO_FEEDBACK
+            delayBufferL[delayWritePos] = outL
+            delayBufferR[delayWritePos] = outR
+            delayWritePos = (delayWritePos + 1) % delayBufferL.size
+            out[o++] = outL
+            out[o++] = outR
+        }
+    }
+
+    private fun panGains(): Pair<Float, Float> {
+        // Equal-power pan limited by panDepth so the far channel keeps its
+        // center anchor instead of going fully silent (headset-friendly).
+        val depth = panDepth.coerceIn(0.1f, 1f)
+        val pan = sin(phase).toFloat()
+        val theta = (pan * depth + 1f) * (PI * 0.25f).toFloat()
+        return cos(theta) to sin(theta)
+    }
+
+    private fun phaseStep(): Double = (2.0 * PI) / (rotationSeconds.coerceIn(4f, 60f) * sampleRateHz)
 
     private fun duplicateMono(input: FloatArray, out: FloatArray) {
         var i = 0
@@ -162,8 +315,13 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
         const val MODE_OFF = 0
         const val MODE_3D = 1
         const val MODE_8D = 2
+        const val MODE_3D_8D = 3
+        const val MODE_SURROUND = 4
+        const val MODE_CUSTOM = 5
         const val DEFAULT_WIDTH_STRENGTH = 0.6f
         const val DEFAULT_ROTATION_SECONDS = 8f
+        const val DEFAULT_PAN_DEPTH = 0.6f
+        private const val CENTER_ANCHOR = 0.45f
         private const val ECHO_DELAY_SECONDS = 0.38f
         private const val ECHO_FEEDBACK = 0.3f
     }

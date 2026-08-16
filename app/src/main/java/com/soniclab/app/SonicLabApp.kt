@@ -12,5 +12,6 @@ class SonicLabApp : Application() {
         super.onCreate()
         container = AppContainer(this)
         container.playerController.bind()
+        container.restoreSettings()
     }
 }

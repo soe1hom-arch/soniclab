@@ -31,13 +31,17 @@ import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.LibraryMusic
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -80,6 +84,7 @@ fun LibraryScreen(container: AppContainer, onOpenPlayer: () -> Unit) {
     val favorites by vm.favorites.collectAsStateWithLifecycle()
     val isLoading by vm.isLoading.collectAsStateWithLifecycle()
     val libraryError by vm.libraryError.collectAsStateWithLifecycle()
+    val playerState by container.playerController.uiState.collectAsStateWithLifecycle()
     var tab by remember { mutableStateOf(LibraryTab.TRACKS) }
     val selection = vm.selectionLabel()
 
@@ -142,7 +147,15 @@ fun LibraryScreen(container: AppContainer, onOpenPlayer: () -> Unit) {
                     }
                 }
                 else -> when (tab) {
-                    LibraryTab.TRACKS -> TracksTab(vm, favorites, selection, onOpenPlayer)
+                    LibraryTab.TRACKS -> TracksTab(
+                        vm,
+                        favorites,
+                        selection,
+                        currentTrackId = playerState.currentTrack?.id,
+                        onOpenPlayer = onOpenPlayer,
+                        onPlayNext = { container.playerController.addToQueueNext(it) },
+                        onAddToQueue = { container.playerController.addToQueueEnd(it) }
+                    )
                     LibraryTab.ALBUMS -> AlbumsTab(vm)
                     LibraryTab.ARTISTS -> ArtistsTab(vm)
                 }
@@ -156,7 +169,10 @@ private fun TracksTab(
     vm: LibraryViewModel,
     favorites: Set<Long>,
     selection: String?,
-    onOpenPlayer: () -> Unit
+    currentTrackId: Long?,
+    onOpenPlayer: () -> Unit,
+    onPlayNext: (Track) -> Unit,
+    onAddToQueue: (Track) -> Unit
 ) {
     val list = vm.visibleTracks()
     LazyColumn(
@@ -199,11 +215,14 @@ private fun TracksTab(
                 TrackRow(
                     track = track,
                     isFavorite = track.id in favorites,
+                    isCurrent = track.id == currentTrackId,
                     onClick = {
                         vm.play(list, list.indexOf(track))
                         onOpenPlayer()
                     },
-                    onFavorite = { vm.toggleFavorite(track.id) }
+                    onFavorite = { vm.toggleFavorite(track.id) },
+                    onPlayNext = { onPlayNext(track) },
+                    onAddToQueue = { onAddToQueue(track) }
                 )
             }
         }
@@ -347,12 +366,19 @@ private fun ArtistsTab(vm: LibraryViewModel) {
 private fun TrackRow(
     track: Track,
     isFavorite: Boolean,
+    isCurrent: Boolean,
     onClick: () -> Unit,
-    onFavorite: () -> Unit
+    onFavorite: () -> Unit,
+    onPlayNext: () -> Unit,
+    onAddToQueue: () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
+    var menuOpen by remember { mutableStateOf(false) }
     Row(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 6.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         AlbumArt(
@@ -360,11 +386,28 @@ private fun TrackRow(
             modifier = Modifier.size(44.dp).clip(RoundedCornerShape(8.dp))
         )
         Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp)) {
-            Text(track.title, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (isCurrent) {
+                    Icon(
+                        imageVector = Icons.Rounded.GraphicEq,
+                        contentDescription = "Sedang Diputar",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(end = 4.dp)
+                    )
+                }
+                Text(
+                    track.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1
+                )
+            }
             Text(
-                "${track.artist} • ${TimeFormat.formatDuration(track.durationMs)}",
+                if (isCurrent) "${track.artist} • Sedang diputar"
+                else "${track.artist} • ${TimeFormat.formatDuration(track.durationMs)}",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (isCurrent) MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                else MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1
             )
         }
@@ -387,6 +430,33 @@ private fun TrackRow(
                 contentDescription = "Favorit",
                 tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+        Box {
+            IconButton(onClick = { menuOpen = true }) {
+                Icon(
+                    imageVector = Icons.Rounded.MoreVert,
+                    contentDescription = "Lainnya",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                DropdownMenuItem(
+                    text = { Text("Putar Berikutnya") },
+                    onClick = {
+                        menuOpen = false
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onPlayNext()
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Tambahkan ke Antrean") },
+                    onClick = {
+                        menuOpen = false
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onAddToQueue()
+                    }
+                )
+            }
         }
     }
 }

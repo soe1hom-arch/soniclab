@@ -10,7 +10,6 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Icon
@@ -51,7 +50,6 @@ private data class NavItem(val route: String, val label: String, val icon: Image
 
 private val bottomItems = listOf(
     NavItem("home", "Perpustakaan", Icons.Rounded.LibraryMusic),
-    NavItem("studio", "Studio", Icons.Rounded.GraphicEq),
     NavItem("settings", "Pengaturan", Icons.Rounded.Settings)
 )
 
@@ -160,7 +158,9 @@ fun SonicLabAppRoot(container: AppContainer) {
                 )
             }
             composable("studio") { StudioScreen(container) }
-            composable("equalizer") { EqualizerScreen(container) }
+            composable("equalizer") {
+                EqualizerScreen(container, onOpenStudio = { navController.navigate("studio") })
+            }
             composable("settings") { SettingsScreen(container) }
         }
     }

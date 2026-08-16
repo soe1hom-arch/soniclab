@@ -75,7 +75,36 @@ class AudioProcessorsTest {
     }
 
     @Test
+    fun spatial_3D8D_keepsCenterAudible() {
+        val p = SpatialAudioProcessor()
+        p.mode = SpatialAudioProcessor.MODE_3D_8D
+        p.panDepth = 0.6f
+        p.configure(stereoFloat)
+        val center = FloatArray(64) { 0.5f }
+        p.queueInput(floats(*center))
+        val out = readFloats(p.getOutput())
+        assertEquals(64, out.size)
+        var minAbs = 1f
+        for (v in out) minAbs = minOf(minAbs, abs(v))
+        assertTrue("3D+8D must keep the center audible on headphones (min=$minAbs)", minAbs > 0.2f)
+    }
+
+    @Test
+    fun spatial_8D_panDepth_keepsFarChannelAudible() {
+        val p = SpatialAudioProcessor()
+        p.mode = SpatialAudioProcessor.MODE_8D
+        p.panDepth = 0.5f
+        p.configure(stereoFloat)
+        p.queueInput(floats(*FloatArray(64) { 0.5f }))
+        val out = readFloats(p.getOutput())
+        var minAbs = 1f
+        for (v in out) minAbs = minOf(minAbs, abs(v))
+        assertTrue("8D pan must not silence a channel (min=$minAbs)", minAbs > 0.1f)
+    }
+
+    @Test
     fun spatial_off_passesThroughStereo() {
+
         val p = SpatialAudioProcessor()
         p.mode = SpatialAudioProcessor.MODE_OFF
         p.configure(stereoPcm16)

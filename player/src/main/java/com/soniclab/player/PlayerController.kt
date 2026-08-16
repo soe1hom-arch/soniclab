@@ -45,6 +45,9 @@ class PlayerController(private val context: Context) {
     /** Live pitch in semitones (-12..+12), applied like Poweramp on playback. */
     private var pitchSemitones: Float = 0f
 
+    /** Last requested speed (kept so it can be re-applied once the service connects). */
+    private var requestedSpeed: Float = 1f
+
     /** Crossfade duration in ms; 0 disables crossfading. */
     private var crossfadeMs: Long = 0L
     private var fadeJob: Job? = null
@@ -114,6 +117,8 @@ class PlayerController(private val context: Context) {
                 controller = controllerFuture.get()
                 controller?.addListener(playerListener)
                 syncFromController()
+                // Re-apply persisted speed/pitch once the service is connected.
+                applyPlaybackParameters(requestedSpeed, pitchFactor())
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to connect to PlaybackService", e)
             }
@@ -122,23 +127,45 @@ class PlayerController(private val context: Context) {
 
     fun playQueue(tracks: List<Track>, startIndex: Int = 0) {
         if (tracks.isEmpty()) return
-        val mediaItems = tracks.map { track ->
-            MediaItem.Builder()
-                .setMediaId(track.id.toString())
-                .setUri(track.uri)
-                .setMediaMetadata(
-                    MediaMetadata.Builder()
-                        .setTitle(track.title)
-                        .setArtist(track.artist)
-                        .setAlbumTitle(track.album)
-                        .build()
-                )
-                .build()
-        }
+        val mediaItems = tracks.map { it.toMediaItem() }
         controller?.setMediaItems(mediaItems, startIndex.coerceIn(0, mediaItems.lastIndex), 0L)
         controller?.prepare()
         controller?.play()
     }
+
+    /** Inserts [track] right after the currently playing item ("putar berikutnya"). */
+    fun addToQueueNext(track: Track) {
+        val c = controller ?: return
+        if (c.mediaItemCount == 0) {
+            playQueue(listOf(track), 0)
+            return
+        }
+        val index = (c.currentMediaItemIndex + 1).coerceAtMost(c.mediaItemCount)
+        c.addMediaItems(index, listOf(track.toMediaItem()))
+    }
+
+    /** Appends [track] at the end of the queue ("tambah ke antrean"). */
+    fun addToQueueEnd(track: Track) {
+        val c = controller ?: return
+        if (c.mediaItemCount == 0) {
+            playQueue(listOf(track), 0)
+            return
+        }
+        c.addMediaItems(c.mediaItemCount, listOf(track.toMediaItem()))
+    }
+
+    private fun Track.toMediaItem(): MediaItem =
+        MediaItem.Builder()
+            .setMediaId(id.toString())
+            .setUri(uri)
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(title)
+                    .setArtist(artist)
+                    .setAlbumTitle(album)
+                    .build()
+            )
+            .build()
 
     /** Plays a single generated result file (e.g. Studio output) immediately. */
     fun playSingleTrack(uri: Uri, title: String, artist: String = "SonicLab") {
@@ -184,7 +211,8 @@ class PlayerController(private val context: Context) {
     }
 
     fun setSpeed(speed: Float) {
-        applyPlaybackParameters(speed.coerceIn(0.25f, 3f), pitchFactor())
+        requestedSpeed = speed.coerceIn(0.25f, 3f)
+        applyPlaybackParameters(requestedSpeed, pitchFactor())
     }
 
     /** Live pitch shift in semitones (0 = normal). Keeps the current speed. */
@@ -195,8 +223,7 @@ class PlayerController(private val context: Context) {
 
     fun resetPitch() = setPitchSemitones(0f)
 
-    private fun currentSpeed(): Float =
-        controller?.playbackParameters?.speed ?: _uiState.value.playbackSpeed
+    private fun currentSpeed(): Float = controller?.playbackParameters?.speed ?: requestedSpeed
 
     private fun pitchFactor(): Float = 2f.pow(pitchSemitones / 12f)
 

@@ -1,6 +1,5 @@
 package com.soniclab.app.ui.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -39,7 +38,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextOverflow
@@ -186,61 +184,55 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit, onOpenStu
 
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(
-                selected = spatialMode == SpatialAudioProcessor.MODE_3D,
-                onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    vm.toggleSpatialMode(SpatialAudioProcessor.MODE_3D)
-                },
-                label = { Text("3D") }
-            )
-            FilterChip(
-                selected = spatialMode == SpatialAudioProcessor.MODE_8D,
-                onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    vm.toggleSpatialMode(SpatialAudioProcessor.MODE_8D)
-                },
-                label = { Text("8D") }
-            )
+            listOf(
+                SpatialAudioProcessor.MODE_OFF to "Mati",
+                SpatialAudioProcessor.MODE_3D to "3D",
+                SpatialAudioProcessor.MODE_8D to "8D",
+                SpatialAudioProcessor.MODE_3D_8D to "3D+8D"
+            ).forEach { (mode, label) ->
+                FilterChip(
+                    selected = spatialMode == mode,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        vm.selectSpatialMode(mode)
+                    },
+                    label = { Text(label) }
+                )
+            }
         }
 
-        if (state.queue.isNotEmpty()) {
-            val currentIndex = state.queue.indexOfFirst { it.id == state.currentTrack?.id }
-            Spacer(Modifier.height(24.dp))
+        val currentTrack = state.currentTrack
+        val currentIndex = state.queue.indexOfFirst { it.id == currentTrack?.id }
+        val upcoming = if (currentTrack != null && currentIndex >= 0) state.queue.drop(currentIndex + 1) else emptyList()
+        if (upcoming.isNotEmpty()) {
             Text(
-                "Antrean (${state.queue.size})",
+                "Antrean Berikutnya (${upcoming.size})",
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.align(Alignment.Start)
             )
             Spacer(Modifier.height(4.dp))
-            state.queue.forEachIndexed { index, track ->
-                val isCurrent = index == currentIndex
+            upcoming.forEachIndexed { listIndex, track ->
+                val absoluteIndex = currentIndex + 1 + listIndex
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(10.dp))
-                        .clickable { vm.playQueueAt(index) }
-                        .background(
-                            if (isCurrent) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-                            else Color.Transparent
-                        )
+                        .clickable { vm.playQueueAt(absoluteIndex) }
                         .padding(horizontal = 8.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        if (isCurrent) Icons.Rounded.Equalizer else Icons.Rounded.MusicNote,
+                        Icons.Rounded.MusicNote,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
-                        tint = if (isCurrent) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
                         Text(
                             track.title,
                             style = MaterialTheme.typography.bodyMedium,
                             maxLines = 1,
-                            color = if (isCurrent) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             track.artist,
@@ -249,12 +241,12 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit, onOpenStu
                             maxLines = 1
                         )
                     }
-                    IconButton(onClick = { vm.moveQueueItem(index, index - 1) }, enabled = index > 0) {
+                    IconButton(onClick = { vm.moveQueueItem(absoluteIndex, absoluteIndex - 1) }, enabled = absoluteIndex > currentIndex + 1) {
                         Icon(Icons.Rounded.KeyboardArrowUp, contentDescription = "Naik")
                     }
                     IconButton(
-                        onClick = { vm.moveQueueItem(index, index + 1) },
-                        enabled = index < state.queue.lastIndex
+                        onClick = { vm.moveQueueItem(absoluteIndex, absoluteIndex + 1) },
+                        enabled = absoluteIndex < state.queue.lastIndex
                     ) {
                         Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = "Turun")
                     }

@@ -26,19 +26,21 @@ Player dengan efek DSP real-time, audio toolkit, analyzer, dan AI enhancement on
 - Media3 ExoPlayer + `MediaSessionService`: notifikasi media, kontrol lock screen, dan dukungan Android Auto; decoder fallback untuk kompatibilitas hi-res/FLAC.
 - Header cover, acak, previous / play-pause / next, repeat, dan preset kecepatan (0.75×–2×).
 - **Pitch live** (−6..+6 st) — ubah nada langsung saat lagu diputar, tanpa mengubah kecepatan.
-- **Tampilan antrean**: tap lagu untuk lompat, susun ulang dengan panah atas/bawah.
+- **Tampilan antrean**: hanya menampilkan **Antrean Berikutnya** (lagu setelah lagu yang diputar); jika belum ada lagu berikutnya, bagian ini disembunyikan. Tap untuk lompat, susun ulang dengan panah atas/bawah. Dari daftar lagu, menu **Putar Berikutnya** / **Tambahkan ke Antrean** tersedia di setiap lagu.
 - Crossfade (0–12 dtk), sleep timer (15/30/60 mnt), dan **auto normalisasi (ala ReplayGain)** menuju −14 LUFS.
-- **Mode 3D / 8D**: toggle cepat di layar player atau Equalizer > Mode 3D/8D. 3D melebarkan citra stereo (slider kekuatan), 8D menerapkan pan berputar lambat dengan feedback echo (slider kecepatan). Kini **berfungsi di semua lagu — termasuk mono dan hi-res/FLAC — dan toggle langsung berlaku, tanpa perlu ganti lagu**.
+- **Mode 3D / 8D**: preset **Mati / 3D / 8D / 3D+8D / Surround** (chips cepat di player, lengkap di Equalizer). **3D+8D** memutar citra stereo ke kiri-kanan sambil tetap menjaga suara tengah terdengar — cocok untuk headset. Pan 8D kini **tidak lagi mematikan salah satu channel** (slider **Kedalaman Pan**); mode **Surround** menambah gema ruang tanpa rotasi. **Berfungsi di semua lagu — termasuk mono dan hi-res/FLAC — dan toggle langsung berlaku, tanpa perlu ganti lagu**.
 
 **Sound & Effects (Equalizer)**
+- Layar Equalizer kini berupa **menu per-bagian** (tap untuk membuka/menutup): **Prasetel Equalizer**, **Mode 3D/8D**, **Tone & Efek**, dan **Studio: Analisis & DSP** — penyetelan tidak lagi bercampur dalam satu halaman memanjang.
+- **Mode 3D / 8D** — preset siap pakai **atau racik sendiri**: switch **3D**, **8D**, dan **Surround** bisa dikombinasikan bebas (mode berubah jadi "Custom"), plus slider **Kekuatan 3D**, **Kecepatan Putaran 8D**, dan **Kedalaman Pan 8D** (membatasi pergerakan pan agar suara di tengah tetap terdengar di headset).
 - **Tone & Efek Real-time** (selalu aktif, langsung terdengar saat diputar — ala Poweramp):
   - **Treble** −12..+12 dB (shelf filter biquad real-time),
   - **Reverb (Room)** 0–100% + slider **Ukuran Ruangan** (jaringan Schroeder: 4 comb + 2 all-pass per kanal dengan detune stereo),
   - **Pitch (langsung)** −6..+6 st.
 - **Efek Sistem Audio** (butuh lagu berjalan / audio session aktif): band equalizer 5-band (jumlah band sesuai perangkat `AudioEffect` API), prasetel, reset, **Bass** (BassBoost), **Virtualizer**, dan **Balance** stereo.
-- Mode **3D/8D** + slider kekuatan/kecepatan.
+- **Penyetelan tersimpan otomatis** — balance, mode 3D/8D, treble, reverb, pitch, bass, dan band EQ dipulihkan saat app dibuka lagi (tidak reset setelah keluar).
 
-**Studio (satu layar terpadu dari player)**
+**Studio (satu layar terpadu — dibuka dari menu Equalizer > Studio)**
 - Terikat langsung ke lagu yang sedang diputar (otomatis jadi File 1 saat dibuka), dengan analyzer + toolkit di satu tempat:
   - **Info File** — info decode/codec,
   - **Konversi ke WAV** — transcode ke WAV via MediaCodec,
@@ -62,6 +64,7 @@ Player dengan efek DSP real-time, audio toolkit, analyzer, dan AI enhancement on
 
 **UI & ikon**
 - Bahasa Indonesia konsisten di seluruh aplikasi.
+- **Lagu yang sedang diputar ditandai di daftar lagu**: nama lagu berwarna utama + ikon pemutar, jadi mudah dikenali saat menelusuri perpustakaan.
 - Tema gelap premium (palet ungu/cyan) dengan opsi AMOLED.
 - Ikon launcher premium: adaptive icon (gradient + waveform EQ dengan glow), `round` icon, dan `monochrome` untuk themed icon Android 13+.
 - Empty states, transisi antar layar (fade + slide), dialog About, haptic feedback pada kontrol utama, dan cover album di-downsample untuk efisiensi RAM.
@@ -108,7 +111,7 @@ Debug APK: `app/build/outputs/apk/debug/app-debug.apk`
 ./gradlew :app:lintDebug     # Android Lint
 ```
 
-Status di repo ini: build sukses, unit test lulus (9/9 di `:dsp`, 14/14 di `:player`), lint 0 error. CI menjalankan pemeriksaan yang sama di setiap push.
+Status di repo ini: build sukses, unit test lulus (9/9 di `:dsp`, 16/16 di `:player`), lint 0 error. CI menjalankan pemeriksaan yang sama di setiap push.
 
 ## Download APK
 

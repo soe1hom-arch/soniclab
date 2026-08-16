@@ -49,12 +49,21 @@ class PlayerViewModel(private val container: AppContainer) : ViewModel() {
         val current = container.playerController.uiState.value.repeatMode
         container.playerController.setRepeatMode((current + 1) % 3)
     }
-    fun setSpeed(speed: Float) = container.playerController.setSpeed(speed)
-
-    fun toggleSpatialMode(mode: Int) {
-        val next = if (spatialMode == mode) SpatialAudioProcessor.MODE_OFF else mode
-        spatialMode = next
-        AudioSpatialBridge.mode = next
+    fun setSpeed(speed: Float) {
+        container.playerController.setSpeed(speed)
+        viewModelScope.launch { container.settingsRepository.setPlaybackSpeed(speed) }
     }
 
+    fun selectSpatialMode(mode: Int) {
+        AudioSpatialBridge.mode = mode
+        spatialMode = AudioSpatialBridge.mode
+        viewModelScope.launch {
+            container.settingsRepository.setSpatial(
+                AudioSpatialBridge.mode,
+                AudioSpatialBridge.spatial3d,
+                AudioSpatialBridge.spatial8d,
+                AudioSpatialBridge.surround
+            )
+        }
+    }
 }
