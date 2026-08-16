@@ -321,8 +321,8 @@ private fun SettingSection(
     subtitle: String,
     icon: ImageVector,
     initiallyExpanded: Boolean,
-    content: @Composable () -> Unit,
-    onReset: (() -> Unit)? = null
+    onReset: (() -> Unit)? = null,
+    content: @Composable () -> Unit
 ) {
     var expanded by rememberSaveable { mutableStateOf(initiallyExpanded) }
     Column(modifier = Modifier.padding(vertical = 4.dp)) {
