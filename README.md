@@ -82,17 +82,12 @@ Semua processor diturunkan dari `PcmAudioProcessor` yang:
 
 ## Modul (MVVM + Repository)
 
-- `:core` — model domain (Track/Playlist/Preset), result wrapper, permissions, util waktu
-- `:library` — pemindaian & pencarian MediaStore
-- `:playlist` — playlist berbasis JSON + favorit
+Struktur sengaja modular (4 modul) agar pemisahan tanggung jawab jelas: data, pemrosesan audio, playback, dan UI. Kode di dalamnya tetap dikelompokkan per paket (`com.soniclab.*`), jadi lapisan logisnya tidak hilang.
+
+- `:core` — model domain (Track/Playlist/Preset), result wrapper, permissions, util waktu, pemindaian MediaStore, playlist/favorit, preferensi DataStore
+- `:dsp` — pemrosesan sinyal audio & analisis: AudioEffect/Oboe, toolkit DSP & konversi WAV (MediaCodec), analyzer (FFT, LUFS, waveform, info codec), dan AI on-device (TensorFlow Lite + fallback DSP)
 - `:player` — Media3 ExoPlayer + MediaSessionService (notifikasi, lock screen, Android Auto), rantai `PcmAudioProcessor` (balance/gain/tone/reverb/enhance/spatial), kecepatan, crossfade, sleep timer, pitch live via `PlaybackParameters`
-- `:audioengine` — Equalizer/BassBoost/Virtualizer (AudioEffect API), hook Oboe
-- `:toolkit` — konversi WAV berbasis MediaCodec / cut / info file; operasi DSP: join / normalize / reverse / pitch / tempo / vocal reduction (semua terhubung ke UI)
-- `:analyzer` — FFT, bucket spektrum, meter LUFS, waveform, info codec
-- `:visualizer` — visualizer spektrum + waveform Compose
-- `:ai` — enhancer TensorFlow Lite (on-device) dengan fallback DSP klasik; real-time via Media3 AudioProcessor; vocal separator dengan model mask TFLite + fallback spektral
-- `:settings` — preferensi DataStore (AMOLED, crossfade, sleep timer, prasetel EQ)
-- `:app` — UI Compose (theme, navigasi, layar, dialog About)
+- `:app` — UI Compose (theme, navigasi, layar, dialog About) + visualizer spektrum/waveform
 
 ## Build
 
@@ -108,12 +103,12 @@ Debug APK: `app/build/outputs/apk/debug/app-debug.apk`
 
 ```bash
 ./gradlew test               # semua unit test JVM
-./gradlew :toolkit:testDebugUnitTest  # unit test DSP/PCM toolkit
+./gradlew :dsp:testDebugUnitTest      # unit test DSP/PCM toolkit
 ./gradlew :player:testDebugUnitTest   # unit test rantai DSP player (balance/gain/tone/reverb/spatial/enhance)
 ./gradlew :app:lintDebug     # Android Lint
 ```
 
-Status di repo ini: build sukses, unit test lulus (9/9 di `:toolkit`, 14/14 di `:player`), lint 0 error. CI menjalankan pemeriksaan yang sama di setiap push.
+Status di repo ini: build sukses, unit test lulus (9/9 di `:dsp`, 14/14 di `:player`), lint 0 error. CI menjalankan pemeriksaan yang sama di setiap push.
 
 ## Download APK
 

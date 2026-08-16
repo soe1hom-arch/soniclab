@@ -36,15 +36,8 @@ android {
 
 dependencies {
     implementation(project(":core"))
-    implementation(project(":library"))
-    implementation(project(":playlist"))
+    implementation(project(":dsp"))
     implementation(project(":player"))
-    implementation(project(":audioengine"))
-    implementation(project(":toolkit"))
-    implementation(project(":analyzer"))
-    implementation(project(":visualizer"))
-    implementation(project(":ai"))
-    implementation(project(":settings"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

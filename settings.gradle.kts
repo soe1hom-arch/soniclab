@@ -29,12 +29,5 @@ rootProject.name = "SonicLab"
 
 include(":app")
 include(":core")
-include(":library")
-include(":playlist")
+include(":dsp")
 include(":player")
-include(":audioengine")
-include(":toolkit")
-include(":analyzer")
-include(":visualizer")
-include(":ai")
-include(":settings")

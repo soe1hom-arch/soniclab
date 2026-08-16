@@ -16,8 +16,7 @@ android {
 
 dependencies {
     implementation(project(":core"))
-    implementation(project(":ai"))
-    implementation(project(":analyzer"))
+    implementation(project(":dsp"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.media3.exoplayer)

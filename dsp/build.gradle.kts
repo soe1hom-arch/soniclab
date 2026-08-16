@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.soniclab.playlist"
+    namespace = "com.soniclab.dsp"
     compileSdk = 36
     defaultConfig { minSdk = 26 }
     compileOptions {
@@ -18,4 +18,8 @@ dependencies {
     implementation(project(":core"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.google.oboe)
+    implementation(libs.org.tensorflow.lite)
+
+    testImplementation(libs.junit)
 }
