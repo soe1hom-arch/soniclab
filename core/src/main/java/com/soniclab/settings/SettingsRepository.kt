@@ -31,7 +31,8 @@ data class EffectSettings(
     val virtualizerStrength: Int = 0,
     val bandGains: Map<Int, Int> = emptyMap(),
     val activePresetId: String = "none",
-    val playbackSpeed: Float = 1f
+    val playbackSpeed: Float = 1f,
+    val limiterEnabled: Boolean = true
 )
 
 /**
@@ -66,6 +67,7 @@ class SettingsRepository(private val context: Context) {
         val BASS_STRENGTH = intPreferencesKey("bass_strength")
         val VIRTUALIZER_STRENGTH = intPreferencesKey("virtualizer_strength")
         val BAND_GAINS = stringPreferencesKey("band_gains")
+        val LIMITER_ENABLED = booleanPreferencesKey("limiter_enabled")
     }
 
     val activePresetId: Flow<String> = context.dataStore.data.map { it[Keys.ACTIVE_PRESET_ID] ?: "none" }
@@ -77,6 +79,7 @@ class SettingsRepository(private val context: Context) {
     val amoledTheme: Flow<Boolean> = context.dataStore.data.map { it[Keys.AMOLED_THEME] ?: false }
     val aiEnhanceEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.AI_ENHANCE_ENABLED] ?: false }
     val autoNormalizeEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.AUTO_NORMALIZE_ENABLED] ?: false }
+    val limiterEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.LIMITER_ENABLED] ?: true }
 
     /** Reads every effect/replay setting once (used at app startup to restore state). */
     suspend fun loadEffectSettings(): EffectSettings {
@@ -98,7 +101,8 @@ class SettingsRepository(private val context: Context) {
             virtualizerStrength = p[Keys.VIRTUALIZER_STRENGTH] ?: 0,
             bandGains = parseBandGains(p[Keys.BAND_GAINS]),
             activePresetId = p[Keys.ACTIVE_PRESET_ID] ?: "none",
-            playbackSpeed = p[Keys.PLAYBACK_SPEED] ?: 1f
+            playbackSpeed = p[Keys.PLAYBACK_SPEED] ?: 1f,
+            limiterEnabled = p[Keys.LIMITER_ENABLED] ?: true
         )
     }
 
@@ -136,6 +140,10 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setAutoNormalizeEnabled(enabled: Boolean) {
         context.dataStore.edit { it[Keys.AUTO_NORMALIZE_ENABLED] = enabled }
+    }
+
+    suspend fun setLimiterEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.LIMITER_ENABLED] = enabled }
     }
 
     // --- Effect chain persistence (kept across app restarts) ---

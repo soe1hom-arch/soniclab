@@ -10,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.soniclab.app.di.AppContainer
 import com.soniclab.core.model.Preset
 import com.soniclab.player.AudioBalanceBridge
+import com.soniclab.player.AudioLimiterBridge
 import com.soniclab.player.AudioReverbBridge
 import com.soniclab.player.AudioSpatialBridge
 import com.soniclab.player.AudioToneBridge
@@ -142,6 +143,9 @@ class EqualizerViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
+    var limiterEnabled by mutableStateOf(AudioLimiterBridge.enabled)
+        private set
+
     var trebleDb by mutableFloatStateOf(AudioToneBridge.trebleDb)
         private set
 
@@ -153,6 +157,12 @@ class EqualizerViewModel(private val container: AppContainer) : ViewModel() {
 
     val playbackPitch: Float
         get() = container.playerController.uiState.value.playbackPitch
+
+    fun setLimiter(enabled: Boolean) {
+        limiterEnabled = enabled
+        AudioLimiterBridge.enabled = enabled
+        viewModelScope.launch { container.settingsRepository.setLimiterEnabled(enabled) }
+    }
 
     fun updateTreble(value: Float) {
         trebleDb = value.coerceIn(-12f, 12f)

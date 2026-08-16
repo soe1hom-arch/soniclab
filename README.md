@@ -34,10 +34,12 @@ Player dengan efek DSP real-time, audio toolkit, analyzer, dan AI enhancement on
 - Layar Equalizer kini berupa **menu per-bagian** (tap untuk membuka/menutup): **Prasetel Equalizer**, **Mode 3D/8D**, **Tone & Efek**, dan **Studio: Analisis & DSP** — penyetelan tidak lagi bercampur dalam satu halaman memanjang.
 - **Mode 3D / 8D** — preset siap pakai **atau racik sendiri**: switch **3D**, **8D**, dan **Surround** bisa dikombinasikan bebas (mode berubah jadi "Custom"), plus slider **Kekuatan 3D**, **Kecepatan Putaran 8D**, dan **Kedalaman Pan 8D** (membatasi pergerakan pan agar suara di tengah tetap terdengar di headset). Preset **8D+Tengah** = 8D pada audio normal dengan jangkar tengah, tanpa pelebaran stereo.
 - **Tone & Efek Real-time** (selalu aktif, langsung terdengar saat diputar — ala Poweramp):
+  - **Limiter (anti-pecah)** — tahap akhir rantai DSP: puncak di atas 0 dB dikecilkan per-frame (attack instan, release halus) jadi preset boost penuh atau lagu keras tidak lagi terpotong keras,
   - **Treble** −12..+12 dB (shelf filter biquad real-time),
   - **Reverb (Room)** 0–100% + slider **Ukuran Ruangan** (jaringan Schroeder: 4 comb + 2 all-pass per kanal dengan detune stereo),
   - **Pitch (langsung)** −6..+6 st.
 - **Efek Sistem Audio** (butuh lagu berjalan / audio session aktif): band equalizer 5-band (jumlah band sesuai perangkat `AudioEffect` API), prasetel, reset, **Bass** (BassBoost), **Virtualizer**, dan **Balance** stereo.
+- **Prasetel di-retune**: `Music HD` lebih halus (boost ekstrem dikurangi), `Gaming` (V-shape + virtualizer) kini berbeda dari `Car Audio` (bass kuat + mid naik untuk noise jalan), `BT Speaker` fokus mid-bass 100–250 Hz (sub-bass yang tidak bisa direproduksi speaker kecil dihilangkan), plus preset baru **Bass + Vokal**, **Acoustic**, dan **Jazz** (dengan reverb ruang hangat).
 - **Penyetelan tersimpan otomatis** — balance, mode 3D/8D, treble, reverb, pitch, bass, dan band EQ dipulihkan saat app dibuka lagi (tidak reset setelah keluar).
 
 **Studio (satu layar terpadu — dibuka dari menu Equalizer > Studio)**
@@ -74,7 +76,7 @@ Player dengan efek DSP real-time, audio toolkit, analyzer, dan AI enhancement on
 Semua efek playback berjalan dalam satu rantai `AudioProcessor` Media3 di dalam `DefaultAudioSink`:
 
 ```
-balance → gain (auto-normalisasi) → tone (bass/treble) → reverb (room) → AI enhance → spatial (3D/8D)
+balance → gain (auto-normalisasi) → tone (bass/treble) → reverb (room) → AI enhance → spatial (3D/8D) → limiter (anti-pecah)
 ```
 
 Semua processor diturunkan dari `PcmAudioProcessor` yang:
@@ -111,7 +113,7 @@ Debug APK: `app/build/outputs/apk/debug/app-debug.apk`
 ./gradlew :app:lintDebug     # Android Lint
 ```
 
-Status di repo ini: build sukses, unit test lulus (9/9 di `:dsp`, 16/16 di `:player`), lint 0 error. CI menjalankan pemeriksaan yang sama di setiap push.
+Status di repo ini: build sukses, unit test lulus (9/9 di `:dsp`, 19/19 di `:player`), lint 0 error. CI menjalankan pemeriksaan yang sama di setiap push.
 
 ## Download APK
 

@@ -124,7 +124,7 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
     }
 
     private fun process3D(input: FloatArray, out: FloatArray, frames: Int) {
-        val width = 1f + widthStrength.coerceIn(0f, 1f) * 1.8f
+        val width = 1f + widthStrength.coerceIn(0f, 1f) * WIDTH_MAX
         if (inputChannels == 1) {
             // No side information in mono; keep the duplicated signal intact.
             duplicateMono(input, out)
@@ -137,8 +137,11 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
             val r = input[i++]
             val mid = (l + r) * 0.5f
             val side = (l - r) * 0.5f
-            out[o++] = mid + side * width
-            out[o++] = mid - side * width
+            // Presence guard: mid (vokal/center) ikut dinaikkan sebagian saat
+            // side dilebarkan, jadi suara tengah tidak tenggelam/berlubang.
+            val midGain = 1f + (width - 1f) * PRESENCE_GUARD
+            out[o++] = mid * midGain + side * width
+            out[o++] = mid * midGain - side * width
         }
     }
 
@@ -235,7 +238,8 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
 
     /** 3D widening plus a gentle room echo, no rotation. */
     private fun processSurround(input: FloatArray, out: FloatArray, frames: Int, widen: Boolean) {
-        val width = 1f + widthStrength.coerceIn(0f, 1f) * 1.8f
+        val width = 1f + widthStrength.coerceIn(0f, 1f) * WIDTH_MAX
+        val midGain = 1f + (width - 1f) * PRESENCE_GUARD
         if (inputChannels == 1) {
             var i = 0
             var o = 0
@@ -261,8 +265,8 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
             val r = input[i++]
             val mid = (l + r) * 0.5f
             val side = (l - r) * 0.5f
-            val widL = if (widen) mid + side * width else l
-            val widR = if (widen) mid - side * width else r
+            val widL = if (widen) mid * midGain + side * width else l
+            val widR = if (widen) mid * midGain - side * width else r
             val readPos = (delayWritePos - delayReadOffset + delayBufferL.size) % delayBufferL.size
             val echoL = delayBufferL[readPos]
             val echoR = delayBufferR[readPos]
@@ -322,6 +326,8 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
         const val DEFAULT_ROTATION_SECONDS = 8f
         const val DEFAULT_PAN_DEPTH = 0.6f
         private const val CENTER_ANCHOR = 0.45f
+        private const val WIDTH_MAX = 1.8f
+        private const val PRESENCE_GUARD = 0.35f
         private const val ECHO_DELAY_SECONDS = 0.38f
         private const val ECHO_FEEDBACK = 0.3f
     }

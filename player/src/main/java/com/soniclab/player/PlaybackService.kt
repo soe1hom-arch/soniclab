@@ -30,7 +30,8 @@ class PlaybackService : MediaSessionService() {
                 AudioToneBridge.processor,
                 AudioReverbBridge.processor,
                 AudioEnhanceBridge.processor,
-                AudioSpatialBridge.processor
+                AudioSpatialBridge.processor,
+                AudioLimiterBridge.processor
             )
         )
         val player = ExoPlayer.Builder(this, factory).build()

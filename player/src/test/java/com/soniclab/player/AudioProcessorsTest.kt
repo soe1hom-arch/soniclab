@@ -11,6 +11,7 @@ import org.junit.Test
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.abs
+import kotlin.math.max
 import kotlin.math.sin
 
 class AudioProcessorsTest {
@@ -128,6 +129,43 @@ class AudioProcessorsTest {
         p.queueInput(pcm16(5000, -5000))
         val out = readShorts(p.getOutput())
         assertNotEquals(shortArrayOf(5000, -5000).toList(), out.toList())
+    }
+
+    // --- LimiterAudioProcessor ---
+
+    @Test
+    fun limiter_reducesPeakToThreshold() {
+        val p = LimiterAudioProcessor()
+        p.threshold = LimiterAudioProcessor.DEFAULT_THRESHOLD
+        p.configure(stereoFloat)
+        p.queueInput(floats(2f, -2f, 0.5f, 0.5f))
+        val out = readFloats(p.getOutput())
+        assertEquals(4, out.size)
+        var peak = 0f
+        for (v in out) peak = max(peak, abs(v))
+        assertTrue("peak must be limited to threshold, got $peak", peak <= 0.981f)
+    }
+
+    @Test
+    fun limiter_disabled_passesThrough() {
+        val p = LimiterAudioProcessor()
+        p.enabled = false
+        p.configure(stereoFloat)
+        p.queueInput(floats(2f, -2f))
+        assertArrayEquals(floatArrayOf(2f, -2f), readFloats(p.getOutput()), 0f)
+    }
+
+    @Test
+    fun spatial_3D_presenceGuardBoostsCenter() {
+        val p = SpatialAudioProcessor()
+        p.mode = SpatialAudioProcessor.MODE_3D
+        p.widthStrength = 1f
+        p.configure(stereoFloat)
+        p.queueInput(floats(*FloatArray(8) { 0.5f }))
+        val out = readFloats(p.getOutput())
+        for (v in out) {
+            assertTrue("center must stay boosted above 0.5, got $v", abs(v) > 0.5f)
+        }
     }
 
     // --- BalanceAudioProcessor ---

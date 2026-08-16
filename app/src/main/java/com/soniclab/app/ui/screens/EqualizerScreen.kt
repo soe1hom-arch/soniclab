@@ -236,6 +236,16 @@ fun EqualizerScreen(container: AppContainer, onOpenStudio: () -> Unit) {
             icon = Icons.Rounded.GraphicEq,
             initiallyExpanded = false
         ) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+                Text("Limiter (anti-pecah)", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                Switch(checked = vm.limiterEnabled, onCheckedChange = vm::setLimiter)
+            }
+            Text(
+                "Mencegah distorsi saat preset boost penuh atau lagu keras.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 6.dp)
+            )
             ToneSlider(
                 label = "Treble",
                 value = vm.trebleDb,

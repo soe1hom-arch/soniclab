@@ -11,6 +11,7 @@ import com.soniclab.audioengine.AudioEffectEngine
 import com.soniclab.library.LibraryRepository
 import com.soniclab.player.AudioBalanceBridge
 import com.soniclab.player.AudioEnhanceBridge
+import com.soniclab.player.AudioLimiterBridge
 import com.soniclab.player.AudioReverbBridge
 import com.soniclab.player.AudioSpatialBridge
 import com.soniclab.player.AudioToneBridge
@@ -83,6 +84,8 @@ class AppContainer(context: Context) {
                 s.virtualizerStrength.coerceIn(0, 1000).toShort()
             )
         }
+
+        AudioLimiterBridge.enabled = s.limiterEnabled
 
         playerController.setPitchSemitones(s.pitchSemitones)
         playerController.setSpeed(s.playbackSpeed)
