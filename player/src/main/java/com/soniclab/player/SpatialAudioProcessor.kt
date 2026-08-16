@@ -10,8 +10,8 @@ import kotlin.math.sin
  *
  * - 3D: mid/side stereo widening — pushes the image "out of the head".
  * - 8D: slow LFO-rotated pan with a feedback echo, the classic 8D effect.
- * - 3D+8D: combination — the 8D rotation pans around while a center anchor
- *   keeps the middle of the mix audible on headphones.
+ * - 8D+Tengah: plain audio (no widening) rotated by 8D while a center anchor
+ *   keeps the middle of the mix audible on headphones — sounds full, not split.
  * - Surround: 3D widening with a gentle room echo, no rotation.
  *
  * The "pan depth" control limits how far the 8D pan travels, so one channel
@@ -183,9 +183,12 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
         }
     }
 
-    /** 8D rotation over a 3D-widened image; a center anchor keeps the middle audible. */
+    /**
+     * 8D rotation over the plain signal with a center anchor — the rotation
+     * pans left/right but the middle of the mix stays audible and the sound
+     * stays full (no mid/side widening that can sound split on headphones).
+     */
     private fun process3D8D(input: FloatArray, out: FloatArray, frames: Int) {
-        val width = 1f + widthStrength.coerceIn(0f, 1f) * 1.8f
         val phaseStep = phaseStep()
         if (inputChannels == 1) {
             var i = 0
@@ -214,17 +217,14 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
             val l = input[i++]
             val r = input[i++]
             val mid = (l + r) * 0.5f
-            val side = (l - r) * 0.5f
-            val widL = mid + side * width
-            val widR = mid - side * width
             val (gainL, gainR) = panGains()
             phase += phaseStep
             val anchor = mid * CENTER_ANCHOR
             val readPos = (delayWritePos - delayReadOffset + delayBufferL.size) % delayBufferL.size
             val echoL = delayBufferL[readPos]
             val echoR = delayBufferR[readPos]
-            val outL = widL * gainL + anchor + echoL * ECHO_FEEDBACK
-            val outR = widR * gainR + anchor + echoR * ECHO_FEEDBACK
+            val outL = l * gainL + anchor + echoL * ECHO_FEEDBACK
+            val outR = r * gainR + anchor + echoR * ECHO_FEEDBACK
             delayBufferL[delayWritePos] = outL
             delayBufferR[delayWritePos] = outR
             delayWritePos = (delayWritePos + 1) % delayBufferL.size

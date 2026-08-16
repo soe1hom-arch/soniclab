@@ -188,7 +188,7 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit, onOpenStu
                 SpatialAudioProcessor.MODE_OFF to "Mati",
                 SpatialAudioProcessor.MODE_3D to "3D",
                 SpatialAudioProcessor.MODE_8D to "8D",
-                SpatialAudioProcessor.MODE_3D_8D to "3D+8D"
+                SpatialAudioProcessor.MODE_3D_8D to "8D+Tengah"
             ).forEach { (mode, label) ->
                 FilterChip(
                     selected = spatialMode == mode,

@@ -170,7 +170,7 @@ fun EqualizerScreen(container: AppContainer, onOpenStudio: () -> Unit) {
                         SpatialAudioProcessor.MODE_OFF to "Mati",
                         SpatialAudioProcessor.MODE_3D to "3D",
                         SpatialAudioProcessor.MODE_8D to "8D",
-                        SpatialAudioProcessor.MODE_3D_8D to "3D + 8D",
+                        SpatialAudioProcessor.MODE_3D_8D to "8D + Tengah",
                         SpatialAudioProcessor.MODE_SURROUND to "Surround"
                     )
                 ) { (mode, label) ->
