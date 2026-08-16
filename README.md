@@ -3,74 +3,100 @@
 [![Android Build](https://github.com/soe1hom-arch/soniclab/actions/workflows/android-build.yml/badge.svg)](https://github.com/soe1hom-arch/soniclab/actions/workflows/android-build.yml)
 
 Premium, **fully offline** Android music player & audio toolkit (Kotlin + Jetpack Compose + Media3).
-Player, real-time DSP effects, audio toolkit, analyzer, and on-device AI enhancement — no cloud, no account, no internet required.
+Player dengan efek DSP real-time, audio toolkit, analyzer, dan AI enhancement on-device — tanpa cloud, tanpa akun, tanpa internet.
 
 ## Offline-first
 
-- The app manifest declares **no `INTERNET` permission** — nothing in the app phones home.
-- All processing (playback effects, toolkit, analysis, AI models) runs on-device.
-- Permissions are limited to what the features need: reading local audio, foreground media playback, notifications, wake lock, and audio-session control.
+- Manifest aplikasi **tidak mendeklarasikan izin `INTERNET`** — tidak ada satu pun yang "phone home".
+- Semua pemrosesan (efek playback, toolkit, analisis, model AI) berjalan on-device.
+- Izin dibatasi hanya untuk fitur: membaca audio lokal, media playback di foreground, notifikasi, wake lock, dan kontrol audio session.
 
-## Features (matching the current APK)
+## Fitur (sesuai APK saat ini)
 
-**Library**
-- Scans local media via MediaStore (needs the “allow access to audio” permission flow built into the app).
-- Tabs for **Tracks / Albums / Artists**: album grid with art covers, artist list, and drill-down into each album/artist.
-- Search by track/artist/album, favorites, and a browseable track list with album-art thumbnails.
+**Perpustakaan (Library)**
+- Memindai media lokal via MediaStore (dengan alur izin "akses audio" bawaan aplikasi).
+- Tab **Lagu / Album / Artis**: grid album dengan cover art, daftar artis, dan drill-down ke setiap album/artis.
+- Pencarian lagu/artis/album, favorit, dan daftar lagu dengan thumbnail cover.
+- Empty state yang jelas saat perpustakaan kosong, pencarian tanpa hasil, atau izin belum diberikan.
 
-**Mini-player (all screens)**
-- Persistent now-playing bar above the bottom navigation with album art, play/pause, next, and a thin progress line; tap to open the full player.
+**Mini-player (semua layar)**
+- Bar lagu yang sedang diputar di atas bottom navigation: cover, play/pause, next, dan garis progres tipis; tap untuk membuka player penuh.
 
 **Player**
-- Media3 ExoPlayer with a `MediaSessionService`: media notification, lock-screen controls, and Android Auto support; decoder fallback enabled for hi-res/FLAC compatibility.
-- Album-art header, shuffle, previous / play-pause / next, repeat cycling, and playback speed presets (0.75×–2×).
-- **Queue view**: tap any queued track to jump to it, reorder with up/down arrows.
-- Crossfade (0–12 s), a sleep timer (15/30/60 min), and optional **auto normalization (ReplayGain-style)** toward −14 LUFS.
-- **Mode 3D / 8D**: quick toggles on the player screen, or Equalizer > Mode 3D/8D; 3D widens the stereo image (strength slider), 8D applies a slow rotating pan with feedback echo (rotation speed slider).
+- Media3 ExoPlayer + `MediaSessionService`: notifikasi media, kontrol lock screen, dan dukungan Android Auto; decoder fallback untuk kompatibilitas hi-res/FLAC.
+- Header cover, acak, previous / play-pause / next, repeat, dan preset kecepatan (0.75×–2×).
+- **Pitch live** (−6..+6 st) — ubah nada langsung saat lagu diputar, tanpa mengubah kecepatan.
+- **Tampilan antrean**: tap lagu untuk lompat, susun ulang dengan panah atas/bawah.
+- Crossfade (0–12 dtk), sleep timer (15/30/60 mnt), dan **auto normalisasi (ala ReplayGain)** menuju −14 LUFS.
+- **Mode 3D / 8D**: toggle cepat di layar player atau Equalizer > Mode 3D/8D. 3D melebarkan citra stereo (slider kekuatan), 8D menerapkan pan berputar lambat dengan feedback echo (slider kecepatan). Kini **berfungsi di semua lagu — termasuk mono dan hi-res/FLAC — dan toggle langsung berlaku, tanpa perlu ganti lagu**.
 
-**Equalizer**
-- 5-band gain sliders (per-device band count from the platform `AudioEffect` API), presets, and reset.
-- **Tone & effects**: Bass and Virtualizer sliders, plus a stereo **Balance** control (via a real-time audio processor in the playback chain).
-- Active only while the player audio session is connected (plays when a track is loaded).
+**Sound & Effects (Equalizer)**
+- **Tone & Efek Real-time** (selalu aktif, langsung terdengar saat diputar — ala Poweramp):
+  - **Treble** −12..+12 dB (shelf filter biquad real-time),
+  - **Reverb (Room)** 0–100% + slider **Ukuran Ruangan** (jaringan Schroeder: 4 comb + 2 all-pass per kanal dengan detune stereo),
+  - **Pitch (langsung)** −6..+6 st.
+- **Efek Sistem Audio** (butuh lagu berjalan / audio session aktif): band equalizer 5-band (jumlah band sesuai perangkat `AudioEffect` API), prasetel, reset, **Bass** (BassBoost), **Virtualizer**, dan **Balance** stereo.
+- Mode **3D/8D** + slider kekuatan/kecepatan.
 
-**Studio (one unified screen from the player)**
-- Bound directly to the currently playing track (auto-used as File 1 when opened), with analyzer + toolkit in one place:
-  - **Info File** — decode/codec info,
-  - **Konversi ke WAV** — transcode to WAV via MediaCodec,
-  - **Cut** — export the first 30 seconds.
-- **DSP engine (on-device)** — fully wired to the UI (full-file processing is capped at ~10 minutes per file to stay within safe on-device memory):
-  - **Join** — concatenate two picked files into one WAV,
-  - **Reverse** — reversed audio,
-  - **Pitch** (−12..+12 st) and **Tempo** (0.5×–2×) — interactive WSOLA sliders,
-  - **Normalizer (−14 LUFS)** — loudness normalization,
-  - **Vocal Remover** — instrumental output (stereo file required; TFLite mask + spectral fallback).
-- **Analyzer** — one-tap analysis of the currently playing track or the picked file: waveform preview, audio file info, and loudness (LUFS) analysis driven by a `PcmReader` pipeline.
+**Studio (satu layar terpadu dari player)**
+- Terikat langsung ke lagu yang sedang diputar (otomatis jadi File 1 saat dibuka), dengan analyzer + toolkit di satu tempat:
+  - **Info File** — info decode/codec,
+  - **Konversi ke WAV** — transcode ke WAV via MediaCodec,
+  - **Cut** — ekspor 30 detik pertama.
+- **DSP engine (on-device)** — terhubung penuh ke UI (pemrosesan file penuh dibatasi ~10 menit per file demi keamanan memori):
+  - **Join** — gabungkan dua file menjadi satu WAV,
+  - **Reverse** — audio diputar balik,
+  - **Pitch** (−12..+12 st) dan **Tempo** (0.5×–2×) — slider WSOLA interaktif,
+  - **Normalizer (−14 LUFS)** — normalisasi loudness,
+  - **Vocal Remover** — keluaran instrumental (butuh file stereo; mask TFLite + fallback spektral).
+- **Hasil tool**: setiap tool yang selesai memunculkan kartu **Hasil Siap** dengan aksi **Mainkan** (langsung putar hasilnya), **Bagikan** (share sheet via FileProvider), dan **Simpan ke Download** (MediaStore, Android 10+).
+- **Analyzer** — analisis sekali sentuh untuk lagu yang diputar atau file yang dipilih: pratinjau waveform, info file audio, dan analisis loudness (LUFS) melalui pipeline `PcmReader`.
 
 **AI (on-device)**
-- **AI Enhance** — real-time enhancement wired into the playback path via a Media3 `AudioProcessor`; TensorFlow Lite denoiser model with a classic DSP fallback when no model is present.
-- **Vocal separator** — bundled TFLite mask model (with a spectral/STFT center-channel fallback).
-- Bundled models: `denoiser_v1.tflite`, `separator_v1.tflite` (shipped inside the APK assets).
+- **AI Enhance** — peningkatan real-time di jalur playback via Media3 `AudioProcessor`; model denoiser TensorFlow Lite dengan fallback DSP klasik. Kini juga aktif untuk track float/hi-res.
+- **Vocal separator** — model mask TFLite bawaan (dengan fallback spektral/STFT center-channel).
+- Model bawaan: `denoiser_v1.tflite`, `separator_v1.tflite` (dikirim di dalam aset APK).
 
-**Settings**
-- AMOLED (pure-black) theme, AI Enhance toggle (real-time), crossfade slider, sleep timer, and current AI model status.
+**Pengaturan (Settings)**
+- Tema **AMOLED** (hitam pekat), toggle **AI Enhance** (real-time), **Auto Normalisasi**, slider **Crossfade**, **Timer Tidur**, status model AI, dan **Tentang Aplikasi & Developer** (dialog info lengkap).
 
-## Modules (MVVM + Repository)
+**UI & ikon**
+- Bahasa Indonesia konsisten di seluruh aplikasi.
+- Tema gelap premium (palet ungu/cyan) dengan opsi AMOLED.
+- Ikon launcher premium: adaptive icon (gradient + waveform EQ dengan glow), `round` icon, dan `monochrome` untuk themed icon Android 13+.
+- Empty states, transisi antar layar (fade + slide), dan dialog About.
 
-- `:core` — domain models (Track/Playlist/Preset), result wrapper, permissions, time utils
-- `:library` — MediaStore scan & search
-- `:playlist` — JSON-backed playlists + favorites
-- `:player` — Media3 ExoPlayer + MediaSessionService (notification, lock screen, Android Auto), speed, crossfade, sleep timer
-- `:audioengine` — Equalizer/BassBoost/Virtualizer (AudioEffect API), Oboe hook
-- `:toolkit` — MediaCodec-based WAV convert / cut / file info; DSP ops: join / normalize / reverse / pitch / tempo / vocal reduction (all wired to the UI)
-- `:analyzer` — FFT, spectrum buckets, LUFS meter, waveform, codec info
-- `:visualizer` — Compose spectrum + waveform visualizers
-- `:ai` — TensorFlow Lite enhancer (on-device) with classic DSP fallback; real-time via a Media3 AudioProcessor; vocal separator with bundled TFLite mask model + spectral fallback
-- `:settings` — DataStore preferences (AMOLED, crossfade, sleep timer, EQ preset)
-- `:app` — Compose UI (theme, navigation, screens)
+## Rantai DSP real-time
+
+Semua efek playback berjalan dalam satu rantai `AudioProcessor` Media3 di dalam `DefaultAudioSink`:
+
+```
+balance → gain (auto-normalisasi) → tone (bass/treble) → reverb (room) → AI enhance → spatial (3D/8D)
+```
+
+Semua processor diturunkan dari `PcmAudioProcessor` yang:
+- menerima **PCM16 dan PCM float** (tidak lagi gagal pada track hi-res/FLAC),
+- selalu aktif sehingga **toggle efek berlaku seketika** tanpa menunggu seek/ganti lagu,
+- meng-upmix **mono → stereo** untuk efek 3D/8D,
+- melewatkan audio secara utuh (zero-copy) saat efek mati.
+
+## Modul (MVVM + Repository)
+
+- `:core` — model domain (Track/Playlist/Preset), result wrapper, permissions, util waktu
+- `:library` — pemindaian & pencarian MediaStore
+- `:playlist` — playlist berbasis JSON + favorit
+- `:player` — Media3 ExoPlayer + MediaSessionService (notifikasi, lock screen, Android Auto), rantai `PcmAudioProcessor` (balance/gain/tone/reverb/enhance/spatial), kecepatan, crossfade, sleep timer, pitch live via `PlaybackParameters`
+- `:audioengine` — Equalizer/BassBoost/Virtualizer (AudioEffect API), hook Oboe
+- `:toolkit` — konversi WAV berbasis MediaCodec / cut / info file; operasi DSP: join / normalize / reverse / pitch / tempo / vocal reduction (semua terhubung ke UI)
+- `:analyzer` — FFT, bucket spektrum, meter LUFS, waveform, info codec
+- `:visualizer` — visualizer spektrum + waveform Compose
+- `:ai` — enhancer TensorFlow Lite (on-device) dengan fallback DSP klasik; real-time via Media3 AudioProcessor; vocal separator dengan model mask TFLite + fallback spektral
+- `:settings` — preferensi DataStore (AMOLED, crossfade, sleep timer, prasetel EQ)
+- `:app` — UI Compose (theme, navigasi, layar, dialog About)
 
 ## Build
 
-Requirements: JDK 17+, Android SDK with `platforms;android-36` and `build-tools;36.0.0`.
+Requirements: JDK 17+, Android SDK dengan `platforms;android-36` dan `build-tools;36.0.0`.
 
 ```bash
 ./gradlew :app:assembleDebug
@@ -81,42 +107,46 @@ Debug APK: `app/build/outputs/apk/debug/app-debug.apk`
 ## Test, lint & analysis
 
 ```bash
-./gradlew test               # all JVM unit tests
-./gradlew :toolkit:testDebugUnitTest  # DSP/PCM unit tests
+./gradlew test               # semua unit test JVM
+./gradlew :toolkit:testDebugUnitTest  # unit test DSP/PCM toolkit
+./gradlew :player:testDebugUnitTest   # unit test rantai DSP player (balance/gain/tone/reverb/spatial/enhance)
 ./gradlew :app:lintDebug     # Android Lint
 ```
 
-Verified on this repo: build succeeds, unit tests pass (9/9 on `:toolkit`), lint reports 0 errors. CI runs the same checks on every push.
+Status di repo ini: build sukses, unit test lulus (9/9 di `:toolkit`, 14/14 di `:player`), lint 0 error. CI menjalankan pemeriksaan yang sama di setiap push.
 
-## Download the APK
+## Download APK
 
-The repository is **public** and GitHub Actions builds a debug APK on every push to `main`:
+Repo ini **publik** dan GitHub Actions membangun APK debug di setiap push ke `main`:
 
-1. Open **Actions** → the latest green **Android Build** run.
-2. Download the **soniclab-debug-apk** artifact.
-3. Install `app-debug.apk` on a device (Android 8.0+ / API 26+).
+1. Buka **Actions** → run **Android Build** terbaru yang hijau.
+2. Unduh artifact **soniclab-debug-apk**.
+3. Install `app-debug.apk` di perangkat (Android 8.0+ / API 26+).
 
-Or build locally with the command above.
+Atau build lokal dengan perintah di atas.
 
-## Bundled AI models & training
+## Model AI bawaan & pelatihan
 
-The tiny on-device models are generated from `scripts/` (pure NumPy + flatbuffers — no TensorFlow/PyTorch install needed):
+Model kecil on-device dibuat dari `scripts/` (NumPy murni + flatbuffers — tanpa instalasi TensorFlow/PyTorch):
 
 ```bash
-python3 scripts/train_denoiser.py   # regenerates ai/.../assets/models/denoiser_v1.tflite
-python3 scripts/train_separator.py  # regenerates ai/.../assets/models/separator_v1.tflite
+python3 scripts/train_denoiser.py   # regenerasi ai/.../assets/models/denoiser_v1.tflite
+python3 scripts/train_separator.py  # regenerasi ai/.../assets/models/separator_v1.tflite
 ```
 
-## Honest status
+## Status jujur
 
-- **Verified by CI**: compile + unit tests + lint are green; the debug APK is produced automatically.
-- **Not yet verified**: real-device runtime behavior (EQ audio session behavior per device, MediaSession/notification, AI Enhance quality on real music, toolkit processing on large files). Those need manual testing on a physical Android device.
+- **Terverifikasi oleh CI**: compile + unit test + lint hijau; APK debug dihasilkan otomatis.
+- **Belum terverifikasi**: perilaku runtime di perangkat nyata (perilaku audio session EQ per perangkat, MediaSession/notifikasi, kualitas AI Enhance pada musik asli, pemrosesan toolkit pada file besar, hasil efek DSP real-time). Ini perlu pengujian manual di perangkat Android fisik.
 
 ## Roadmap
 
-- Higher-quality AI models trained on real music data.
-- More WSOLA quality knobs (quality presets in the UI), release build signing.
+- Model AI berkualitas lebih tinggi yang dilatih dari data musik asli.
+- Lebih banyak knob kualitas WSOLA (prasetel kualitas di UI).
+- Migrasi string UI ke resources (`strings.xml`) untuk dukungan multi-bahasa formal.
+- Polish tambahan: snackbar global, haptic feedback, downsampling cover album untuk efisiensi RAM.
+- Release build dengan signing.
 
-## License
+## Lisensi
 
-[MIT](LICENSE) © 2026 soe1hom-arch
+[Apache License 2.0](LICENSE) © 2026 soe1hom-arch
