@@ -37,6 +37,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.soniclab.app.di.AppContainer
 import com.soniclab.app.ui.common.MiniPlayerBar
+import com.soniclab.app.ui.screens.AboutScreen
 import com.soniclab.app.ui.screens.EqualizerScreen
 import com.soniclab.app.ui.screens.LibraryScreen
 import com.soniclab.app.ui.screens.PlayerScreen
@@ -160,7 +161,10 @@ fun SonicLabAppRoot(container: AppContainer) {
             composable("equalizer") {
                 EqualizerScreen(container, onOpenStudio = { navController.navigate("studio") })
             }
-            composable("settings") { SettingsScreen(container) }
+            composable("settings") {
+                SettingsScreen(container, onOpenAbout = { navController.navigate("about") })
+            }
+            composable("about") { AboutScreen(onBack = { navController.popBackStack() }) }
         }
     }
 }
