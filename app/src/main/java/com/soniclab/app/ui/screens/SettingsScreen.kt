@@ -1,5 +1,8 @@
 package com.soniclab.app.ui.screens
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -10,6 +13,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -20,6 +25,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.material.icons.rounded.OfflineBolt
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.AlertDialog
@@ -41,10 +51,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.soniclab.app.BuildConfig
+import com.soniclab.app.R
 import com.soniclab.app.di.AppContainer
 import com.soniclab.app.ui.common.appViewModel
 import com.soniclab.app.ui.theme.CyanAccent
@@ -173,33 +187,42 @@ fun SettingsScreen(container: AppContainer) {
 
 @Composable
 private fun AboutDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(onClick = onDismiss) { Text("Tutup") }
         },
-        title = { Text("Tentang SonicLab") },
+        title = { Text("Tentang Aplikasi") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .heightIn(max = 460.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(44.dp)
-                            .clip(CircleShape)
-                            .background(Brush.linearGradient(listOf(PurpleAccent, CyanAccent))),
+                            .size(56.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(Color(0xFF140A2E), Color(0xFF3D1B96), PurpleAccent)
+                                )
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            "SL",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleMedium
+                        Icon(
+                            painterResource(R.drawable.ic_launcher_foreground),
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp)
                         )
                     }
-                    Column(Modifier.padding(start = 12.dp)) {
+                    Column(Modifier.padding(start = 14.dp)) {
                         Text("SonicLab", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                         Text(
-                            "Versi ${BuildConfig.VERSION_NAME}",
+                            "Versi ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -207,31 +230,98 @@ private fun AboutDialog(onDismiss: () -> Unit) {
                 }
 
                 Text(
-                    "Premium AI Audio Studio — pemutar musik & toolkit audio yang sepenuhnya offline.",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-
-                Text(
-                    "Fitur unggulan: pemutar Media3 dengan efek DSP real-time (Equalizer, 3D/8D, Reverb, Pitch, Balance), AI on-device (enhancer & vocal separator), analisis & toolkit audio. Tanpa iklan, tanpa internet, tanpa akun.",
+                    "Pemutar musik & toolkit audio premium, sepenuhnya offline. " +
+                        "Tanpa iklan, tanpa akun, tanpa internet.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                HorizontalDivider()
 
-                Text("Tentang Developer", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    "Dikembangkan oleh soe1hom-arch — developer Android (Kotlin, Jetpack Compose, Media3).",
-                    style = MaterialTheme.typography.bodyMedium
+                Text("Fitur Unggulan", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                AboutRow(Icons.Rounded.GraphicEq, "DSP real-time", "Equalizer, 3D/8D, reverb, pitch & balance")
+                AboutRow(Icons.Rounded.AutoAwesome, "AI on-device", "Enhancer & pemisah vokal tanpa internet")
+                AboutRow(Icons.Rounded.OfflineBolt, "Fokus privasi", "Semua proses di perangkat, tanpa data dikirim")
+
+                HorizontalDivider()
+
+                Text("Informasi Aplikasi", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                AboutRow(Icons.Rounded.Description, "Lisensi", "Apache-2.0 — open source")
+                AboutRow(
+                    Icons.Rounded.Public,
+                    "Kode sumber",
+                    "github.com/soe1hom-arch/soniclab",
+                    onClick = { openUrl(context, GITHUB_URL) }
                 )
+
+                HorizontalDivider()
+
+                Text("Tentang Developer", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                AboutRow(Icons.Rounded.Person, "soe1hom-arch", "Developer Android — Kotlin, Compose, Media3")
                 Text(
-                    "SonicLab adalah proyek pribadi, dibuat dengan fokus pada kualitas suara, privasi, dan pengalaman premium. Umpan balik pengguna sangat dihargai.",
+                    "Proyek pribadi yang dibuat dengan fokus pada kualitas suara, privasi, " +
+                        "dan pengalaman premium. Umpan balik sangat dihargai — silakan buka " +
+                        "issue di repositori GitHub.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
     )
+}
+
+private const val GITHUB_URL = "https://github.com/soe1hom-arch/soniclab"
+
+@Composable
+private fun AboutRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: (() -> Unit)? = null
+) {
+    val content: @Composable RowScope.() -> Unit = {
+        Icon(icon, contentDescription = null, tint = PurpleAccent, modifier = Modifier.size(22.dp))
+        Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        if (onClick != null) {
+            Icon(
+                Icons.Rounded.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+    if (onClick != null) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .clickable(onClick = onClick)
+                .padding(horizontal = 8.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            content = content
+        )
+    } else {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            content = content
+        )
+    }
+}
+
+private fun openUrl(context: Context, url: String) {
+    try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    } catch (_: Exception) {
+        // No browser available; ignore silently.
+    }
 }
 
 @Composable

@@ -53,6 +53,9 @@ class PlayerController(private val context: Context) {
     private var fadeJob: Job? = null
     private var sleepTimerJob: Job? = null
 
+    /** Media ids of tracks the user queued manually (Putar Berikutnya / Tambahkan ke Antrean). */
+    private val manualQueueIds = mutableListOf<Long>()
+
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             if (!isPlaying) {
@@ -127,6 +130,7 @@ class PlayerController(private val context: Context) {
 
     fun playQueue(tracks: List<Track>, startIndex: Int = 0) {
         if (tracks.isEmpty()) return
+        manualQueueIds.clear()
         val mediaItems = tracks.map { it.toMediaItem() }
         controller?.setMediaItems(mediaItems, startIndex.coerceIn(0, mediaItems.lastIndex), 0L)
         controller?.prepare()
@@ -142,6 +146,7 @@ class PlayerController(private val context: Context) {
         }
         val index = (c.currentMediaItemIndex + 1).coerceAtMost(c.mediaItemCount)
         c.addMediaItems(index, listOf(track.toMediaItem()))
+        manualQueueIds.add(track.id)
     }
 
     /** Appends [track] at the end of the queue ("tambah ke antrean"). */
@@ -152,6 +157,7 @@ class PlayerController(private val context: Context) {
             return
         }
         c.addMediaItems(c.mediaItemCount, listOf(track.toMediaItem()))
+        manualQueueIds.add(track.id)
     }
 
     private fun Track.toMediaItem(): MediaItem =
@@ -337,9 +343,16 @@ class PlayerController(private val context: Context) {
                 }
             }
         }
+        mediaItem?.mediaId?.toLongOrNull()?.let { currentId ->
+            manualQueueIds.removeAll { it == currentId }
+        }
+        val userQueue = queue.filterIndexed { index, t ->
+            index > c.currentMediaItemIndex && manualQueueIds.contains(t.id)
+        }
         _uiState.value = _uiState.value.copy(
             currentTrack = track,
             queue = queue,
+            userQueue = userQueue,
             durationMs = c.duration.takeIf { it > 0 } ?: track?.durationMs ?: 0L,
             positionMs = c.currentPosition,
             repeatMode = c.repeatMode,

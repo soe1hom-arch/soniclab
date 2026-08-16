@@ -15,7 +15,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Equalizer
-import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.MusicNote
@@ -52,7 +51,7 @@ import com.soniclab.visualizer.SpectrumVisualizer
 import kotlin.math.max
 
 @Composable
-fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit, onOpenStudio: () -> Unit) {
+fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit) {
     val haptic = LocalHapticFeedback.current
     val vm: PlayerViewModel = appViewModel { PlayerViewModel(it) }
     val state by vm.uiState.collectAsStateWithLifecycle()
@@ -71,12 +70,25 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit, onOpenStu
         )
 
         Spacer(Modifier.height(24.dp))
-        Text(
-            state.currentTrack?.title ?: "Tidak Ada yang Diputar",
-            style = MaterialTheme.typography.headlineMedium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                state.currentTrack?.title ?: "Tidak Ada yang Diputar",
+                style = MaterialTheme.typography.headlineMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            IconButton(onClick = onOpenEqualizer) {
+                Icon(
+                    Icons.Rounded.Equalizer,
+                    contentDescription = "Equalizer",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
         Text(
             state.currentTrack?.artist ?: "—",
             style = MaterialTheme.typography.bodyMedium,
@@ -172,17 +184,6 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit, onOpenStu
         }
 
         Spacer(Modifier.height(16.dp))
-        OutlinedButton(onClick = onOpenEqualizer) {
-            Icon(Icons.Rounded.Equalizer, contentDescription = null)
-            Text(" Equalizer & Prasetel")
-        }
-        Spacer(Modifier.height(8.dp))
-        OutlinedButton(onClick = onOpenStudio) {
-            Icon(Icons.Rounded.GraphicEq, contentDescription = null)
-            Text(" Studio: Analisis & DSP")
-        }
-
-        Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf(
                 SpatialAudioProcessor.MODE_OFF to "Mati",
@@ -203,7 +204,7 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit, onOpenStu
 
         val currentTrack = state.currentTrack
         val currentIndex = state.queue.indexOfFirst { it.id == currentTrack?.id }
-        val upcoming = if (currentTrack != null && currentIndex >= 0) state.queue.drop(currentIndex + 1) else emptyList()
+        val upcoming = state.userQueue
         if (upcoming.isNotEmpty()) {
             Text(
                 "Antrean Berikutnya (${upcoming.size})",
@@ -211,8 +212,13 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit, onOpenStu
                 modifier = Modifier.align(Alignment.Start)
             )
             Spacer(Modifier.height(4.dp))
-            upcoming.forEachIndexed { listIndex, track ->
-                val absoluteIndex = currentIndex + 1 + listIndex
+            upcoming.forEachIndexed { _, track ->
+                val absoluteIndex = if (currentIndex >= 0) {
+                    (currentIndex + 1 until state.queue.size).firstOrNull {
+                        state.queue[it].id == track.id
+                    } ?: -1
+                } else -1
+                if (absoluteIndex < 0) return@forEachIndexed
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
