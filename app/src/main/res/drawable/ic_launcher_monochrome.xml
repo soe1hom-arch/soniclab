@@ -4,48 +4,39 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-
-    <!-- Neon glow behind the center bar. -->
-    <path
-        android:pathData="M56,40L56,70"
-        android:strokeColor="#3300E5FF"
-        android:strokeWidth="14"
-        android:strokeLineCap="round" />
-
-    <!-- Premium EQ waveform bars (round caps). -->
     <path
         android:pathData="M38,59L38,70"
-        android:strokeColor="#FFE7E9FF"
-        android:strokeWidth="4.5"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="5"
         android:strokeLineCap="round" />
     <path
         android:pathData="M44,51L44,70"
-        android:strokeColor="#FFE7E9FF"
-        android:strokeWidth="4.5"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="5"
         android:strokeLineCap="round" />
     <path
         android:pathData="M50,45L50,70"
-        android:strokeColor="#FFE7E9FF"
-        android:strokeWidth="4.5"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="5"
         android:strokeLineCap="round" />
     <path
         android:pathData="M56,39L56,70"
-        android:strokeColor="#FF00E5FF"
+        android:strokeColor="#FFFFFFFF"
         android:strokeWidth="5"
         android:strokeLineCap="round" />
     <path
         android:pathData="M62,45L62,70"
-        android:strokeColor="#FFE7E9FF"
-        android:strokeWidth="4.5"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="5"
         android:strokeLineCap="round" />
     <path
         android:pathData="M68,51L68,70"
-        android:strokeColor="#FFE7E9FF"
-        android:strokeWidth="4.5"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="5"
         android:strokeLineCap="round" />
     <path
         android:pathData="M74,59L74,70"
-        android:strokeColor="#FFE7E9FF"
-        android:strokeWidth="4.5"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="5"
         android:strokeLineCap="round" />
 </vector>

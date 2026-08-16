@@ -52,7 +52,7 @@ fun MiniPlayerBar(container: AppContainer, onClick: () -> Unit) {
                 )
                 Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                     Text(
-                        state.currentTrack?.title ?: "Unknown",
+                        state.currentTrack?.title ?: "—",
                         style = MaterialTheme.typography.titleSmall,
                         maxLines = 1
                     )
@@ -66,12 +66,12 @@ fun MiniPlayerBar(container: AppContainer, onClick: () -> Unit) {
                 IconButton(onClick = { container.playerController.togglePlayPause() }) {
                     Icon(
                         if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                        contentDescription = if (state.isPlaying) "Pause" else "Play",
+                        contentDescription = if (state.isPlaying) "Jeda" else "Putar",
                         tint = PurpleAccent
                     )
                 }
                 IconButton(onClick = { container.playerController.next() }) {
-                    Icon(Icons.Rounded.SkipNext, contentDescription = "Next")
+                    Icon(Icons.Rounded.SkipNext, contentDescription = "Berikutnya")
                 }
             }
             LinearProgressIndicator(

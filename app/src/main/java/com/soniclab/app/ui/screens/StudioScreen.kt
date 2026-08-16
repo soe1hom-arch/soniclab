@@ -22,8 +22,11 @@ import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.MicOff
 import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material.icons.rounded.Replay
+import androidx.compose.material.icons.rounded.Save
+import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -34,15 +37,19 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import android.os.Build
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.soniclab.app.di.AppContainer
 import com.soniclab.app.ui.common.appViewModel
@@ -131,9 +138,70 @@ fun StudioScreen(container: AppContainer) {
             Text(
                 it,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary,
+                color = if (it.startsWith("Gagal") || it.contains("butuh")) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.primary
+                },
                 modifier = Modifier.fillMaxWidth()
             )
+        }
+
+        vm.lastResult?.let { result ->
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Rounded.CheckCircle,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Column(Modifier.weight(1f).padding(start = 10.dp)) {
+                            Text("Hasil Siap", style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                result.title,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilledTonalButton(
+                            onClick = { vm.playResult() },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Rounded.PlayCircle, contentDescription = null)
+                            Text(" Mainkan")
+                        }
+                        FilledTonalButton(
+                            onClick = { vm.shareResult() },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Rounded.Share, contentDescription = null)
+                            Text(" Bagikan")
+                        }
+                    }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        OutlinedButton(
+                            onClick = { vm.saveToDownloads() },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Rounded.Save, contentDescription = null)
+                            Text(" Simpan ke Download")
+                        }
+                    }
+                    TextButton(
+                        onClick = { vm.dismissResult() },
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text("Tutup")
+                    }
+                }
+            }
         }
 
         SectionCard("Analisis") {
@@ -277,7 +345,7 @@ private fun ToolSliderRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Button(onClick = onRun, enabled = enabled) { Text("Jalan") }
+        Button(onClick = onRun, enabled = enabled) { Text("Proses") }
     }
 }
 
@@ -340,7 +408,7 @@ private fun ToolActionRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Button(onClick = onClick, enabled = enabled) { Text("Jalan") }
+        Button(onClick = onClick, enabled = enabled) { Text("Proses") }
     }
 }
 

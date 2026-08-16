@@ -1,24 +1,22 @@
 package com.soniclab.player
 
-import androidx.media3.common.C
 import androidx.media3.common.audio.AudioProcessor
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * Real-time 3D / 8D spatial audio on the playback path (PCM16 stereo).
+ * Real-time 3D / 8D spatial audio on the playback path.
  *
  * - 3D: mid/side stereo widening — pushes the image "out of the head".
  * - 8D: slow LFO-rotated pan with a feedback echo, the classic 8D effect.
  *
- * [mode]: 0 = off, 1 = 3D, 2 = 8D. Mono is always passthrough. Runs on the
- * audio thread, so all buffering lives here and only UI-facing values are
- * volatile.
+ * Works on PCM16 and PCM float, stereo and mono (mono is up-mixed to stereo
+ * so 3D/8D no longer silently disables on mono tracks / podcasts). Runs on
+ * the audio thread, so all buffering lives here and only UI-facing values
+ * are volatile.
  */
-class SpatialAudioProcessor : AudioProcessor {
+class SpatialAudioProcessor : PcmAudioProcessor() {
 
     /** 0 = off, 1 = 3D, 2 = 8D. Written from the UI thread. */
     @Volatile
@@ -32,11 +30,6 @@ class SpatialAudioProcessor : AudioProcessor {
     @Volatile
     var rotationSeconds: Float = DEFAULT_ROTATION_SECONDS
 
-    private var channelCount = 0
-    private var sampleRateHz = 44100
-    private var outputBuffer: ByteBuffer = AudioProcessor.EMPTY_BUFFER
-    private var ended = false
-
     // 8D state, touched only on the audio thread.
     private var phase = 0.0
     private var delayBufferL = FloatArray(0)
@@ -44,77 +37,78 @@ class SpatialAudioProcessor : AudioProcessor {
     private var delayWritePos = 0
     private var delayReadOffset = 0
 
-    override fun configure(inputFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
-        if (inputFormat.encoding != C.ENCODING_PCM_16BIT) {
-            throw AudioProcessor.UnhandledAudioFormatException(inputFormat)
-        }
-        channelCount = inputFormat.channelCount
-        sampleRateHz = inputFormat.sampleRate
-        resetDsp()
-        return inputFormat
-    }
-
-    override fun isActive(): Boolean = mode != 0 && channelCount == 2
-
-    override fun queueInput(inputBuffer: ByteBuffer) {
-        if (!isActive()) {
-            outputBuffer = inputBuffer
-            return
-        }
-        val frames = inputBuffer.remaining() / 2 / channelCount
-        val out = ByteBuffer.allocate(frames * 2 * channelCount).order(ByteOrder.LITTLE_ENDIAN)
-        if (mode == MODE_3D) {
-            process3D(inputBuffer, out, frames)
+    override fun outputFormat(input: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
+        // Up-mix mono to stereo so spatial modes work on every track; the
+        // format stays stable while the effect toggles mid-stream.
+        return if (input.channelCount == 1) {
+            AudioProcessor.AudioFormat(input.sampleRate, 2, input.encoding)
         } else {
-            process8D(inputBuffer, out, frames)
+            input
         }
-        out.flip()
-        outputBuffer = out
     }
 
-    override fun queueEndOfStream() {
-        ended = true
-    }
+    override fun isEffectActive(): Boolean = mode != 0 || inputChannels == 1
 
-    override fun getOutput(): ByteBuffer {
-        val out = outputBuffer
-        outputBuffer = AudioProcessor.EMPTY_BUFFER
+    override fun processSamples(input: FloatArray, frames: Int): FloatArray {
+        val out = if (inputChannels == 1 && outputChannels == 2) FloatArray(frames * 2) else input
+        when (mode) {
+            MODE_3D -> process3D(input, out, frames)
+            MODE_8D -> process8D(input, out, frames)
+            else -> if (out !== input) duplicateMono(input, out)
+        }
         return out
     }
 
-    override fun isEnded(): Boolean = ended
-
-    override fun flush() {
-        outputBuffer = AudioProcessor.EMPTY_BUFFER
-        ended = false
+    override fun onFormatChanged() {
         resetDsp()
     }
 
-    override fun reset() {
-        flush()
-        channelCount = 0
+    override fun onFlush() {
+        resetDsp()
     }
 
-    override fun getDurationAfterProcessorApplied(durationUs: Long): Long = durationUs
-
-    private fun process3D(input: ByteBuffer, out: ByteBuffer, frames: Int) {
+    private fun process3D(input: FloatArray, out: FloatArray, frames: Int) {
         val width = 1f + widthStrength.coerceIn(0f, 1f) * 1.8f
+        if (inputChannels == 1) {
+            // No side information in mono; keep the duplicated signal intact.
+            duplicateMono(input, out)
+            return
+        }
+        var i = 0
+        var o = 0
         repeat(frames) {
-            val l = input.short.toFloat() / 32768f
-            val r = input.short.toFloat() / 32768f
+            val l = input[i++]
+            val r = input[i++]
             val mid = (l + r) * 0.5f
             val side = (l - r) * 0.5f
-            out.putShort(clip16(mid + side * width))
-            out.putShort(clip16(mid - side * width))
+            out[o++] = mid + side * width
+            out[o++] = mid - side * width
         }
     }
 
-    private fun process8D(input: ByteBuffer, out: ByteBuffer, frames: Int) {
+    private fun process8D(input: FloatArray, out: FloatArray, frames: Int) {
         val rate = rotationSeconds.coerceIn(4f, 60f)
         val phaseStep = (2.0 * PI) / (rate * sampleRateHz)
+        if (inputChannels == 1) {
+            var i = 0
+            var o = 0
+            repeat(frames) {
+                val v = input[i++]
+                val pan = sin(phase).toFloat()
+                phase += phaseStep
+                val theta = (pan + 1f) * (PI * 0.25f).toFloat()
+                val gainL = cos(theta)
+                val gainR = sin(theta)
+                out[o++] = v * gainL
+                out[o++] = v * gainR
+            }
+            return
+        }
+        var i = 0
+        var o = 0
         repeat(frames) {
-            val l = input.short.toFloat() / 32768f
-            val r = input.short.toFloat() / 32768f
+            val l = input[i++]
+            val r = input[i++]
 
             // Equal-power L/R rotation.
             val pan = sin(phase).toFloat()
@@ -131,12 +125,22 @@ class SpatialAudioProcessor : AudioProcessor {
             val dryR = r * gainR
             val outL = dryL + echoL * ECHO_FEEDBACK
             val outR = dryR + echoR * ECHO_FEEDBACK
-            delayBufferL[delayWritePos] = dryL + echoL * ECHO_FEEDBACK
-            delayBufferR[delayWritePos] = dryR + echoR * ECHO_FEEDBACK
+            delayBufferL[delayWritePos] = outL
+            delayBufferR[delayWritePos] = outR
             delayWritePos = (delayWritePos + 1) % delayBufferL.size
 
-            out.putShort(clip16(outL))
-            out.putShort(clip16(outR))
+            out[o++] = outL
+            out[o++] = outR
+        }
+    }
+
+    private fun duplicateMono(input: FloatArray, out: FloatArray) {
+        var i = 0
+        var o = 0
+        while (i < input.size) {
+            val v = input[i++]
+            out[o++] = v
+            out[o++] = v
         }
     }
 
@@ -153,9 +157,6 @@ class SpatialAudioProcessor : AudioProcessor {
         }
         delayReadOffset = delaySamples
     }
-
-    private fun clip16(value: Float): Short =
-        (value.coerceIn(-1f, 1f) * 32767f).toInt().toShort()
 
     companion object {
         const val MODE_OFF = 0

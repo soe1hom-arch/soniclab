@@ -1,5 +1,9 @@
 package com.soniclab.app.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -7,27 +11,44 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.soniclab.app.BuildConfig
 import com.soniclab.app.di.AppContainer
 import com.soniclab.app.ui.common.appViewModel
+import com.soniclab.app.ui.theme.CyanAccent
+import com.soniclab.app.ui.theme.PurpleAccent
 
 @Composable
 fun SettingsScreen(container: AppContainer) {
@@ -37,6 +58,7 @@ fun SettingsScreen(container: AppContainer) {
     val sleepTimer by vm.sleepTimerMinutes.collectAsStateWithLifecycle(initialValue = 0)
     val aiEnhance by vm.aiEnhanceEnabled.collectAsStateWithLifecycle(initialValue = false)
     val autoNormalize by vm.autoNormalizeEnabled.collectAsStateWithLifecycle(initialValue = false)
+    var showAbout by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -44,11 +66,11 @@ fun SettingsScreen(container: AppContainer) {
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
-        Text("Settings", style = MaterialTheme.typography.headlineLarge, modifier = Modifier.padding(bottom = 16.dp))
+        Text("Pengaturan", style = MaterialTheme.typography.headlineLarge, modifier = Modifier.padding(bottom = 16.dp))
 
         ToggleRow(
             icon = { Icon(Icons.Rounded.DarkMode, contentDescription = null) },
-            title = "AMOLED Theme",
+            title = "Tema AMOLED",
             subtitle = "Hitam pekat untuk layar OLED",
             checked = amoled,
             onCheckedChange = vm::setAmoled
@@ -98,8 +120,8 @@ fun SettingsScreen(container: AppContainer) {
         Spacer(Modifier.height(16.dp))
 
         Text("Sleep Timer", style = MaterialTheme.typography.titleMedium)
-        Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
-            listOf(0 to "Off", 15 to "15m", 30 to "30m", 60 to "60m").forEach { (minutes, label) ->
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(0 to "Mati", 15 to "15m", 30 to "30m", 60 to "60m").forEach { (minutes, label) ->
                 FilterChip(
                     selected = sleepTimer == minutes,
                     onClick = { vm.setSleepTimer(minutes) },
@@ -115,12 +137,101 @@ fun SettingsScreen(container: AppContainer) {
         }
 
         Spacer(Modifier.height(24.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .clickable { showAbout = true }
+                .padding(vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Rounded.Info, contentDescription = null, tint = PurpleAccent)
+            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                Text("Tentang Aplikasi & Developer", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Versi, fitur, dan informasi pengembang",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+
+        Spacer(Modifier.height(8.dp))
         Text(
             "SonicLab v${BuildConfig.VERSION_NAME} — fully offline",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
+
+    if (showAbout) {
+        AboutDialog(onDismiss = { showAbout = false })
+    }
+}
+
+@Composable
+private fun AboutDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Tutup") }
+        },
+        title = { Text("Tentang SonicLab") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(Brush.linearGradient(listOf(PurpleAccent, CyanAccent))),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "SL",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+                    Column(Modifier.padding(start = 12.dp)) {
+                        Text("SonicLab", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "Versi ${BuildConfig.VERSION_NAME}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                Text(
+                    "Premium AI Audio Studio — pemutar musik & toolkit audio yang sepenuhnya offline.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Text(
+                    "Fitur unggulan: pemutar Media3 dengan efek DSP real-time (Equalizer, 3D/8D, Reverb, Pitch, Balance), AI on-device (enhancer & vocal separator), analisis & toolkit audio. Tanpa iklan, tanpa internet, tanpa akun.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+
+                Text("Tentang Developer", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Dikembangkan oleh soe1hom-arch — developer Android (Kotlin, Jetpack Compose, Media3).",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    "SonicLab adalah proyek pribadi, dibuat dengan fokus pada kualitas suara, privasi, dan pengalaman premium. Umpan balik pengguna sangat dihargai.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    )
 }
 
 @Composable

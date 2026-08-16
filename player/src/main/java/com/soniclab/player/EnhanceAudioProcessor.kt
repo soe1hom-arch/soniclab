@@ -1,22 +1,18 @@
 package com.soniclab.player
 
-import androidx.media3.common.C
-import androidx.media3.common.audio.AudioProcessor
 import com.soniclab.ai.AiEnhancer
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 
 /**
  * Real-time Media3 [AudioProcessor] that runs the on-device AI Enhancer on
- * the playback path. PCM16 in/out, same format through the chain. When
- * disabled (or no enhancer is attached) [isActive] returns false and the
- * audio sink bypasses the processor entirely.
+ * the playback path. Accepts PCM16 and PCM float (so hi-res/FLAC tracks keep
+ * the enhancement too). When disabled (or no enhancer is attached) audio is
+ * passed through untouched.
  *
  * Audio is accumulated in per-channel frames of [frameChunk] samples; each
  * channel is enhanced independently (the bundled TFLite model is mono) and
  * re-interleaved. Runs on the audio thread, so the enhancer must be cheap.
  */
-class EnhanceAudioProcessor : AudioProcessor {
+class EnhanceAudioProcessor : PcmAudioProcessor() {
 
     @Volatile
     var enhancer: AiEnhancer? = null
@@ -24,94 +20,60 @@ class EnhanceAudioProcessor : AudioProcessor {
     @Volatile
     var enabled: Boolean = false
 
-    private var channelCount = 0
     private val pending = ArrayList<Float>()
-    private var outputBuffer: ByteBuffer = AudioProcessor.EMPTY_BUFFER
-    private var ended = false
 
-    override fun configure(inputFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
-        if (inputFormat.encoding != C.ENCODING_PCM_16BIT) {
-            throw AudioProcessor.UnhandledAudioFormatException(inputFormat)
-        }
-        channelCount = inputFormat.channelCount
-        pending.clear()
-        outputBuffer = AudioProcessor.EMPTY_BUFFER
-        ended = false
-        return inputFormat
-    }
+    override fun isEffectActive(): Boolean = enabled && enhancer != null
 
-    override fun isActive(): Boolean = enabled && enhancer != null
+    override fun processSamples(input: FloatArray, frames: Int): FloatArray {
+        for (v in input) pending.add(v)
+        val e = enhancer ?: return FloatArray(0)
+        val chunkSamples = frameChunk * inputChannels
+        val chunks = pending.size / chunkSamples
+        if (chunks == 0) return FloatArray(0)
 
-    override fun queueInput(inputBuffer: ByteBuffer) {
-        while (inputBuffer.hasRemaining()) {
-            pending.add(inputBuffer.short.toFloat() / 32768f)
-            if (pending.size >= frameChunk * channelCount) {
-                processFrames(frameChunk)
+        val result = FloatArray(chunks * chunkSamples)
+        var write = 0
+        repeat(chunks) {
+            val slice = FloatArray(chunkSamples) { pending[it] }
+            pending.subList(0, chunkSamples).clear()
+            val perChannel = Array(inputChannels) { c ->
+                FloatArray(frameChunk) { slice[it * inputChannels + c] }
+            }
+            val enhanced = Array(inputChannels) { c -> e.enhance(perChannel[c]) }
+            for (frame in 0 until frameChunk) {
+                for (c in 0 until inputChannels) {
+                    result[write++] = enhanced[c][frame].coerceIn(-1f, 1f)
+                }
             }
         }
+        return result
     }
 
-    override fun queueEndOfStream() {
-        val remainingFrames = pending.size / channelCount
-        if (remainingFrames > 0) {
-            processFrames(remainingFrames)
-        }
-        ended = true
-    }
-
-    override fun getOutput(): ByteBuffer {
-        val out = outputBuffer
-        outputBuffer = AudioProcessor.EMPTY_BUFFER
-        return out
-    }
-
-    override fun isEnded(): Boolean = ended
-
-    override fun flush() {
-        pending.clear()
-        outputBuffer = AudioProcessor.EMPTY_BUFFER
-        ended = false
-    }
-
-    override fun reset() {
-        flush()
-        channelCount = 0
-    }
-
-    override fun getDurationAfterProcessorApplied(durationUs: Long): Long = durationUs
-
-    private fun processFrames(frameCount: Int) {
+    override fun onEndOfStream() {
         val e = enhancer ?: return
-        val chunkSize = frameCount * channelCount
-        val chunk = FloatArray(chunkSize)
-        for (i in 0 until chunkSize) chunk[i] = pending[i]
-        pending.subList(0, chunkSize).clear()
-
-        val perChannel = Array(channelCount) { c ->
-            FloatArray(frameCount) { chunk[it * channelCount + c] }
+        val remainingFrames = pending.size / inputChannels
+        if (remainingFrames <= 0) return
+        val slice = FloatArray(pending.size) { pending[it] }
+        val perChannel = Array(inputChannels) { c ->
+            FloatArray(remainingFrames) { slice[it * inputChannels + c] }
         }
-        val enhanced = Array(channelCount) { c -> e.enhance(perChannel[c]) }
-
-        val outBytes = ByteBuffer.allocate(chunkSize * 2).order(ByteOrder.LITTLE_ENDIAN)
-        for (i in 0 until frameCount) {
-            for (c in 0 until channelCount) {
-                outBytes.putShort((enhanced[c][i].coerceIn(-1f, 1f) * 32767f).toInt().toShort())
+        val enhanced = Array(inputChannels) { c -> e.enhance(perChannel[c]) }
+        val result = FloatArray(remainingFrames * inputChannels)
+        var write = 0
+        for (frame in 0 until remainingFrames) {
+            for (c in 0 until inputChannels) {
+                result[write++] = enhanced[c][frame].coerceIn(-1f, 1f)
             }
         }
-        outBytes.flip()
-        appendOutput(outBytes)
+        appendOutput(result)
+        pending.clear()
     }
 
-    private fun appendOutput(newData: ByteBuffer) {
-        val existing = if (outputBuffer === AudioProcessor.EMPTY_BUFFER) 0 else outputBuffer.remaining()
-        val merged = ByteBuffer.allocate(existing + newData.remaining()).order(ByteOrder.LITTLE_ENDIAN)
-        if (existing > 0) merged.put(outputBuffer)
-        merged.put(newData)
-        merged.flip()
-        outputBuffer = merged
+    override fun onFlush() {
+        pending.clear()
     }
 
-    private companion object {
-        const val frameChunk = 512
+    companion object {
+        private const val frameChunk = 512
     }
 }

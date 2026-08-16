@@ -9,7 +9,9 @@ import androidx.lifecycle.viewModelScope
 import com.soniclab.app.di.AppContainer
 import com.soniclab.core.model.Preset
 import com.soniclab.player.AudioBalanceBridge
+import com.soniclab.player.AudioReverbBridge
 import com.soniclab.player.AudioSpatialBridge
+import com.soniclab.player.AudioToneBridge
 import com.soniclab.player.SpatialAudioProcessor
 import kotlinx.coroutines.launch
 
@@ -62,6 +64,41 @@ class EqualizerViewModel(private val container: AppContainer) : ViewModel() {
         AudioSpatialBridge.rotationSeconds = rotationSeconds
     }
 
+    var trebleDb by mutableFloatStateOf(AudioToneBridge.trebleDb)
+        private set
+
+    var reverbWet by mutableFloatStateOf(AudioReverbBridge.wetMix)
+        private set
+
+    var reverbRoom by mutableFloatStateOf(AudioReverbBridge.roomSize)
+        private set
+
+    val playbackPitch: Float
+        get() = container.playerController.uiState.value.playbackPitch
+
+    fun updateTreble(value: Float) {
+        trebleDb = value.coerceIn(-12f, 12f)
+        AudioToneBridge.trebleDb = trebleDb
+    }
+
+    fun updateReverbWet(value: Float) {
+        reverbWet = value.coerceIn(0f, 1f)
+        AudioReverbBridge.wetMix = reverbWet
+    }
+
+    fun updateReverbRoom(value: Float) {
+        reverbRoom = value.coerceIn(0f, 1f)
+        AudioReverbBridge.roomSize = reverbRoom
+    }
+
+    fun updatePitch(value: Float) {
+        container.playerController.setPitchSemitones(value)
+    }
+
+    fun resetPitch() {
+        container.playerController.resetPitch()
+    }
+
     fun reset() {
         container.audioEffects.reset()
         balance = 0f
@@ -69,6 +106,10 @@ class EqualizerViewModel(private val container: AppContainer) : ViewModel() {
         selectSpatialMode(SpatialAudioProcessor.MODE_OFF)
         updateSpatialWidth(SpatialAudioProcessor.DEFAULT_WIDTH_STRENGTH)
         updateRotationSeconds(SpatialAudioProcessor.DEFAULT_ROTATION_SECONDS)
+        updateTreble(0f)
+        updateReverbWet(0f)
+        updateReverbRoom(0.5f)
+        resetPitch()
         viewModelScope.launch { container.settingsRepository.setActivePresetId("none") }
     }
 }

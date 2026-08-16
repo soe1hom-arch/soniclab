@@ -6,9 +6,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
@@ -32,27 +33,40 @@ fun EqualizerScreen(container: AppContainer) {
     val preset by vm.activePreset.collectAsStateWithLifecycle()
     val bass by vm.bassStrength.collectAsStateWithLifecycle()
     val virtualizer by vm.virtualizerStrength.collectAsStateWithLifecycle()
+    val playerState by container.playerController.uiState.collectAsStateWithLifecycle()
     val balance = vm.balance
     val spatialMode = vm.spatialMode
     val spatialWidth = vm.spatialWidth
     val rotationSeconds = vm.rotationSeconds
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 "Equalizer",
                 style = MaterialTheme.typography.headlineLarge,
                 modifier = Modifier.weight(1f)
             )
-            TextButton(onClick = { vm.reset() }) { Text("Reset") }
+            TextButton(onClick = { vm.reset() }) { Text("Atur Ulang") }
         }
+
+        Text(
+            "Semua efek & penyetelan di layar ini langsung diterapkan ke lagu yang sedang diputar (real-time).",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
 
         if (gains.isEmpty()) {
             Text(
-                "Putar lagu dulu agar equalizer aktif (terhubung ke audio session player). Mode 3D/8D tetap bisa dipilih & berlaku saat lagu diputar.",
+                "Putar lagu dulu agar equalizer sistem aktif (terhubung ke audio session player). Treble, Reverb, Room & Pitch di bawah tetap berfungsi tanpa itu.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 16.dp)
+                modifier = Modifier.padding(top = 8.dp)
             )
         } else {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 8.dp)) {
@@ -71,7 +85,7 @@ fun EqualizerScreen(container: AppContainer) {
             FilterChip(
                 selected = spatialMode == SpatialAudioProcessor.MODE_OFF,
                 onClick = { vm.selectSpatialMode(SpatialAudioProcessor.MODE_OFF) },
-                label = { Text("Off") }
+                label = { Text("Mati") }
             )
             FilterChip(
                 selected = spatialMode == SpatialAudioProcessor.MODE_3D,
@@ -101,8 +115,46 @@ fun EqualizerScreen(container: AppContainer) {
             )
         }
 
+        Text(
+            "Tone & Efek (Real-time)",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(top = 8.dp)
+        )
+        ToneSlider(
+            label = "Treble",
+            value = vm.trebleDb,
+            valueRange = -12f..12f,
+            valueText = String.format(Locale.US, "%+d dB", vm.trebleDb.toInt()),
+            onValueChange = vm::updateTreble
+        )
+        ToneSlider(
+            label = "Reverb (Room)",
+            value = vm.reverbWet,
+            valueRange = 0f..1f,
+            valueText = "${(vm.reverbWet * 100).toInt()}%",
+            onValueChange = vm::updateReverbWet
+        )
+        ToneSlider(
+            label = "Ukuran Ruangan",
+            value = vm.reverbRoom,
+            valueRange = 0f..1f,
+            valueText = "${(vm.reverbRoom * 100).toInt()}%",
+            onValueChange = vm::updateReverbRoom
+        )
+        ToneSlider(
+            label = "Pitch (langsung)",
+            value = playerState.playbackPitch,
+            valueRange = -6f..6f,
+            valueText = String.format(Locale.US, "%+.0f st", playerState.playbackPitch),
+            onValueChange = vm::updatePitch
+        )
+
         if (gains.isNotEmpty()) {
-            Text("Tone & Efek", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
+            Text(
+                "Efek Sistem Audio",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(top = 8.dp)
+            )
             ToneSlider(
                 label = "Bass",
                 value = bass.toFloat(),
@@ -129,14 +181,17 @@ fun EqualizerScreen(container: AppContainer) {
                 valueText = balanceText,
                 onValueChange = vm::updateBalance
             )
-            LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                items(gains.size) { band ->
-                    BandSlider(
-                        label = formatFreq(container.audioEffects.centerFreqHz(band)),
-                        valueMb = gains[band],
-                        onValueChange = { vm.setBandGain(band, it.toInt()) }
-                    )
-                }
+            Text(
+                "Grafik Equalizer",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+            gains.forEachIndexed { band, gainMb ->
+                BandSlider(
+                    label = formatFreq(container.audioEffects.centerFreqHz(band)),
+                    valueMb = gainMb,
+                    onValueChange = { vm.setBandGain(band, it.toInt()) }
+                )
             }
         }
     }

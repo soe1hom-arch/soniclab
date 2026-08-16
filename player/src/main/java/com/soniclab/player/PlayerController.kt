@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
@@ -22,6 +23,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlin.math.ln
+import kotlin.math.pow
 
 private const val TAG = "PlayerController"
 
@@ -38,6 +41,9 @@ class PlayerController(private val context: Context) {
     val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
 
     private var tickerJob: Job? = null
+
+    /** Live pitch in semitones (-12..+12), applied like Poweramp on playback. */
+    private var pitchSemitones: Float = 0f
 
     /** Crossfade duration in ms; 0 disables crossfading. */
     private var crossfadeMs: Long = 0L
@@ -91,8 +97,11 @@ class PlayerController(private val context: Context) {
             _uiState.value = _uiState.value.copy(shuffleEnabled = shuffleModeEnabled)
         }
 
-        override fun onPlaybackParametersChanged(playbackParameters: androidx.media3.common.PlaybackParameters) {
-            _uiState.value = _uiState.value.copy(playbackSpeed = playbackParameters.speed)
+        override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
+            _uiState.value = _uiState.value.copy(
+                playbackSpeed = playbackParameters.speed,
+                playbackPitch = semitonesFromPitch(playbackParameters.pitch)
+            )
         }
     }
 
@@ -131,6 +140,24 @@ class PlayerController(private val context: Context) {
         controller?.play()
     }
 
+    /** Plays a single generated result file (e.g. Studio output) immediately. */
+    fun playSingleTrack(uri: Uri, title: String, artist: String = "SonicLab") {
+        val track = Track(
+            id = -System.currentTimeMillis(),
+            title = title,
+            artist = artist,
+            album = "Hasil SonicLab",
+            albumId = -1L,
+            durationMs = 0L,
+            uri = uri,
+            dataPath = "",
+            sizeBytes = 0L,
+            mimeType = "audio/wav",
+            dateAddedMs = 0L
+        )
+        playQueue(listOf(track), 0)
+    }
+
     fun togglePlayPause() {
         val c = controller ?: return
         if (c.isPlaying) c.pause() else c.play()
@@ -157,8 +184,33 @@ class PlayerController(private val context: Context) {
     }
 
     fun setSpeed(speed: Float) {
-        controller?.setPlaybackSpeed(speed.coerceIn(0.25f, 3f))
+        applyPlaybackParameters(speed.coerceIn(0.25f, 3f), pitchFactor())
     }
+
+    /** Live pitch shift in semitones (0 = normal). Keeps the current speed. */
+    fun setPitchSemitones(semitones: Float) {
+        pitchSemitones = semitones.coerceIn(-12f, 12f)
+        applyPlaybackParameters(currentSpeed(), pitchFactor())
+    }
+
+    fun resetPitch() = setPitchSemitones(0f)
+
+    private fun currentSpeed(): Float =
+        controller?.playbackParameters?.speed ?: _uiState.value.playbackSpeed
+
+    private fun pitchFactor(): Float = 2f.pow(pitchSemitones / 12f)
+
+    private fun applyPlaybackParameters(speed: Float, pitch: Float) {
+        val effectivePitch = if (pitch <= 0f) 1f else pitch
+        if (controller != null) {
+            controller?.playbackParameters = PlaybackParameters(speed, effectivePitch)
+        }
+    }
+
+    private fun semitonesFromPitch(pitch: Float): Float =
+        if (pitch <= 0f) 0f else (12f * ln(pitch) / ln(2f)).roundTo2()
+
+    private fun Float.roundTo2(): Float = (this * 100f).toInt() / 100f
 
     fun playTrackFromIndex(index: Int) {
         val c = controller ?: return
@@ -265,8 +317,10 @@ class PlayerController(private val context: Context) {
             positionMs = c.currentPosition,
             repeatMode = c.repeatMode,
             shuffleEnabled = c.shuffleModeEnabled,
-            playbackSpeed = c.playbackParameters.speed
+            playbackSpeed = c.playbackParameters.speed,
+            playbackPitch = semitonesFromPitch(c.playbackParameters.pitch)
         )
+        pitchSemitones = semitonesFromPitch(c.playbackParameters.pitch)
         updateTicker(c.isPlaying)
     }
 

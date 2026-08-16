@@ -1,0 +1,246 @@
+package com.soniclab.player
+
+import androidx.media3.common.C
+import androidx.media3.common.audio.AudioProcessor
+import com.soniclab.ai.AiEnhancer
+import org.junit.Assert.assertArrayEquals
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import kotlin.math.abs
+import kotlin.math.sin
+
+class AudioProcessorsTest {
+
+    private val stereoPcm16 = AudioProcessor.AudioFormat(44100, 2, C.ENCODING_PCM_16BIT)
+    private val monoPcm16 = AudioProcessor.AudioFormat(44100, 1, C.ENCODING_PCM_16BIT)
+    private val stereoFloat = AudioProcessor.AudioFormat(44100, 2, C.ENCODING_PCM_FLOAT)
+
+    private fun pcm16(vararg values: Short): ByteBuffer {
+        val b = ByteBuffer.allocate(values.size * 2).order(ByteOrder.nativeOrder())
+        values.forEach { b.putShort(it) }
+        b.flip()
+        return b
+    }
+
+    private fun floats(vararg values: Float): ByteBuffer {
+        val b = ByteBuffer.allocate(values.size * 4).order(ByteOrder.nativeOrder())
+        values.forEach { b.putFloat(it) }
+        b.flip()
+        return b
+    }
+
+    private fun readShorts(buffer: ByteBuffer): ShortArray {
+        val out = ShortArray(buffer.remaining() / 2)
+        var i = 0
+        while (buffer.hasRemaining()) out[i++] = buffer.short
+        return out
+    }
+
+    private fun readFloats(buffer: ByteBuffer): FloatArray {
+        val out = FloatArray(buffer.remaining() / 4)
+        var i = 0
+        while (buffer.hasRemaining()) out[i++] = buffer.float
+        return out
+    }
+
+    // --- SpatialAudioProcessor ---
+
+    @Test
+    fun spatial_3D_upmixesMonoToStereo() {
+        val p = SpatialAudioProcessor()
+        p.mode = SpatialAudioProcessor.MODE_3D
+        val configured = p.configure(monoPcm16)
+        assertEquals(2, configured.channelCount)
+        assertTrue(p.isActive)
+
+        p.queueInput(pcm16(1000, -1000, 2000, -2000))
+        val out = readShorts(p.getOutput())
+        assertEquals(8, out.size) // 4 frames x 2 channels
+    }
+
+    @Test
+    fun spatial_8D_worksOnFloatStereo() {
+        val p = SpatialAudioProcessor()
+        p.mode = SpatialAudioProcessor.MODE_8D
+        val configured = p.configure(stereoFloat)
+        assertEquals(C.ENCODING_PCM_FLOAT, configured.encoding)
+
+        p.queueInput(floats(0.5f, -0.5f, 0.25f, -0.25f))
+        val out = p.getOutput()
+        assertEquals(4 * 4, out.remaining()) // 2 frames x 2ch x 4 bytes
+    }
+
+    @Test
+    fun spatial_off_passesThroughStereo() {
+        val p = SpatialAudioProcessor()
+        p.mode = SpatialAudioProcessor.MODE_OFF
+        p.configure(stereoPcm16)
+        val input = pcm16(5000, -5000, 3000, -3000)
+        p.queueInput(input)
+        val out = p.getOutput()
+        assertEquals(8, out.remaining())
+        assertArrayEquals(shortArrayOf(5000, -5000, 3000, -3000), readShorts(out))
+    }
+
+    @Test
+    fun spatial_modeToggle_appliesWithoutReconfigure() {
+        val p = SpatialAudioProcessor()
+        p.mode = SpatialAudioProcessor.MODE_OFF
+        p.configure(stereoPcm16)
+        p.queueInput(pcm16(5000, -5000))
+        assertArrayEquals(shortArrayOf(5000, -5000), readShorts(p.getOutput()))
+
+        // Toggling mid-stream takes effect on the next buffer without a flush.
+        p.mode = SpatialAudioProcessor.MODE_3D
+        p.queueInput(pcm16(5000, -5000))
+        val out = readShorts(p.getOutput())
+        assertNotEquals(shortArrayOf(5000, -5000).toList(), out.toList())
+    }
+
+    // --- BalanceAudioProcessor ---
+
+    @Test
+    fun balance_pansLeft() {
+        val p = BalanceAudioProcessor()
+        p.balance = -1f
+        p.configure(stereoPcm16)
+        p.queueInput(pcm16(16000, -8000))
+        val out = readShorts(p.getOutput())
+        assertTrue(abs(out[0] - 16000) <= 1) // left stays full (16-bit rounding)
+        assertEquals(0, out[1].toInt()) // right muted
+    }
+
+    @Test
+    fun balance_center_passesThrough() {
+        val p = BalanceAudioProcessor()
+        p.balance = 0f
+        p.configure(stereoPcm16)
+        p.queueInput(pcm16(16000, -8000))
+        assertArrayEquals(shortArrayOf(16000, -8000), readShorts(p.getOutput()))
+    }
+
+    // --- GainAudioProcessor ---
+
+    @Test
+    fun gain_6dB_doublesAmplitude() {
+        val p = GainAudioProcessor()
+        p.gainDb = 6.02f
+        p.configure(stereoPcm16)
+        p.queueInput(pcm16(8000, -4000))
+        val out = readShorts(p.getOutput())
+        assertTrue(abs(out[0] - 16000) <= 2)
+        assertTrue(abs(out[1] + 8000) <= 2)
+    }
+
+    // --- ToneAudioProcessor ---
+
+    @Test
+    fun tone_zeroDb_isExactPassthrough() {
+        val p = ToneAudioProcessor()
+        p.bassDb = 0f
+        p.trebleDb = 0f
+        p.configure(monoPcm16)
+        val input = pcm16(*ShortArray(64) { (sin(it * 0.1) * 10000).toInt().toShort() })
+        val expected = readShorts(ByteBuffer.wrap(input.array()).order(ByteOrder.nativeOrder()))
+        p.queueInput(input)
+        assertArrayEquals(expected, readShorts(p.getOutput()))
+    }
+
+    @Test
+    fun tone_bassBoost_raisesLowFrequency() {
+        val p = ToneAudioProcessor()
+        p.bassDb = 12f
+        p.trebleDb = 0f
+        p.configure(monoPcm16)
+        p.queueInput(sineBuffer(220f, 4096, 44100))
+        val boosted = readShorts(p.getOutput())
+        assertTrue(rms(boosted) > 0.3f)
+    }
+
+    @Test
+    fun tone_trebleBoost_raisesHighFrequency() {
+        val p = ToneAudioProcessor()
+        p.bassDb = 0f
+        p.trebleDb = 12f
+        p.configure(monoPcm16)
+        p.queueInput(sineBuffer(8000f, 4096, 44100))
+        val boosted = readShorts(p.getOutput())
+        assertTrue(rms(boosted) > 0.3f)
+    }
+
+    // --- ReverbAudioProcessor ---
+
+    @Test
+    fun reverb_zeroWet_isPassthrough() {
+        val p = ReverbAudioProcessor()
+        p.wetMix = 0f
+        p.configure(stereoPcm16)
+        p.queueInput(pcm16(1000, -1000))
+        assertArrayEquals(shortArrayOf(1000, -1000), readShorts(p.getOutput()))
+    }
+
+    @Test
+    fun reverb_wet_changesOutputAndKeepsLength() {
+        val p = ReverbAudioProcessor()
+        p.wetMix = 0.6f
+        p.roomSize = 0.7f
+        p.configure(stereoPcm16)
+        val src = ShortArray(2048) { (sin(2.0 * Math.PI * 440 / 44100 * it) * 12000).toInt().toShort() }
+        val stereo = ShortArray(src.size * 2) { src[it / 2] }
+        p.queueInput(pcm16(*stereo))
+        val out = readShorts(p.getOutput())
+        assertEquals(stereo.size, out.size)
+        var different = 0
+        for (i in out.indices) if (abs(out[i] - stereo[i]) > 40) different++
+        assertTrue(different > 0)
+    }
+
+    // --- EnhanceAudioProcessor ---
+
+    @Test
+    fun enhance_disabled_passesThrough() {
+        val p = EnhanceAudioProcessor()
+        p.enabled = false
+        p.configure(stereoPcm16)
+        p.queueInput(pcm16(5000, -5000))
+        assertArrayEquals(shortArrayOf(5000, -5000), readShorts(p.getOutput()))
+    }
+
+    @Test
+    fun enhance_enabled_identityEnhancerMatchesInput() {
+        val p = EnhanceAudioProcessor()
+        p.enabled = true
+        p.enhancer = IdentityEnhancer
+        p.configure(monoPcm16)
+        p.queueInput(sineBuffer(440f, 1024, 44100))
+        val out = readShorts(p.getOutput())
+        assertEquals(1024, out.size)
+        p.queueEndOfStream()
+        assertEquals(0, p.getOutput().remaining())
+        assertTrue(p.isEnded)
+    }
+
+    private fun sineBuffer(freq: Float, frames: Int, sampleRate: Int): ByteBuffer {
+        val values = ShortArray(frames) {
+            (sin(2.0 * Math.PI * freq / sampleRate * it) * 12000).toInt().toShort()
+        }
+        return pcm16(*values)
+    }
+
+    private fun rms(values: ShortArray): Float {
+        if (values.isEmpty()) return 0f
+        var sum = 0.0
+        for (v in values) sum += (v.toDouble() / 32768.0) * (v.toDouble() / 32768.0)
+        return kotlin.math.sqrt((sum / values.size).toFloat())
+    }
+
+    private object IdentityEnhancer : AiEnhancer {
+        override val isAiModelLoaded: Boolean get() = true
+        override val displayName: String get() = "Identity (test)"
+        override fun enhance(samples: FloatArray): FloatArray = samples
+    }
+}

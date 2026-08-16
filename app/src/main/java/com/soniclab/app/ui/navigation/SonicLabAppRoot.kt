@@ -2,6 +2,11 @@ package com.soniclab.app.ui.navigation
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -45,9 +50,9 @@ import android.app.Activity
 private data class NavItem(val route: String, val label: String, val icon: ImageVector)
 
 private val bottomItems = listOf(
-    NavItem("home", "Library", Icons.Rounded.LibraryMusic),
+    NavItem("home", "Perpustakaan", Icons.Rounded.LibraryMusic),
     NavItem("studio", "Studio", Icons.Rounded.GraphicEq),
-    NavItem("settings", "Settings", Icons.Rounded.Settings)
+    NavItem("settings", "Pengaturan", Icons.Rounded.Settings)
 )
 
 @Composable
@@ -136,7 +141,15 @@ fun SonicLabAppRoot(container: AppContainer) {
         NavHost(
             navController = navController,
             startDestination = "home",
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier.padding(innerPadding),
+            enterTransition = {
+                fadeIn(tween(220)) + slideInVertically(tween(220)) { it / 24 }
+            },
+            exitTransition = { fadeOut(tween(150)) },
+            popEnterTransition = { fadeIn(tween(220)) },
+            popExitTransition = {
+                fadeOut(tween(150)) + slideOutVertically(tween(180)) { it / 24 }
+            }
         ) {
             composable("home") { LibraryScreen(container) { navController.navigate("player") } }
             composable("player") {

@@ -27,6 +27,8 @@ class PlaybackService : MediaSessionService() {
             arrayOf(
                 AudioBalanceBridge.processor,
                 AudioGainBridge.processor,
+                AudioToneBridge.processor,
+                AudioReverbBridge.processor,
                 AudioEnhanceBridge.processor,
                 AudioSpatialBridge.processor
             )

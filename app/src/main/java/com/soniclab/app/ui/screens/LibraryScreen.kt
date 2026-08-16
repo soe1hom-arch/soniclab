@@ -31,6 +31,8 @@ import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.LibraryMusic
+import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material.icons.rounded.Search
@@ -51,6 +53,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -81,7 +84,7 @@ fun LibraryScreen(container: AppContainer, onOpenPlayer: () -> Unit) {
     Column(modifier = Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
             Text(
-                "Library",
+                "Perpustakaan",
                 style = MaterialTheme.typography.headlineLarge,
                 modifier = Modifier.padding(top = 20.dp, bottom = 12.dp)
             )
@@ -90,7 +93,7 @@ fun LibraryScreen(container: AppContainer, onOpenPlayer: () -> Unit) {
                     value = vm.query,
                     onValueChange = vm::onQueryChange,
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Search tracks, artists, albums") },
+                    placeholder = { Text("Cari lagu, artis, atau album") },
                     leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
                     trailingIcon = {
                         if (vm.query.isNotEmpty()) {
@@ -175,23 +178,92 @@ private fun TracksTab(
                 }
             }
         }
-        items(list, key = { it.id }) { track ->
-            TrackRow(
-                track = track,
-                isFavorite = track.id in favorites,
-                onClick = {
-                    vm.play(list, list.indexOf(track))
-                    onOpenPlayer()
-                },
-                onFavorite = { vm.toggleFavorite(track.id) }
-            )
+        if (list.isEmpty()) {
+            item(key = "empty") {
+                EmptyState(
+                    icon = Icons.Rounded.MusicNote,
+                    title = if (selection != null) "Tidak ada lagu" else "Tidak ada hasil",
+                    subtitle = if (selection != null) {
+                        "Belum ada lagu untuk pilihan ini."
+                    } else if (vm.query.isNotBlank()) {
+                        "Tidak ditemukan untuk \"${vm.query}\"."
+                    } else {
+                        "Perpustakaan audio kosong. Izinkan akses audio untuk memindai lagu."
+                    }
+                )
+            }
+        } else {
+            items(list, key = { it.id }) { track ->
+                TrackRow(
+                    track = track,
+                    isFavorite = track.id in favorites,
+                    onClick = {
+                        vm.play(list, list.indexOf(track))
+                        onOpenPlayer()
+                    },
+                    onFavorite = { vm.toggleFavorite(track.id) }
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun EmptyState(icon: ImageVector, title: String, subtitle: String) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(56.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+        )
+        Spacer(Modifier.height(12.dp))
+        Text(title, style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            subtitle,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+    }
+}
+
+@Composable
+private fun AlbumsEmpty() {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(vertical = 48.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.LibraryMusic,
+            contentDescription = null,
+            modifier = Modifier.size(56.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+        )
+        Spacer(Modifier.height(12.dp))
+        Text("Tidak ada album", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "Perpustakaan kosong atau belum ada izin audio.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
     }
 }
 
 @Composable
 private fun AlbumsTab(vm: LibraryViewModel) {
     val albums = vm.albums
+    if (albums.isEmpty()) {
+        AlbumsEmpty()
+        return
+    }
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
         modifier = Modifier.fillMaxSize(),
@@ -228,6 +300,10 @@ private fun AlbumsTab(vm: LibraryViewModel) {
 @Composable
 private fun ArtistsTab(vm: LibraryViewModel) {
     val artists = vm.artists
+    if (artists.isEmpty()) {
+        EmptyState(Icons.Rounded.Person, "Tidak ada artis", "Perpustakaan kosong atau belum ada izin audio.")
+        return
+    }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
@@ -292,14 +368,14 @@ private fun TrackRow(
         IconButton(onClick = onClick) {
             Icon(
                 imageVector = Icons.Rounded.PlayCircle,
-                contentDescription = "Play",
+                contentDescription = "Putar",
                 tint = MaterialTheme.colorScheme.primary
             )
         }
         IconButton(onClick = onFavorite) {
             Icon(
                 imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                contentDescription = "Favorite",
+                contentDescription = "Favorit",
                 tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }

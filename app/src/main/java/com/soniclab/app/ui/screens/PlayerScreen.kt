@@ -71,7 +71,7 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit, onOpenStu
 
         Spacer(Modifier.height(24.dp))
         Text(
-            state.currentTrack?.title ?: "Nothing Playing",
+            state.currentTrack?.title ?: "Tidak Ada yang Diputar",
             style = MaterialTheme.typography.headlineMedium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -110,7 +110,7 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit, onOpenStu
             IconButton(onClick = { vm.setShuffle(!state.shuffleEnabled) }) {
                 Icon(
                     Icons.Rounded.Shuffle,
-                    contentDescription = "Shuffle",
+                    contentDescription = "Acak",
                     tint = if (state.shuffleEnabled) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -134,7 +134,7 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit, onOpenStu
             IconButton(onClick = { vm.cycleRepeat() }) {
                 Icon(
                     Icons.Rounded.Repeat,
-                    contentDescription = "Repeat",
+                    contentDescription = "Ulangi",
                     tint = if (state.repeatMode != 0) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -161,7 +161,7 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit, onOpenStu
         Spacer(Modifier.height(16.dp))
         OutlinedButton(onClick = onOpenEqualizer) {
             Icon(Icons.Rounded.Equalizer, contentDescription = null)
-            Text(" Equalizer & Presets")
+            Text(" Equalizer & Prasetel")
         }
         Spacer(Modifier.height(8.dp))
         OutlinedButton(onClick = onOpenStudio) {

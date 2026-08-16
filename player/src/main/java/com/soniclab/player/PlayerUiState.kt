@@ -14,6 +14,7 @@ data class PlayerUiState(
     val repeatMode: Int = Player.REPEAT_MODE_OFF,
     val shuffleEnabled: Boolean = false,
     val playbackSpeed: Float = 1f,
+    val playbackPitch: Float = 0f,
     val queue: List<Track> = emptyList(),
     val isBuffering: Boolean = false
 ) {
