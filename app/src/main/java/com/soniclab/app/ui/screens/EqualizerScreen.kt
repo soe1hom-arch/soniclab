@@ -95,7 +95,11 @@ fun EqualizerScreen(container: AppContainer, onOpenStudio: () -> Unit) {
             title = "Prasetel Equalizer",
             subtitle = "Prasetel suara, band EQ, bass & balance",
             icon = Icons.Rounded.Tune,
-            initiallyExpanded = true
+            initiallyExpanded = true,
+            onReset = {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                vm.resetPresetSection()
+            }
         ) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 8.dp)) {
                 items(vm.presets) { p ->
@@ -162,7 +166,11 @@ fun EqualizerScreen(container: AppContainer, onOpenStudio: () -> Unit) {
             title = "Mode 3D / 8D",
             subtitle = "Efek ruang: pilih prasetel atau racik sendiri 3D, 8D & Surround",
             icon = Icons.Rounded.SurroundSound,
-            initiallyExpanded = true
+            initiallyExpanded = true,
+            onReset = {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                vm.resetSpatialSection()
+            }
         ) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 8.dp)) {
                 items(
@@ -232,9 +240,13 @@ fun EqualizerScreen(container: AppContainer, onOpenStudio: () -> Unit) {
 
         SettingSection(
             title = "Tone & Efek",
-            subtitle = "Treble, reverb, ukuran ruangan & pitch langsung",
+            subtitle = "Treble, reverb, limiter, ukuran ruangan & pitch langsung",
             icon = Icons.Rounded.GraphicEq,
-            initiallyExpanded = false
+            initiallyExpanded = false,
+            onReset = {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                vm.resetToneSection()
+            }
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
                 Text("Limiter (anti-pecah)", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
@@ -309,7 +321,8 @@ private fun SettingSection(
     subtitle: String,
     icon: ImageVector,
     initiallyExpanded: Boolean,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
+    onReset: (() -> Unit)? = null
 ) {
     var expanded by rememberSaveable { mutableStateOf(initiallyExpanded) }
     Column(modifier = Modifier.padding(vertical = 4.dp)) {
@@ -317,7 +330,7 @@ private fun SettingSection(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { expanded = !expanded }
-                .padding(vertical = 10.dp),
+                .padding(vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
@@ -328,6 +341,9 @@ private fun SettingSection(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+            if (onReset != null) {
+                TextButton(onClick = onReset) { Text("Atur Ulang") }
             }
             Icon(
                 if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,

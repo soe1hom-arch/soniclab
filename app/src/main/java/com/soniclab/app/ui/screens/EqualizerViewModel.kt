@@ -196,23 +196,40 @@ class EqualizerViewModel(private val container: AppContainer) : ViewModel() {
         viewModelScope.launch { container.settingsRepository.setPitchSemitones(0f) }
     }
 
-    fun reset() {
+    /** Atur ulang hanya bagian Prasetel Equalizer (band EQ, bass, virtualizer, balance). */
+    fun resetPresetSection() {
         container.audioEffects.reset()
         balance = 0f
         AudioBalanceBridge.balance = 0f
-        selectSpatialMode(SpatialAudioProcessor.MODE_OFF)
-        updateSpatialWidth(SpatialAudioProcessor.DEFAULT_WIDTH_STRENGTH)
-        updateRotationSeconds(SpatialAudioProcessor.DEFAULT_ROTATION_SECONDS)
-        updatePanDepth(SpatialAudioProcessor.DEFAULT_PAN_DEPTH)
-        updateTreble(0f)
-        updateReverbWet(0f)
-        updateReverbRoom(0.5f)
-        resetPitch()
         viewModelScope.launch {
             container.settingsRepository.setActivePresetId("none")
             container.settingsRepository.setBandGains(emptyMap())
             container.settingsRepository.setBassStrength(0)
             container.settingsRepository.setVirtualizerStrength(0)
+            container.settingsRepository.setBalance(0f)
         }
+    }
+
+    /** Atur ulang hanya bagian Mode 3D/8D (mode, lebar, kecepatan, kedalaman pan). */
+    fun resetSpatialSection() {
+        selectSpatialMode(SpatialAudioProcessor.MODE_OFF)
+        updateSpatialWidth(SpatialAudioProcessor.DEFAULT_WIDTH_STRENGTH)
+        updateRotationSeconds(SpatialAudioProcessor.DEFAULT_ROTATION_SECONDS)
+        updatePanDepth(SpatialAudioProcessor.DEFAULT_PAN_DEPTH)
+    }
+
+    /** Atur ulang hanya bagian Tone & Efek (treble, reverb, room, pitch, limiter). */
+    fun resetToneSection() {
+        updateTreble(0f)
+        updateReverbWet(0f)
+        updateReverbRoom(0.5f)
+        resetPitch()
+        setLimiter(true)
+    }
+
+    fun reset() {
+        resetPresetSection()
+        resetSpatialSection()
+        resetToneSection()
     }
 }
