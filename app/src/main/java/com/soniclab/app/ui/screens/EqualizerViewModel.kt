@@ -22,7 +22,6 @@ class EqualizerViewModel(private val container: AppContainer) : ViewModel() {
     val bandGains = container.audioEffects.bandGains
     val activePreset = container.audioEffects.activePreset
     val bassStrength = container.audioEffects.bassStrength
-    val virtualizerStrength = container.audioEffects.virtualizerStrength
     val presets: List<Preset> = Preset.presets
 
     var balance by mutableFloatStateOf(AudioBalanceBridge.balance)
@@ -62,14 +61,6 @@ class EqualizerViewModel(private val container: AppContainer) : ViewModel() {
         container.audioEffects.setBassStrength(value.coerceIn(0, 1000).toShort())
         viewModelScope.launch {
             container.settingsRepository.setBassStrength(value.coerceIn(0, 1000))
-            container.settingsRepository.setActivePresetId("none")
-        }
-    }
-
-    fun setVirtualizer(value: Int) {
-        container.audioEffects.setVirtualizerStrength(value.coerceIn(0, 1000).toShort())
-        viewModelScope.launch {
-            container.settingsRepository.setVirtualizerStrength(value.coerceIn(0, 1000))
             container.settingsRepository.setActivePresetId("none")
         }
     }

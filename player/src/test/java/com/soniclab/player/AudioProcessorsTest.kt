@@ -266,6 +266,62 @@ class AudioProcessorsTest {
         assertTrue(different > 0)
     }
 
+    // --- EqualizerAudioProcessor ---
+
+    @Test
+    fun equalizer_flat_isExactPassthrough() {
+        val p = EqualizerAudioProcessor()
+        p.bandGainsDb = FloatArray(EqualizerAudioProcessor.BAND_COUNT)
+        p.configure(monoPcm16)
+        val input = pcm16(*ShortArray(64) { (sin(it * 0.1) * 10000).toInt().toShort() })
+        val expected = readShorts(ByteBuffer.wrap(input.array()).order(ByteOrder.nativeOrder()))
+        p.queueInput(input)
+        assertArrayEquals(expected, readShorts(p.getOutput()))
+    }
+
+    @Test
+    fun equalizer_1kHzBoost_raisesThatBand() {
+        val p = EqualizerAudioProcessor()
+        // Boost the 1 kHz band; a 1 kHz sine must get louder.
+        val gains = FloatArray(EqualizerAudioProcessor.BAND_COUNT)
+        gains[5] = 12f
+        p.bandGainsDb = gains
+        p.configure(monoPcm16)
+        p.queueInput(sineBuffer(1000f, 4096, 44100))
+        val out = readShorts(p.getOutput())
+        val flat = readShorts(ByteBuffer.wrap(
+            pcm16(*ShortArray(4096) { (sin(2.0 * Math.PI * 1000 / 44100 * it) * 12000).toInt().toShort() }).array()
+        ).order(ByteOrder.nativeOrder()))
+        assertTrue("boosted rms ${rms(out)} vs flat ${rms(flat)}", rms(out) > rms(flat) * 1.5f)
+    }
+
+    // --- PCM16 dither / noise shaping ---
+
+    @Test
+    fun dither_16bit_encodesWithinTolerance() {
+        val p = GainAudioProcessor()
+        p.gainDb = 0.1f // tiny non-identity gain forces the float -> 16-bit path
+        p.configure(stereoPcm16)
+        p.queueInput(pcm16(8000, -8000, 16000, -16000))
+        val out = readShorts(p.getOutput())
+        assertEquals(4, out.size)
+        // Gain of +0.1 dB ~ +1.16%; rounding + dither stays within a couple of LSB.
+        assertTrue(abs(out[0] - 8093) <= 2)
+        assertTrue(abs(out[1] + 8093) <= 2)
+        assertTrue(abs(out[2] - 16186) <= 2)
+        assertTrue(abs(out[3] + 16186) <= 2)
+    }
+
+    @Test
+    fun dither_passthrough_staysBitExact() {
+        val p = GainAudioProcessor()
+        p.gainDb = 0f
+        p.configure(stereoPcm16)
+        val input = pcm16(12345, -23456, 1000, -1000)
+        p.queueInput(input)
+        assertArrayEquals(shortArrayOf(12345, -23456, 1000, -1000), readShorts(p.getOutput()))
+    }
+
     // --- EnhanceAudioProcessor ---
 
     @Test

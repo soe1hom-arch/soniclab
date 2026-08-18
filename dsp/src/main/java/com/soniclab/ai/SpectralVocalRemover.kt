@@ -14,10 +14,20 @@ import kotlin.math.sin
  * (usually vocals) is estimated from the stereo pair and removed, while
  * out-of-phase content (instruments) is preserved.
  *
+ * The per-bin center estimate uses a soft ratio mask (Wiener-style), smoothed
+ * across neighboring bins to cut phasiness; a small makeup gain compensates
+ * the natural level drop of center extraction.
+ *
  * Output arrays are interleaved stereo (L,R,L,R,...). Heavy but fully
  * offline; run on a background thread.
  */
 class SpectralVocalRemover(private val fftSize: Int = 2048) {
+
+    companion object {
+        private const val MASK_SMOOTH_BINS = 2
+        private const val MAKEUP_GAIN = 1.3f
+    }
+
 
     data class Result(val vocals: FloatArray, val instrumental: FloatArray)
 
@@ -52,11 +62,35 @@ class SpectralVocalRemover(private val fftSize: Int = 2048) {
             fft.transform(lr, li)
             fft.transform(rr, ri)
 
+            // Soft ratio mask per bin, then smooth across neighboring bins so
+            // the time-frequency mask does not hiss/phasy on music.
+            val mask = FloatArray(fftSize)
+            val smoothed = FloatArray(fftSize)
+            for (k in 0 until fftSize) {
+                val magL = hypot(lr[k].toDouble(), li[k].toDouble()).toFloat()
+                val magR = hypot(rr[k].toDouble(), ri[k].toDouble()).toFloat()
+                val sum = magL + magR
+                mask[k] = if (sum > 1e-6f) {
+                    // 1.0 when L and R are equal (coherent center), 0 when one
+                    // channel has no energy (fully side content).
+                    (2f * min(magL, magR) / sum).coerceIn(0f, 1f)
+                } else 0f
+            }
+            for (k in 0 until fftSize) {
+                var acc = 0f
+                var n = 0
+                for (j in (k - MASK_SMOOTH_BINS).coerceAtLeast(0)..(k + MASK_SMOOTH_BINS).coerceAtMost(fftSize - 1)) {
+                    acc += mask[j]
+                    n++
+                }
+                smoothed[k] = acc / n
+            }
+
             // Estimate the coherent center component per bin (vocals).
             for (k in 0 until fftSize) {
                 val magL = hypot(lr[k].toDouble(), li[k].toDouble()).toFloat()
                 val magR = hypot(rr[k].toDouble(), ri[k].toDouble()).toFloat()
-                val magC = min(magL, magR)
+                val magC = min(magL, magR) * smoothed[k]
                 val phaseL = atan2(li[k].toDouble(), lr[k].toDouble())
                 val phaseR = atan2(ri[k].toDouble(), rr[k].toDouble())
                 val phaseC = phaseL + 0.5 * wrapAngle(phaseR - phaseL)
@@ -93,13 +127,14 @@ class SpectralVocalRemover(private val fftSize: Int = 2048) {
             pos += hop
         }
 
-        // Weighted overlap-add normalization.
+        // Weighted overlap-add normalization plus makeup gain (center
+        // extraction naturally loses ~2 dB of level).
         for (i in 0 until totalFrames) {
             val w = weightSum[i].coerceAtLeast(1e-6f)
-            vocals[i * 2] /= w
-            vocals[i * 2 + 1] /= w
-            instrumental[i * 2] /= w
-            instrumental[i * 2 + 1] /= w
+            vocals[i * 2] = (vocals[i * 2] / w * MAKEUP_GAIN).coerceIn(-1f, 1f)
+            vocals[i * 2 + 1] = (vocals[i * 2 + 1] / w * MAKEUP_GAIN).coerceIn(-1f, 1f)
+            instrumental[i * 2] = (instrumental[i * 2] / w * MAKEUP_GAIN).coerceIn(-1f, 1f)
+            instrumental[i * 2 + 1] = (instrumental[i * 2 + 1] / w * MAKEUP_GAIN).coerceIn(-1f, 1f)
         }
         return Result(vocals, instrumental)
     }

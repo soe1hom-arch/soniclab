@@ -1,33 +1,31 @@
 # Model training scripts
 
-Generate the on-device TFLite models bundled in `ai/src/main/assets/models/`.
-All training runs in plain numpy and exports valid TFLite flatbuffers via the
-`tflite` + `flatbuffers` Python packages (no TensorFlow toolchain needed).
+Generates the on-device denoiser TFLite model bundled in
+`dsp/src/main/assets/models/`. All training runs in plain numpy and exports a
+valid TFLite flatbuffer via the `tflite` + `flatbuffers` Python packages (no
+TensorFlow toolchain needed).
 
 ```bash
 python3 -m venv .venv && . .venv/bin/activate
 pip install numpy flatbuffers tflite
-python scripts/train_denoiser.py    # -> ai/src/main/assets/models/denoiser_v1.tflite
-python scripts/train_separator.py   # -> ai/src/main/assets/models/separator_v1.tflite
+python scripts/train_denoiser.py    # -> dsp/src/main/assets/models/denoiser_v1.tflite
 ```
 
 ## Using real music data
 
-Both scripts currently synthesize training data for reproducibility. To train
-on real music:
+`train_denoiser.py` currently synthesizes training data for reproducibility.
+To train on real music: replace `synth_clean` / `add_noise` with real clean
+tracks plus realistic noise captures. The model contract is unchanged:
+`float32[1][512]` frames in, enhanced frames out.
 
-- `train_denoiser.py`: replace `synth_clean` / `add_noise` with real clean
-  tracks plus realistic noise captures. The model contract is unchanged:
-  `float32[1][512]` frames in, enhanced frames out.
-- `train_separator.py`: replace `synth_frame` with real stereo stems
-  (vocals + instrumentals from the same track) and keep computing per-bin
-  features/labels from the STFT. Contract: `float32[1][3]`
-  (`log1p(|L|), log1p(|R|), cos(phase diff)`) -> `float32[1][1]` mask.
+Model contract details live in `dsp/src/main/assets/models/README.md`.
 
-Model contract details live in `ai/src/main/assets/models/README.md`.
+> Note: vocal separation has no bundled model. The Studio vocal remover is a
+> spectral center-channel extractor (`SpectralVocalRemover`) — see that file
+> if you want to replace it with a real Demucs-style separator later.
 
 ## Verification
 
-Each script parses its own output back through the `tflite` reader classes
+The script parses its own output back through the `tflite` reader classes
 and runs a forward pass to confirm the exported flatbuffer matches the
 trained weights.

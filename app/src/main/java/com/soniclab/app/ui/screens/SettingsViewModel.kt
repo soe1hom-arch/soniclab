@@ -13,6 +13,7 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     val aiEnhanceEnabled = container.settingsRepository.aiEnhanceEnabled
     val autoNormalizeEnabled = container.settingsRepository.autoNormalizeEnabled
     val playbackSpeed = container.settingsRepository.playbackSpeed
+    val directOutputEnabled = container.settingsRepository.directOutputEnabled
 
     fun setAmoled(enabled: Boolean) {
         viewModelScope.launch { container.settingsRepository.setAmoledTheme(enabled) }
@@ -34,5 +35,9 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
 
     fun setAutoNormalize(enabled: Boolean) {
         viewModelScope.launch { container.settingsRepository.setAutoNormalizeEnabled(enabled) }
+    }
+
+    fun setDirectOutput(enabled: Boolean) {
+        viewModelScope.launch { container.settingsRepository.setDirectOutputEnabled(enabled) }
     }
 }

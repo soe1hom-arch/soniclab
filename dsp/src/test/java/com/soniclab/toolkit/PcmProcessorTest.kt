@@ -1,5 +1,6 @@
 package com.soniclab.toolkit
 
+import com.soniclab.analyzer.R128Meter
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -36,13 +37,26 @@ class PcmProcessorTest {
 
     @Test
     fun normalize_raisesQuietSignalTowardTarget() {
-        // Constant amplitude 0.1 -> RMS -20 dBFS; target -14 LUFS needs +6 dB.
-        val data = PcmData(FloatArray(8192) { 0.1f }, 44100, 1)
+        // 1 kHz sine at 0.1 amplitude (~ -20.7 LUFS); K-weighting is ~0 dB
+        // near 1 kHz, so EBU R128 target -14 LUFS needs about +6.7 dB.
+        val data = sineStereo(44100, 1000f).let {
+            PcmData(FloatArray(it.samples.size) { idx -> it.samples[idx] * 0.1f }, it.sampleRate, it.channels)
+        }
         val out = PcmProcessor.normalize(data, targetLufs = -14f)
-        var sumSquares = 0.0
-        for (sample in out.samples) sumSquares += sample.toDouble() * sample
-        val rmsDb = 20.0 * log10(sqrt(sumSquares / out.samples.size))
-        assertEquals(-14f, rmsDb.toFloat(), 1.0f)
+        val meter = R128Meter(out.sampleRate, out.channels)
+        meter.push(out.samples)
+        assertEquals(-14f, meter.integratedLufs(), 1.5f)
+    }
+
+    @Test
+    fun r128_meter_measuresSineWithinFractionOfDecibel() {
+        // 1 kHz sine, amplitude 0.1 -> RMS -23.01 dBFS; K-weighting is
+        // about +0.4 dB there, minus the -0.691 LUFS offset -> ~ -23.3 LUFS.
+        val data = sineStereo(44100 * 2, 1000f)
+        val scaled = FloatArray(data.samples.size) { idx -> data.samples[idx] * 0.1f }
+        val meter = R128Meter(44100, 2)
+        meter.push(scaled)
+        assertEquals(-23.3f, meter.integratedLufs(), 0.6f)
     }
 
     @Test

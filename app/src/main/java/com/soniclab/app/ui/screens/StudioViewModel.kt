@@ -14,7 +14,7 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.soniclab.analyzer.AudioInfoAnalyzer
-import com.soniclab.analyzer.LoudnessAnalyzer
+import com.soniclab.analyzer.R128Meter
 import com.soniclab.app.di.AppContainer
 import com.soniclab.toolkit.ToolkitResult
 import kotlinx.coroutines.Dispatchers
@@ -283,15 +283,15 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
 
     private fun computeLufs(container: AppContainer, uri: Uri): Float {
         val decoded = container.analyzerDecoder.decode(uri, maxSeconds = 180) ?: return -70f
-        val meter = LoudnessAnalyzer(decoded.sampleRate)
-        var lufs = -70f
+        // PcmReader decodes to a mono downmix; measure it as one channel.
+        val meter = R128Meter(decoded.sampleRate, channels = 1)
         val step = 8192
         var i = 0
         while (i < decoded.samples.size) {
             val end = (i + step).coerceAtMost(decoded.samples.size)
-            lufs = meter.push(decoded.samples.copyOfRange(i, end))
+            meter.push(decoded.samples.copyOfRange(i, end))
             i = end
         }
-        return lufs
+        return meter.integratedLufs()
     }
 }

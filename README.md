@@ -27,7 +27,7 @@ Player dengan efek DSP real-time, audio toolkit, analyzer, dan AI enhancement on
 - Header cover, acak, previous / play-pause / next, repeat, dan preset kecepatan (0.75×–2×).
 - **Pitch live** (−6..+6 st) — ubah nada langsung saat lagu diputar, tanpa mengubah kecepatan.
 - **Tampilan antrean**: hanya menampilkan **Antrean Berikutnya** (lagu setelah lagu yang diputar); jika belum ada lagu berikutnya, bagian ini disembunyikan. Tap untuk lompat, susun ulang dengan panah atas/bawah. Dari daftar lagu, menu **Putar Berikutnya** / **Tambahkan ke Antrean** tersedia di setiap lagu.
-- Crossfade (0–12 dtk), sleep timer (15/30/60 mnt), dan **auto normalisasi (ala ReplayGain)** menuju −14 LUFS.
+- Crossfade (0–12 dtk), sleep timer (15/30/60 mnt), dan **auto normalisasi menuju −14 LUFS** — pengukuran **EBU R128 asli** (K-weighting + blok 400 ms + gating absolut/relatif, bukan RMS biasa).
 - **Mode 3D / 8D**: preset **Mati / 3D / 8D / 8D+Tengah / Surround** (chips cepat di player, lengkap di Equalizer). **8D+Tengah** menerapkan rotasi 8D pada audio normal (tanpa pelebaran mid/side agar tidak terdengar pecah di headset) sambil tetap menjaga suara tengah agar tidak hilang saat efek berputar. Pan 8D kini **tidak lagi mematikan salah satu channel** (slider **Kedalaman Pan**); mode **Surround** menambah gema ruang tanpa rotasi. **Berfungsi di semua lagu — termasuk mono dan hi-res/FLAC — dan toggle langsung berlaku, tanpa perlu ganti lagu**.
 
 **Sound & Effects (Equalizer)**
@@ -38,7 +38,7 @@ Player dengan efek DSP real-time, audio toolkit, analyzer, dan AI enhancement on
   - **Treble** −12..+12 dB (shelf filter biquad real-time),
   - **Reverb (Room)** 0–100% + slider **Ukuran Ruangan** (jaringan Schroeder: 4 comb + 2 all-pass per kanal dengan detune stereo),
   - **Pitch (langsung)** −6..+6 st.
-- **Efek Sistem Audio** (butuh lagu berjalan / audio session aktif): band equalizer 5-band (jumlah band sesuai perangkat `AudioEffect` API), prasetel, reset, **Bass** (BassBoost), **Virtualizer**, dan **Balance** stereo.
+- **Equalizer software 10-band** — band peaking (31.25 Hz–16 kHz, ±15 dB) berjalan **di dalam rantai DSP**, konsisten di semua perangkat (tidak lagi bergantung pada API `AudioEffect` yang deprecated), langsung berlaku bahkan sebelum lagu diputar. **Bass** kini shelf biquad real-time (bukan BassBoost ganda), plus **Balance** stereo dan prasetel.
 - **Prasetel di-retune**: `Music HD` lebih halus (boost ekstrem dikurangi), `Gaming` (V-shape + virtualizer) kini berbeda dari `Car Audio` (bass kuat + mid naik untuk noise jalan), `BT Speaker` fokus mid-bass 100–250 Hz (sub-bass yang tidak bisa direproduksi speaker kecil dihilangkan), plus preset baru **Bass + Vokal**, **Acoustic**, dan **Jazz** (dengan reverb ruang hangat).
 - **Penyetelan tersimpan otomatis** — balance, mode 3D/8D, treble, reverb, pitch, bass, dan band EQ dipulihkan saat app dibuka lagi (tidak reset setelah keluar).
 
@@ -51,18 +51,18 @@ Player dengan efek DSP real-time, audio toolkit, analyzer, dan AI enhancement on
   - **Join** — gabungkan dua file menjadi satu WAV,
   - **Reverse** — audio diputar balik,
   - **Pitch** (−12..+12 st) dan **Tempo** (0.5×–2×) — slider WSOLA interaktif,
-  - **Normalizer (−14 LUFS)** — normalisasi loudness,
-  - **Vocal Remover** — keluaran instrumental (butuh file stereo; mask TFLite + fallback spektral).
+  - **Normalizer (−14 LUFS)** — normalisasi loudness berbasis **EBU R128**,
+  - **Vocal Remover** — keluaran instrumental (butuh file stereo; STFT center-channel dengan soft ratio mask + smoothing).
 - **Hasil tool**: setiap tool yang selesai memunculkan kartu **Hasil Siap** dengan aksi **Mainkan** (langsung putar hasilnya), **Bagikan** (share sheet via FileProvider), dan **Simpan ke Download** (MediaStore, Android 10+).
-- **Analyzer** — analisis sekali sentuh untuk lagu yang diputar atau file yang dipilih: pratinjau waveform, info file audio, dan analisis loudness (LUFS) melalui pipeline `PcmReader`.
+- **Analyzer** — analisis sekali sentuh untuk lagu yang diputar atau file yang dipilih: pratinjau waveform, info file audio, dan analisis loudness **LUFS EBU R128** melalui pipeline `PcmReader`.
 
 **AI (on-device)**
-- **AI Enhance** — peningkatan real-time di jalur playback via Media3 `AudioProcessor`; model denoiser TensorFlow Lite dengan fallback DSP klasik. Kini juga aktif untuk track float/hi-res.
-- **Vocal separator** — model mask TFLite bawaan (dengan fallback spektral/STFT center-channel).
-- Model bawaan: `denoiser_v1.tflite`, `separator_v1.tflite` (dikirim di dalam aset APK).
+- **AI Enhance** — peningkatan real-time di jalur playback via Media3 `AudioProcessor`; model denoiser TensorFlow Lite dengan fallback **DSP transparan** (tanpa pewarnaan EQ, tanpa hard clip). Kini juga aktif untuk track float/hi-res.
+- **Vocal separator** — STFT center-channel dengan soft ratio mask (tanpa model neural; model TFLite per-bin ~4 KB dihapus karena kualitasnya di bawah versi spektral).
+- Model bawaan: `denoiser_v1.tflite` (dikirim di dalam aset APK).
 
 **Pengaturan (Settings)**
-- Tema **AMOLED** (hitam pekat), toggle **AI Enhance** (real-time), **Auto Normalisasi**, slider **Crossfade**, **Timer Tidur**, status model AI, dan **Tentang Aplikasi & Developer** (dialog info lengkap).
+- Tema **AMOLED** (hitam pekat), toggle **AI Enhance** (real-time), **Auto Normalisasi** (EBU R128), **Mode Langsung (Direct)** — rebuild sink tanpa rantai DSP untuk jalur output paling bersih, slider **Crossfade**, **Timer Tidur**, status model AI, dan **Tentang Aplikasi & Developer** (dialog info lengkap).
 
 **UI & ikon**
 - Bahasa Indonesia konsisten di seluruh aplikasi.
@@ -76,22 +76,26 @@ Player dengan efek DSP real-time, audio toolkit, analyzer, dan AI enhancement on
 Semua efek playback berjalan dalam satu rantai `AudioProcessor` Media3 di dalam `DefaultAudioSink`:
 
 ```
-balance → gain (auto-normalisasi) → tone (bass/treble) → reverb (room) → AI enhance → spatial (3D/8D) → limiter (anti-pecah)
+balance → gain (auto-normalisasi) → EQ 10-band → tone (bass/treble) → reverb (room) → AI enhance → spatial (3D/8D) → limiter (anti-pecah)
 ```
+
+Mode **Direct** mem-bypass seluruh rantai ini (service membangun ulang player
+tanpa `AudioProcessor`, posisi antrean tetap dipertahankan).
 
 Semua processor diturunkan dari `PcmAudioProcessor` yang:
 - menerima **PCM16 dan PCM float** (tidak lagi gagal pada track hi-res/FLAC),
 - selalu aktif sehingga **toggle efek berlaku seketika** tanpa menunggu seek/ganti lagu,
 - meng-upmix **mono → stereo** untuk efek 3D/8D,
-- melewatkan audio secara utuh (zero-copy) saat efek mati.
+- melewatkan audio secara utuh (zero-copy) saat efek mati,
+- memakai **TPDF dither + noise shaping orde-2** saat re-encode ke PCM16 setelah efek aktif (passthrough tetap bit-exact).
 
 ## Modul (MVVM + Repository)
 
 Struktur sengaja modular (4 modul) agar pemisahan tanggung jawab jelas: data, pemrosesan audio, playback, dan UI. Kode di dalamnya tetap dikelompokkan per paket (`com.soniclab.*`), jadi lapisan logisnya tidak hilang.
 
 - `:core` — model domain (Track/Playlist/Preset), result wrapper, permissions, util waktu, pemindaian MediaStore, playlist/favorit, preferensi DataStore
-- `:dsp` — pemrosesan sinyal audio & analisis: AudioEffect/Oboe, toolkit DSP & konversi WAV (MediaCodec), analyzer (FFT, LUFS, waveform, info codec), dan AI on-device (TensorFlow Lite + fallback DSP)
-- `:player` — Media3 ExoPlayer + MediaSessionService (notifikasi, lock screen, Android Auto), rantai `PcmAudioProcessor` (balance/gain/tone/reverb/enhance/spatial), kecepatan, crossfade, sleep timer, pitch live via `PlaybackParameters`
+- `:dsp` — pemrosesan sinyal audio & analisis: audioengine (Oboe scaffold), toolkit DSP & konversi WAV (MediaCodec), analyzer (FFT, **R128 LUFS**, waveform, info codec), dan AI on-device (TensorFlow Lite + fallback DSP)
+- `:player` — Media3 ExoPlayer + MediaSessionService (notifikasi, lock screen, Android Auto), rantai `PcmAudioProcessor` (balance/gain/**EQ 10-band**/tone/reverb/enhance/spatial/limiter), Direct mode, kecepatan, crossfade, sleep timer, pitch live via `PlaybackParameters`
 - `:app` — UI Compose (theme, navigasi, layar, dialog About) + visualizer spektrum/waveform
 
 ## Build
@@ -109,11 +113,11 @@ Debug APK: `app/build/outputs/apk/debug/app-debug.apk`
 ```bash
 ./gradlew test               # semua unit test JVM
 ./gradlew :dsp:testDebugUnitTest      # unit test DSP/PCM toolkit
-./gradlew :player:testDebugUnitTest   # unit test rantai DSP player (balance/gain/tone/reverb/spatial/enhance)
+./gradlew :player:testDebugUnitTest   # unit test rantai DSP player (balance/gain/eq/tone/reverb/spatial/limiter/dither)
 ./gradlew :app:lintDebug     # Android Lint
 ```
 
-Status di repo ini: build sukses, unit test lulus (9/9 di `:dsp`, 19/19 di `:player`), lint 0 error. CI menjalankan pemeriksaan yang sama di setiap push.
+Status di repo ini: build sukses, unit test lulus (13/13 di `:dsp`, 23/23 di `:player`), lint 0 error. CI menjalankan pemeriksaan yang sama di setiap push.
 
 ## Download APK
 
@@ -130,14 +134,13 @@ Atau build lokal dengan perintah di atas.
 Model kecil on-device dibuat dari `scripts/` (NumPy murni + flatbuffers — tanpa instalasi TensorFlow/PyTorch):
 
 ```bash
-python3 scripts/train_denoiser.py   # regenerasi ai/.../assets/models/denoiser_v1.tflite
-python3 scripts/train_separator.py  # regenerasi ai/.../assets/models/separator_v1.tflite
+python3 scripts/train_denoiser.py   # regenerasi dsp/.../assets/models/denoiser_v1.tflite
 ```
 
 ## Status jujur
 
 - **Terverifikasi oleh CI**: compile + unit test + lint hijau; APK debug dihasilkan otomatis.
-- **Belum terverifikasi**: perilaku runtime di perangkat nyata (perilaku audio session EQ per perangkat, MediaSession/notifikasi, kualitas AI Enhance pada musik asli, pemrosesan toolkit pada file besar, hasil efek DSP real-time). Ini perlu pengujian manual di perangkat Android fisik.
+- **Belum terverifikasi**: perilaku runtime di perangkat nyata (Direct mode & reconnect MediaSession, MediaSession/notifikasi, kualitas AI Enhance pada musik asli, pemrosesan toolkit pada file besar, hasil efek DSP real-time). Ini perlu pengujian manual di perangkat Android fisik.
 
 ## Roadmap
 

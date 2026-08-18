@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.FilterChip
@@ -49,6 +50,7 @@ fun SettingsScreen(container: AppContainer, onOpenAbout: () -> Unit) {
     val sleepTimer by vm.sleepTimerMinutes.collectAsStateWithLifecycle(initialValue = 0)
     val aiEnhance by vm.aiEnhanceEnabled.collectAsStateWithLifecycle(initialValue = false)
     val autoNormalize by vm.autoNormalizeEnabled.collectAsStateWithLifecycle(initialValue = false)
+    val directOutput by vm.directOutputEnabled.collectAsStateWithLifecycle(initialValue = false)
 
     Column(
         modifier = Modifier
@@ -77,9 +79,17 @@ fun SettingsScreen(container: AppContainer, onOpenAbout: () -> Unit) {
         ToggleRow(
             icon = { Icon(Icons.Rounded.AutoAwesome, contentDescription = null) },
             title = "Auto Normalisasi (ReplayGain)",
-            subtitle = "Samakan volume antar-lagu ke -14 LUFS saat playback",
+            subtitle = "Samakan volume antar-lagu ke -14 LUFS (pengukuran EBU R128)",
             checked = autoNormalize,
             onCheckedChange = vm::setAutoNormalize
+        )
+
+        ToggleRow(
+            icon = { Icon(Icons.Rounded.GraphicEq, contentDescription = null) },
+            title = "Mode Langsung (Direct)",
+            subtitle = "Lewati semua efek DSP untuk jalur output paling bersih (semua efek dimatikan)",
+            checked = directOutput,
+            onCheckedChange = vm::setDirectOutput
         )
 
         Text(

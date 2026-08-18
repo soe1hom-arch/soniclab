@@ -2,6 +2,7 @@ package com.soniclab.player
 
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.util.Log
 import androidx.core.content.ContextCompat
@@ -11,7 +12,7 @@ import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
-import com.soniclab.analyzer.LoudnessAnalyzer
+import com.soniclab.analyzer.R128Meter
 import com.soniclab.analyzer.PcmReader
 import com.soniclab.core.model.Track
 import kotlinx.coroutines.CoroutineScope
@@ -55,6 +56,23 @@ class PlayerController(private val context: Context) {
 
     /** Media ids of tracks the user queued manually (Putar Berikutnya / Tambahkan ke Antrean). */
     private val manualQueueIds = mutableListOf<Long>()
+
+    /**
+     * Re-binds when the service rebuilds its session (e.g. Direct mode
+     * toggle), which disconnects the current MediaController.
+     */
+    private val sessionListener = object : MediaController.Listener {
+        override fun onDisconnected(controller: MediaController) {
+            Log.i(TAG, "MediaSession disconnected — rebinding")
+            runCatching { controller.removeListener(playerListener) }
+            runCatching { controller.release() }
+            this@PlayerController.controller = null
+            scope.launch {
+                delay(300L)
+                if (this@PlayerController.controller == null) bind()
+            }
+        }
+    }
 
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -114,7 +132,9 @@ class PlayerController(private val context: Context) {
     fun bind() {
         if (controller != null) return
         val sessionToken = SessionToken(context, ComponentName(context, PlaybackService::class.java))
-        val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
+        val controllerFuture = MediaController.Builder(context, sessionToken)
+            .setListener(sessionListener)
+            .buildAsync()
         controllerFuture.addListener({
             try {
                 controller = controllerFuture.get()
@@ -267,6 +287,23 @@ class PlayerController(private val context: Context) {
                 c.play()
                 return
             }
+        }
+    }
+
+    /**
+     * Toggles Direct output: the service rebuilds the player without any DSP
+     * processors (queue/position preserved). Auto-normalization also stops
+     * contributing gain so the signal path is as clean as possible.
+     */
+    fun setDirectOutput(enabled: Boolean) {
+        DirectOutputBridge.enabled = enabled
+        if (enabled) AudioGainBridge.gainDb = 0f
+        runCatching {
+            context.startService(
+                Intent(context, PlaybackService::class.java)
+                    .setAction(PlaybackService.ACTION_SET_DIRECT_OUTPUT)
+                    .putExtra(PlaybackService.EXTRA_DIRECT_OUTPUT, enabled)
+            )
         }
     }
 
@@ -423,15 +460,16 @@ class PlayerController(private val context: Context) {
         if (uri == null) return null
         val decoded = PcmReader(context).decode(uri, maxSeconds = 45) ?: return null
         if (decoded.samples.isEmpty()) return null
-        val meter = LoudnessAnalyzer(decoded.sampleRate)
-        var lufs = -70f
+        // PcmReader decodes to a mono downmix; measure it as one channel.
+        val meter = R128Meter(decoded.sampleRate, channels = 1)
         val step = 8192
         var i = 0
         while (i < decoded.samples.size) {
             val end = (i + step).coerceAtMost(decoded.samples.size)
-            lufs = meter.push(decoded.samples.copyOfRange(i, end))
+            meter.push(decoded.samples.copyOfRange(i, end))
             i = end
         }
+        val lufs = meter.integratedLufs()
         if (lufs <= -60f) return null
         return (-14f - lufs).coerceIn(-12f, 12f)
     }

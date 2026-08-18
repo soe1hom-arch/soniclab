@@ -6,7 +6,7 @@ import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
 import android.net.Uri
-import com.soniclab.ai.TfliteVocalSeparator
+import com.soniclab.ai.SpectralVocalRemover
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
@@ -190,9 +190,10 @@ class MediaCodecAudioToolkit(private val context: Context) : AudioToolkit {
                 val decoded = decodePcmBytes(uri, startMs = null, endMs = null, onProgress)
                 val data = PcmProcessor.toPcmData(decoded.pcmBytes, decoded.sampleRate, decoded.channels)
                 if (data.channels < 2) return@withContext ToolkitResult.Failure("Vocal reduction requires a stereo file")
-                // On-device separator: bundled TFLite mask model with a
-                // spectral center-channel fallback (karaoke), fully offline.
-                val result = TfliteVocalSeparator.load(context).separate(data.samples)
+                // On-device separator: STFT center-channel extraction with a
+                // soft ratio mask (karaoke), fully offline — no network, no
+                // bundled model needed.
+                val result = SpectralVocalRemover().separate(data.samples)
                 writeWavFile(outputPath, PcmData(result.instrumental, data.sampleRate, 2))
                 onProgress(1f)
                 ToolkitResult.Success(outputPath)

@@ -4,6 +4,7 @@ import androidx.media3.common.C
 import androidx.media3.common.audio.AudioProcessor
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.math.roundToInt
 
 /**
  * Shared base for the real-time playback chain processors.
@@ -31,6 +32,10 @@ abstract class PcmAudioProcessor : AudioProcessor {
     private var outputBuffer: ByteBuffer = AudioProcessor.EMPTY_BUFFER
     private var ended = false
 
+    /** Per-channel [e1, e2] error history of the 2nd-order noise shaper. */
+    private var noiseShapeState = FloatArray(0)
+    private var ditherSeed = 0x9E3779B9
+
     /** Format this processor emits for [input]; override to change channels. */
     protected open fun outputFormat(input: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat = input
 
@@ -57,6 +62,7 @@ abstract class PcmAudioProcessor : AudioProcessor {
         outputChannels = output.channelCount
         outputBuffer = AudioProcessor.EMPTY_BUFFER
         ended = false
+        noiseShapeState = FloatArray(outputChannels.coerceAtLeast(1) * 2)
         onFormatChanged()
         return output
     }
@@ -89,6 +95,7 @@ abstract class PcmAudioProcessor : AudioProcessor {
     override fun flush() {
         outputBuffer = AudioProcessor.EMPTY_BUFFER
         ended = false
+        noiseShapeState.fill(0f)
         onFlush()
     }
 
@@ -136,9 +143,47 @@ abstract class PcmAudioProcessor : AudioProcessor {
         if (encoding == C.ENCODING_PCM_FLOAT) {
             for (v in values) bytes.putFloat(v.coerceIn(-1f, 1f))
         } else {
-            for (v in values) bytes.putShort((v.coerceIn(-1f, 1f) * 32767f).toInt().toShort())
+            encode16(values, bytes)
         }
         bytes.flip()
         return bytes
+    }
+
+    /**
+     * PCM16 conversion with TPDF dither and 2nd-order (1 - z^-1)^2 noise
+     * shaping. This path only runs when an effect is actually active (the
+     * passthrough path is bit-exact), so it removes the quantization
+     * distortion a naive truncation would add on top of the DSP.
+     */
+    private fun encode16(values: FloatArray, bytes: ByteBuffer) {
+        if (values.isEmpty()) return
+        val ch = outputChannels.coerceAtLeast(1)
+        if (noiseShapeState.size < ch * 2) noiseShapeState = FloatArray(ch * 2)
+        val lsb = 1f / 32768f
+        var i = 0
+        while (i < values.size) {
+            val base = (i % ch) * 2
+            val e1 = noiseShapeState[base]
+            val e2 = noiseShapeState[base + 1]
+            val v = values[i].coerceIn(-1f, 1f)
+            val dither = (nextRandom() - nextRandom()) * lsb
+            val shaped = v + dither
+            val y = ((shaped - 2f * e1 + e2) * 32768f).roundToInt().coerceIn(-32768, 32767)
+            val err = y / 32768f - shaped
+            noiseShapeState[base] = err
+            noiseShapeState[base + 1] = e1
+            bytes.putShort(y.toShort())
+            i++
+        }
+    }
+
+    /** Cheap xorshift32 PRNG for the TPDF dither (no allocation, audio-thread safe). */
+    private fun nextRandom(): Float {
+        var x = ditherSeed
+        x = x xor (x shl 13)
+        x = x xor (x ushr 17)
+        x = x xor (x shl 5)
+        ditherSeed = x
+        return (x ushr 8 and 0xFFFF).toFloat() / 65536f
     }
 }

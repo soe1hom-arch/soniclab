@@ -113,6 +113,13 @@ fun SonicLabAppRoot(container: AppContainer) {
         container.playerController.setAutoNormalize(autoNormalizeEnabled)
     }
 
+    // Direct output: rebuild the service's sink without the DSP chain.
+    val directOutputEnabled by container.settingsRepository.directOutputEnabled
+        .collectAsStateWithLifecycle(initialValue = false)
+    LaunchedEffect(directOutputEnabled) {
+        container.playerController.setDirectOutput(directOutputEnabled)
+    }
+
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->

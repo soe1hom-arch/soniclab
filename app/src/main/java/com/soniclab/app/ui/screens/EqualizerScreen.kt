@@ -55,7 +55,6 @@ fun EqualizerScreen(container: AppContainer, onOpenStudio: () -> Unit) {
     val gains by vm.bandGains.collectAsStateWithLifecycle()
     val preset by vm.activePreset.collectAsStateWithLifecycle()
     val bass by vm.bassStrength.collectAsStateWithLifecycle()
-    val virtualizer by vm.virtualizerStrength.collectAsStateWithLifecycle()
     val playerState by container.playerController.uiState.collectAsStateWithLifecycle()
     val balance = vm.balance
     val spatialMode = vm.spatialMode
@@ -113,52 +112,42 @@ fun EqualizerScreen(container: AppContainer, onOpenStudio: () -> Unit) {
                     )
                 }
             }
-            if (gains.isEmpty()) {
-                Text(
-                    "Putar lagu dulu agar equalizer sistem aktif (terhubung ke audio session player).",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+            Text(
+                "Equalizer software 10-band — konsisten di semua perangkat dan langsung berlaku saat diputar.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+            )
+            ToneSlider(
+                label = "Bass",
+                value = bass.toFloat(),
+                valueRange = 0f..1000f,
+                valueText = "${bass / 10}%",
+                onValueChange = { vm.setBass(it.toInt()) }
+            )
+            val balanceText = when {
+                balance <= -0.05f -> "L ${(balance * -100).toInt()}%"
+                balance >= 0.05f -> "R ${(balance * 100).toInt()}%"
+                else -> "C"
+            }
+            ToneSlider(
+                label = "Balance",
+                value = balance,
+                valueRange = -1f..1f,
+                valueText = balanceText,
+                onValueChange = vm::updateBalance
+            )
+            Text(
+                "Grafik Equalizer",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+            gains.forEachIndexed { band, gainMb ->
+                BandSlider(
+                    label = formatFreq(container.audioEffects.centerFreqHz(band)),
+                    valueMb = gainMb,
+                    onValueChange = { vm.setBandGain(band, it.toInt()) }
                 )
-            } else {
-                ToneSlider(
-                    label = "Bass",
-                    value = bass.toFloat(),
-                    valueRange = 0f..1000f,
-                    valueText = "${bass / 10}%",
-                    onValueChange = { vm.setBass(it.toInt()) }
-                )
-                ToneSlider(
-                    label = "Virtualizer",
-                    value = virtualizer.toFloat(),
-                    valueRange = 0f..1000f,
-                    valueText = "${virtualizer / 10}%",
-                    onValueChange = { vm.setVirtualizer(it.toInt()) }
-                )
-                val balanceText = when {
-                    balance <= -0.05f -> "L ${(balance * -100).toInt()}%"
-                    balance >= 0.05f -> "R ${(balance * 100).toInt()}%"
-                    else -> "C"
-                }
-                ToneSlider(
-                    label = "Balance",
-                    value = balance,
-                    valueRange = -1f..1f,
-                    valueText = balanceText,
-                    onValueChange = vm::updateBalance
-                )
-                Text(
-                    "Grafik Equalizer",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-                gains.forEachIndexed { band, gainMb ->
-                    BandSlider(
-                        label = formatFreq(container.audioEffects.centerFreqHz(band)),
-                        valueMb = gainMb,
-                        onValueChange = { vm.setBandGain(band, it.toInt()) }
-                    )
-                }
             }
         }
 

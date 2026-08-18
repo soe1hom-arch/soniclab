@@ -64,16 +64,20 @@ object PcmProcessor {
     }
 
     /**
-     * Loudness normalization. LUFS is approximated with RMS (dBFS); a
-     * full-scale steady tone maps RMS dB to LUFS directly. Gain is capped
-     * by [maxGainDb] to avoid pumping quiet recordings.
+     * Loudness normalization toward [targetLufs] using a real EBU R128
+     * measurement (K-weighting + 400 ms blocks + absolute/relative gating,
+     * see [com.soniclab.analyzer.R128Meter]). Gain is capped by [maxGainDb]
+     * so quiet recordings are not pumped into distortion.
      */
     fun normalize(data: PcmData, targetLufs: Float, maxGainDb: Float = 12f): PcmData {
-        var sumSquares = 0.0
-        for (s in data.samples) sumSquares += s.toDouble() * s
-        val rms = sqrt(sumSquares / data.samples.size).coerceAtLeast(1e-9)
-        val rmsDb = 20.0 * log10(rms)
-        val gainDb = (targetLufs.toDouble() - rmsDb).coerceAtMost(maxGainDb.toDouble())
+        val meter = com.soniclab.analyzer.R128Meter(data.sampleRate, data.channels)
+        meter.push(data.samples)
+        val integrated = meter.integratedLufs()
+        if (integrated <= com.soniclab.analyzer.R128Meter.QUIET_LUFS) {
+            // Silent file: nothing to normalize.
+            return data
+        }
+        val gainDb = (targetLufs - integrated).coerceAtMost(maxGainDb)
         val gain = 10.0.pow(gainDb / 20.0).toFloat()
         val out = FloatArray(data.samples.size) { i ->
             (data.samples[i] * gain).coerceIn(-1f, 1f)
