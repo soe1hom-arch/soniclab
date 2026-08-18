@@ -242,10 +242,12 @@ private fun BottomBar(navController: NavHostController) {
             NavigationBarItem(
                 selected = currentRoute == item.route,
                 onClick = {
+                    // Deterministic tab switch: pop auxiliary screens (player,
+                    // equalizer, studio, about) and show the tab fresh, so a
+                    // stale screen can never stay on top.
                     navController.navigate(item.route) {
-                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                        popUpTo(navController.graph.findStartDestination().id)
                         launchSingleTop = true
-                        restoreState = true
                     }
                 },
                 icon = { Icon(item.icon, contentDescription = item.label) },

@@ -16,7 +16,6 @@ A player with real-time DSP effects, an audio toolkit, an analyzer, and on-devic
 - [Build](#build)
 - [Test, lint & analysis](#test-lint--analysis)
 - [Download APK](#download-apk)
-- [Bundled AI model & training](#bundled-ai-model--training)
 - [Honest status](#honest-status)
 - [Roadmap](#roadmap)
 - [License](#license)
@@ -94,9 +93,9 @@ then enable the table below:
 
 ### AI (on-device)
 
-- **AI Enhance** — real-time enhancement on the playback path via Media3 `AudioProcessor`; TensorFlow Lite denoiser model with a **transparent DSP fallback** (no EQ coloring, no hard clip). Also active for float/hi-res tracks.
-- **Vocal separator** — STFT center-channel with soft ratio mask (no neural model; the ~4 KB per-bin TFLite model was removed because its quality was below the spectral version).
-- Bundled model: `denoiser_v1.tflite` (shipped inside the APK assets).
+- **AI Enhance** — real-time enhancement on the playback path via Media3 `AudioProcessor`; a **transparent DSP enhancer** (adaptive gain toward −18 dBFS + soft-knee limiter, no EQ coloring, no hard clip). Active for PCM16 and float/hi-res tracks.
+- **Vocal separator** — STFT center-channel with soft ratio mask (no neural model).
+- No neural models are bundled: the previous `denoiser_v1.tflite` was trained on synthetic 16 kHz audio and degraded real music into buzzing artifacts, so it was removed in favor of the transparent DSP enhancer.
 
 ### Settings
 
@@ -174,13 +173,13 @@ This repo is **public** and GitHub Actions builds a debug APK on every push to `
 
 Or build locally with the command above.
 
-## Bundled AI model & training
+## On-device AI models
 
-The small on-device models are generated from `scripts/` (pure NumPy + flatbuffers — no TensorFlow/PyTorch installation):
-
-```bash
-python3 scripts/train_denoiser.py   # regenerates dsp/.../assets/models/denoiser_v1.tflite
-```
+The app currently ships **without** neural models: the synthetic denoiser was
+removed because its quality on real music was below the transparent DSP
+enhancer. A higher-quality model trained on real music data is on the
+[roadmap](#roadmap). Training scripts, when reintroduced, will live in
+`scripts/` (pure NumPy + flatbuffers, no TensorFlow/PyTorch toolchain).
 
 ## Honest status
 

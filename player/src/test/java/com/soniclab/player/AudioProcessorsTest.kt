@@ -15,6 +15,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.math.PI
+import kotlin.math.pow
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.sin
@@ -315,6 +317,32 @@ class AudioProcessorsTest {
         assertTrue(abs(out[1] + 8093) <= 2)
         assertTrue(abs(out[2] - 16186) <= 2)
         assertTrue(abs(out[3] + 16186) <= 2)
+    }
+
+    @Test
+    fun dither_longBufferStaysClean() {
+        // Regression: the noise shaper must feed back only the raw quantizer
+        // error. The old loop accumulated the error (unstable pole) and an
+        // entire buffer decayed into full-scale alternating noise (SNR ~ -12 dB).
+        val n = 16384
+        val input = ShortArray(n) { (sin(2.0 * PI * 440.0 / 44100.0 * it) * 12000).toInt().toShort() }
+        DitherBridge.enabled = true
+        try {
+            val p = GainAudioProcessor().apply { gainDb = 0.5f }
+            p.configure(monoPcm16)
+            p.queueInput(pcm16(*input))
+            val out = readShorts(p.getOutput())
+            assertEquals(n, out.size)
+            val gain = 10f.pow(0.5f / 20f)
+            var maxErr = 0
+            for (k in out.indices) {
+                val ideal = (input[k] * gain).toInt().coerceIn(-32768, 32767)
+                maxErr = max(maxErr, abs(out[k] - ideal))
+            }
+            assertTrue("dither must not blow up the signal (maxErr=$maxErr LSB)", maxErr <= 8)
+        } finally {
+            DitherBridge.enabled = true
+        }
     }
 
     @Test

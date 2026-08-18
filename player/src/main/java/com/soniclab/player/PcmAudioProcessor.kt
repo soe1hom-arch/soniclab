@@ -179,8 +179,12 @@ abstract class PcmAudioProcessor : AudioProcessor {
             val e1 = noiseShapeState[base]
             val e2 = noiseShapeState[base + 1]
             val shaped = v + (nextRandom() - nextRandom()) * lsb
-            val y = ((shaped - 2f * e1 + e2) * 32768f).roundToInt().coerceIn(-32768, 32767)
-            val err = y / 32768f - shaped
+            // Error-feedback (1 - z^-1)^2 shaping: feed back only the RAW
+            // quantizer error (y - pre), never the accumulated error, or the
+            // loop becomes unstable and blows the signal into full-scale noise.
+            val pre = shaped - 2f * e1 + e2
+            val y = (pre * 32768f).roundToInt().coerceIn(-32768, 32767)
+            val err = y / 32768f - pre
             noiseShapeState[base] = err
             noiseShapeState[base + 1] = e1
             bytes.putShort(y.toShort())

@@ -6,8 +6,8 @@
 package com.soniclab.app.di
 
 import android.content.Context
-import com.soniclab.ai.AiModelManager
-import com.soniclab.ai.TfLiteEnhancer
+import com.soniclab.ai.AiEnhancer
+import com.soniclab.ai.ClassicEnhancer
 import com.soniclab.analyzer.AudioInfoAnalyzer
 import com.soniclab.analyzer.PcmReader
 import com.soniclab.analyzer.WaveformAnalyzer
@@ -46,8 +46,7 @@ class AppContainer(context: Context) {
     val visualizerEngine: VisualizerEngine = VisualizerEngine()
 
     val toolkit: MediaCodecAudioToolkit = MediaCodecAudioToolkit(appContext)
-    val aiModelManager: AiModelManager = AiModelManager(appContext)
-    val enhancer: TfLiteEnhancer = TfLiteEnhancer.load(appContext)
+    val enhancer: AiEnhancer = ClassicEnhancer()
 
     init {
         // Feed the on-device enhancer into the playback audio pipeline.

@@ -156,11 +156,7 @@ fun SettingsScreen(container: AppContainer, onOpenAbout: () -> Unit) {
         }
 
         Text(
-            text = if (container.enhancer.isAiModelLoaded) {
-                "Model AI aktif: ${container.enhancer.displayName}"
-            } else {
-                "Model AI belum dibundel — pakai Classic DSP fallback (offline)"
-            },
+            text = "Enhance berjalan on-device: ${container.enhancer.displayName}",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
