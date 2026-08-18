@@ -1,3 +1,7 @@
+"""Copyright 2026 soe1hom-arch.
+SPDX-License-Identifier: Apache-2.0
+"""
+
 """Train a tiny on-device denoiser (numpy) and export it as a valid .tflite
 flatbuffer without TensorFlow. Contract: float32[1][512] -> float32[1][512]."""
 import os

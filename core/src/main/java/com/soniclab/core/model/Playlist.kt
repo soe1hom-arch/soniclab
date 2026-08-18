@@ -1,3 +1,8 @@
+/*
+ * Copyright 2026 soe1hom-arch
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 package com.soniclab.core.model
 
 /**

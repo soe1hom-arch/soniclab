@@ -1,3 +1,6 @@
+// Copyright 2026 soe1hom-arch
+// SPDX-License-Identifier: Apache-2.0
+
 pluginManagement {
     repositories {
         maven { url = uri("https://maven.aliyun.com/repository/gradle-plugin") }
