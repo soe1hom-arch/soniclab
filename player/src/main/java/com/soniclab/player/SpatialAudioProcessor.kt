@@ -6,6 +6,7 @@
 package com.soniclab.player
 
 import androidx.media3.common.audio.AudioProcessor
+import kotlin.math.abs
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -117,7 +118,22 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
             spatial3d -> process3D(input, out, frames)
             else -> if (out !== input) duplicateMono(input, out)
         }
+        if (spatial3d || spatial8d || surround) {
+            // Widening/echo can push peaks past ±1 (side × width up to ~2x);
+            // the PCM clamp in encode() would flat-top them into harsh "pecah"
+            // distortion, so saturate gently here instead. Linear below the
+            // threshold — normal material passes untouched.
+            for (i in out.indices) out[i] = softClip(out[i])
+        }
         return out
+    }
+
+    private fun softClip(v: Float): Float {
+        val a = abs(v)
+        if (a <= SOFT_CLIP_THRESHOLD) return v
+        val overflow = (a - SOFT_CLIP_THRESHOLD) / (1f - SOFT_CLIP_THRESHOLD)
+        val shaped = SOFT_CLIP_THRESHOLD + (1f - SOFT_CLIP_THRESHOLD) * (overflow / (1f + overflow))
+        return if (v >= 0f) shaped else -shaped
     }
 
     override fun onFormatChanged() {
@@ -335,5 +351,6 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
         private const val PRESENCE_GUARD = 0.35f
         private const val ECHO_DELAY_SECONDS = 0.38f
         private const val ECHO_FEEDBACK = 0.3f
+        private const val SOFT_CLIP_THRESHOLD = 0.95f
     }
 }

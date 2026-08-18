@@ -52,7 +52,7 @@ import com.soniclab.app.ui.theme.CyanAccent
 import com.soniclab.app.ui.theme.PurpleAccent
 
 @Composable
-fun SettingsScreen(container: AppContainer, onOpenAbout: () -> Unit) {
+fun SettingsScreen(container: AppContainer, onOpenAbout: () -> Unit, onOpenEqualizer: () -> Unit) {
     val vm: SettingsViewModel = appViewModel { SettingsViewModel(it) }
     val amoled by vm.amoled.collectAsStateWithLifecycle(initialValue = false)
     val crossfade by vm.crossfadeSeconds.collectAsStateWithLifecycle(initialValue = 0)
@@ -105,6 +105,26 @@ fun SettingsScreen(container: AppContainer, onOpenAbout: () -> Unit) {
         )
 
         Spacer(Modifier.height(16.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .clickable(onClick = onOpenEqualizer)
+                .padding(vertical = 12.dp, horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Rounded.GraphicEq, contentDescription = null, tint = CyanAccent)
+            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                Text("Equalizer & Efek Suara", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Bass, 10-band EQ, 3D/8D, reverb, tone & balance",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Output Audio", style = MaterialTheme.typography.titleMedium)

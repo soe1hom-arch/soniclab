@@ -226,7 +226,11 @@ fun SonicLabAppRoot(container: AppContainer) {
                 EqualizerScreen(container)
             }
             composable("settings") {
-                SettingsScreen(container, onOpenAbout = { navController.navigate("about") })
+                SettingsScreen(
+                    container,
+                    onOpenAbout = { navController.navigate("about") },
+                    onOpenEqualizer = { navController.navigate("equalizer") }
+                )
             }
             composable("about") { AboutScreen(onBack = { navController.popBackStack() }) }
         }
