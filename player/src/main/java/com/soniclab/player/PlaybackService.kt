@@ -32,16 +32,20 @@ class PlaybackService : MediaSessionService() {
 
     private fun buildSession() {
         val direct = DirectOutputBridge.enabled
+        val hiRes = AudioOutputBridge.hiResEnabled
         val factory = if (direct) {
             DefaultRenderersFactory(this).apply {
                 // Keep the hi-res/FLAC software-decoder fallback in direct mode too.
                 setEnableDecoderFallback(true)
+                setEnableAudioFloatOutput(hiRes)
+                setEnableAudioTrackPlaybackParams(hiRes)
             }
         } else {
             EnhanceRenderersFactory(
                 this,
                 arrayOf(
                     AudioBalanceBridge.processor,
+                    AudioHeadroomBridge.processor,
                     AudioGainBridge.processor,
                     AudioEqualizerBridge.processor,
                     AudioToneBridge.processor,
@@ -50,7 +54,10 @@ class PlaybackService : MediaSessionService() {
                     AudioSpatialBridge.processor,
                     AudioLimiterBridge.processor
                 )
-            )
+            ).apply {
+                setEnableAudioFloatOutput(hiRes)
+                setEnableAudioTrackPlaybackParams(hiRes)
+            }
         }
         val player = ExoPlayer.Builder(this, factory).build()
         AudioSessionBridge.sessionId = player.audioSessionId
@@ -64,6 +71,9 @@ class PlaybackService : MediaSessionService() {
                 DirectOutputBridge.enabled = enabled
                 rebuildPlayer()
             }
+        } else if (intent?.action == ACTION_RECONFIGURE_OUTPUT) {
+            // Output flags (e.g. hi-res float) changed: rebuild preserving the queue.
+            rebuildPlayer()
         }
         return super.onStartCommand(intent, flags, startId)
     }
@@ -124,6 +134,7 @@ class PlaybackService : MediaSessionService() {
     companion object {
         const val ACTION_SET_DIRECT_OUTPUT = "com.soniclab.player.action.SET_DIRECT_OUTPUT"
         const val EXTRA_DIRECT_OUTPUT = "direct_output"
+        const val ACTION_RECONFIGURE_OUTPUT = "com.soniclab.player.action.RECONFIGURE_OUTPUT"
     }
 }
 

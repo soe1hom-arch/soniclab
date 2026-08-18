@@ -48,6 +48,8 @@ import com.soniclab.app.ui.screens.SettingsScreen
 import com.soniclab.app.ui.screens.StudioScreen
 import com.soniclab.core.permission.AudioPermissions
 import com.soniclab.player.AudioEnhanceBridge
+import com.soniclab.player.AudioHeadroomBridge
+import com.soniclab.player.DitherBridge
 import android.app.Activity
 
 private data class NavItem(val route: String, val label: String, val icon: ImageVector)
@@ -121,6 +123,25 @@ fun SonicLabAppRoot(container: AppContainer) {
         .collectAsStateWithLifecycle(initialValue = false)
     LaunchedEffect(directOutputEnabled) {
         container.playerController.setDirectOutput(directOutputEnabled)
+    }
+
+    // Output Audio: hi-res float output (rebuilds the player), dither & headroom live.
+    val hiResOutputEnabled by container.settingsRepository.hiResOutputEnabled
+        .collectAsStateWithLifecycle(initialValue = false)
+    LaunchedEffect(hiResOutputEnabled) {
+        container.playerController.setHiResOutput(hiResOutputEnabled)
+    }
+
+    val ditherEnabled by container.settingsRepository.ditherEnabled
+        .collectAsStateWithLifecycle(initialValue = true)
+    LaunchedEffect(ditherEnabled) {
+        container.playerController.setDitherEnabled(ditherEnabled)
+    }
+
+    val headroomDb by container.settingsRepository.headroomDb
+        .collectAsStateWithLifecycle(initialValue = 0f)
+    LaunchedEffect(headroomDb) {
+        container.playerController.setHeadroomDb(headroomDb)
     }
 
     val lifecycleOwner = LocalLifecycleOwner.current

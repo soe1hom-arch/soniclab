@@ -150,24 +150,30 @@ abstract class PcmAudioProcessor : AudioProcessor {
     }
 
     /**
-     * PCM16 conversion with TPDF dither and 2nd-order (1 - z^-1)^2 noise
-     * shaping. This path only runs when an effect is actually active (the
-     * passthrough path is bit-exact), so it removes the quantization
-     * distortion a naive truncation would add on top of the DSP.
+     * PCM16 conversion. When [DitherBridge.enabled] (default) it applies TPDF
+     * dither + 2nd-order (1 - z^-1)^2 noise shaping to remove the quantization
+     * distortion a naive truncation would add on top of the DSP; when disabled
+     * it does plain rounding. This path only runs when an effect is actually
+     * active (the passthrough path is bit-exact).
      */
     private fun encode16(values: FloatArray, bytes: ByteBuffer) {
         if (values.isEmpty()) return
         val ch = outputChannels.coerceAtLeast(1)
         if (noiseShapeState.size < ch * 2) noiseShapeState = FloatArray(ch * 2)
         val lsb = 1f / 32768f
+        val dithering = DitherBridge.enabled
         var i = 0
         while (i < values.size) {
+            val v = values[i].coerceIn(-1f, 1f)
+            if (!dithering) {
+                bytes.putShort((v * 32768f).roundToInt().coerceIn(-32768, 32767).toShort())
+                i++
+                continue
+            }
             val base = (i % ch) * 2
             val e1 = noiseShapeState[base]
             val e2 = noiseShapeState[base + 1]
-            val v = values[i].coerceIn(-1f, 1f)
-            val dither = (nextRandom() - nextRandom()) * lsb
-            val shaped = v + dither
+            val shaped = v + (nextRandom() - nextRandom()) * lsb
             val y = ((shaped - 2f * e1 + e2) * 32768f).roundToInt().coerceIn(-32768, 32767)
             val err = y / 32768f - shaped
             noiseShapeState[base] = err

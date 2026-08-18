@@ -2,13 +2,16 @@ package com.soniclab.app.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -39,6 +42,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -46,6 +51,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.soniclab.app.di.AppContainer
 import com.soniclab.app.ui.common.appViewModel
+import com.soniclab.app.ui.theme.CyanAccent
+import com.soniclab.app.ui.theme.SurfaceVariantDark
 import com.soniclab.player.SpatialAudioProcessor
 import java.util.Locale
 
@@ -149,25 +156,17 @@ fun EqualizerScreen(container: AppContainer) {
                 valueText = balanceText,
                 onValueChange = vm::updateBalance
             )
-            Text(
-                "Grafik Equalizer",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(top = 8.dp)
+            EqVisualizer(
+                gains = gains,
+                onBandChange = { band, gainMb -> vm.setBandGain(band, gainMb) }
             )
-            gains.forEachIndexed { band, gainMb ->
-                BandSlider(
-                    label = formatFreq(container.audioEffects.centerFreqHz(band)),
-                    valueMb = gainMb,
-                    onValueChange = { vm.setBandGain(band, it.toInt()) }
-                )
-            }
         }
 
         SettingSection(
             title = "Mode 3D / 8D",
             subtitle = "Efek ruang: pilih prasetel atau racik sendiri 3D, 8D & Surround",
             icon = Icons.Rounded.SurroundSound,
-            initiallyExpanded = true,
+            initiallyExpanded = false,
             onReset = {
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 resetConfirm = ResetConfirm(
@@ -361,28 +360,55 @@ private fun SettingSection(
     }
 }
 
+/**
+ * Classic premium 10-band EQ: a row of vertical sliders, boost up, cut down.
+ * Frequencies shown as 31 Hz … 16 kHz (the software EQ band centers).
+ */
 @Composable
-private fun BandSlider(label: String, valueMb: Int, onValueChange: (Float) -> Unit) {
+private fun EqVisualizer(
+    gains: List<Int>,
+    onBandChange: (band: Int, gainMb: Int) -> Unit
+) {
+    val freqs = listOf("31", "62", "125", "250", "500", "1k", "2k", "4k", "8k", "16k")
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier = Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.Bottom
     ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.labelMedium,
-            modifier = Modifier.padding(end = 8.dp)
-        )
-        Slider(
-            value = valueMb.toFloat(),
-            onValueChange = onValueChange,
-            valueRange = -1500f..1500f,
-            modifier = Modifier.weight(1f)
-        )
-        Text(
-            "%+d dB".format(Locale.US, valueMb / 100),
-            style = MaterialTheme.typography.labelMedium,
-            modifier = Modifier.padding(start = 8.dp)
-        )
+        gains.forEachIndexed { band, gainMb ->
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    String.format(Locale.US, "%+d", gainMb / 100),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (gainMb == 0) MaterialTheme.colorScheme.onSurfaceVariant else CyanAccent
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(150.dp)
+                        .clipToBounds(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Slider(
+                        value = gainMb.toFloat(),
+                        onValueChange = { onBandChange(band, it.toInt()) },
+                        valueRange = -1500f..1500f,
+                        modifier = Modifier
+                            .width(142.dp)
+                            .height(48.dp)
+                            .rotate(270f)
+                    )
+                }
+                Text(
+                    freqs[band],
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 
@@ -412,13 +438,12 @@ private fun ToneSlider(
         Text(
             valueText,
             style = MaterialTheme.typography.labelMedium,
-            modifier = Modifier.padding(start = 8.dp)
+            color = CyanAccent,
+            modifier = Modifier
+                .padding(start = 8.dp)
+                .background(SurfaceVariantDark, RoundedCornerShape(6.dp))
+                .padding(horizontal = 8.dp, vertical = 3.dp)
         )
     }
 }
 
-private fun formatFreq(hz: Int): String = when {
-    hz <= 0 -> "—"
-    hz >= 1000 -> String.format(Locale.US, "%.1f kHz", hz / 1000f)
-    else -> "$hz Hz"
-}

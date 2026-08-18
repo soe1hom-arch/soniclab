@@ -6,8 +6,17 @@ import com.soniclab.core.model.Track
 /**
  * Immutable snapshot of the player state consumed by the UI.
  */
+/** Decoded format info of the currently playing audio (from Media3 tracks). */
+data class TrackAudioInfo(
+    val codec: String,
+    val sampleRateHz: Int,
+    val bitDepth: String,
+    val channels: Int
+)
+
 data class PlayerUiState(
     val currentTrack: Track? = null,
+    val audioInfo: TrackAudioInfo? = null,
     val isPlaying: Boolean = false,
     val positionMs: Long = 0L,
     val durationMs: Long = 0L,

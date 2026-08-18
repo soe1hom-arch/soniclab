@@ -100,6 +100,19 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1
         )
+        state.audioInfo?.let { info ->
+            Text(
+                buildString {
+                    append(info.codec)
+                    if (info.sampleRateHz > 0) append(" • ${info.sampleRateHz / 1000f} kHz")
+                    append(" • ${info.bitDepth}")
+                    if (info.channels > 0) append(" • ${if (info.channels == 1) "Mono" else "Stereo"}")
+                },
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                maxLines = 1
+            )
+        }
 
         Spacer(Modifier.height(24.dp))
         SpectrumVisualizer(buckets = spectrum)

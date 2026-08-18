@@ -6,6 +6,7 @@ import android.content.Intent
 import android.net.Uri
 import android.util.Log
 import androidx.core.content.ContextCompat
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackParameters
@@ -126,6 +127,10 @@ class PlayerController(private val context: Context) {
                 playbackSpeed = playbackParameters.speed,
                 playbackPitch = semitonesFromPitch(playbackParameters.pitch)
             )
+        }
+
+        override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
+            syncFormatFromController()
         }
     }
 
@@ -307,6 +312,30 @@ class PlayerController(private val context: Context) {
         }
     }
 
+    /**
+     * Rebuilds the playback service with hi-res float output enabled/disabled
+     * (decoder -> DSP -> AudioTrack stays float; queue/position preserved).
+     */
+    fun setHiResOutput(enabled: Boolean) {
+        AudioOutputBridge.hiResEnabled = enabled
+        runCatching {
+            context.startService(
+                Intent(context, PlaybackService::class.java)
+                    .setAction(PlaybackService.ACTION_RECONFIGURE_OUTPUT)
+            )
+        }
+    }
+
+    /** Toggles TPDF dither + noise shaping in the PCM16 encode path. */
+    fun setDitherEnabled(enabled: Boolean) {
+        DitherBridge.enabled = enabled
+    }
+
+    /** Fixed pre-effect headroom in dB (-3..0); 0 = no attenuation. */
+    fun setHeadroomDb(db: Float) {
+        AudioHeadroomBridge.headroomDb = db
+    }
+
     /** ReplayGain-style auto normalization: per-track gain toward -14 LUFS. */
     private var autoNormalize = false
 
@@ -399,6 +428,33 @@ class PlayerController(private val context: Context) {
         )
         pitchSemitones = semitonesFromPitch(c.playbackParameters.pitch)
         updateTicker(c.isPlaying)
+        syncFormatFromController()
+    }
+
+    /** Reads the decoded audio format (codec, sample rate, bit depth, channels). */
+    private fun syncFormatFromController() {
+        val c = controller ?: return
+        val audioGroup = c.currentTracks.groups.firstOrNull { it.type == C.TRACK_TYPE_AUDIO }
+        val fmt = audioGroup?.getTrackFormat(0) ?: run {
+            _uiState.value = _uiState.value.copy(audioInfo = null)
+            return
+        }
+        val bitDepth = when (fmt.pcmEncoding) {
+            C.ENCODING_PCM_8BIT -> "8-bit"
+            C.ENCODING_PCM_16BIT -> "16-bit"
+            C.ENCODING_PCM_24BIT -> "24-bit"
+            C.ENCODING_PCM_32BIT -> "32-bit"
+            C.ENCODING_PCM_FLOAT -> "Float 32"
+            else -> "—"
+        }
+        _uiState.value = _uiState.value.copy(
+            audioInfo = TrackAudioInfo(
+                codec = fmt.sampleMimeType?.substringAfter("audio/")?.uppercase() ?: "—",
+                sampleRateHz = fmt.sampleRate,
+                bitDepth = bitDepth,
+                channels = fmt.channelCount
+            )
+        )
     }
 
     private fun updateTicker(active: Boolean) {

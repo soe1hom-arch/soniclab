@@ -14,6 +14,9 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     val autoNormalizeEnabled = container.settingsRepository.autoNormalizeEnabled
     val playbackSpeed = container.settingsRepository.playbackSpeed
     val directOutputEnabled = container.settingsRepository.directOutputEnabled
+    val hiResOutputEnabled = container.settingsRepository.hiResOutputEnabled
+    val ditherEnabled = container.settingsRepository.ditherEnabled
+    val headroomDb = container.settingsRepository.headroomDb
 
     fun setAmoled(enabled: Boolean) {
         viewModelScope.launch { container.settingsRepository.setAmoledTheme(enabled) }
@@ -39,5 +42,17 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
 
     fun setDirectOutput(enabled: Boolean) {
         viewModelScope.launch { container.settingsRepository.setDirectOutputEnabled(enabled) }
+    }
+
+    fun setHiResOutput(enabled: Boolean) {
+        viewModelScope.launch { container.settingsRepository.setHiResOutputEnabled(enabled) }
+    }
+
+    fun setDither(enabled: Boolean) {
+        viewModelScope.launch { container.settingsRepository.setDitherEnabled(enabled) }
+    }
+
+    fun setHeadroom(db: Float) {
+        viewModelScope.launch { container.settingsRepository.setHeadroomDb(db) }
     }
 }

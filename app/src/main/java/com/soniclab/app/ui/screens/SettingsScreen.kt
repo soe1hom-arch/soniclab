@@ -20,9 +20,13 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.material.icons.rounded.HighQuality
+import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
@@ -51,6 +55,9 @@ fun SettingsScreen(container: AppContainer, onOpenAbout: () -> Unit) {
     val aiEnhance by vm.aiEnhanceEnabled.collectAsStateWithLifecycle(initialValue = false)
     val autoNormalize by vm.autoNormalizeEnabled.collectAsStateWithLifecycle(initialValue = false)
     val directOutput by vm.directOutputEnabled.collectAsStateWithLifecycle(initialValue = false)
+    val hiRes by vm.hiResOutputEnabled.collectAsStateWithLifecycle(initialValue = false)
+    val dither by vm.ditherEnabled.collectAsStateWithLifecycle(initialValue = true)
+    val headroom by vm.headroomDb.collectAsStateWithLifecycle(initialValue = 0f)
 
     Column(
         modifier = Modifier
@@ -91,6 +98,57 @@ fun SettingsScreen(container: AppContainer, onOpenAbout: () -> Unit) {
             checked = directOutput,
             onCheckedChange = vm::setDirectOutput
         )
+
+        Spacer(Modifier.height(16.dp))
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Output Audio", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Kualitas jalur keluaran sebelum dan setelah DSP",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
+                ToggleRow(
+                    icon = { Icon(Icons.Rounded.HighQuality, contentDescription = null) },
+                    title = "Output Hi-Res 24-bit",
+                    subtitle = "FLAC/audio hi-res mengalir sebagai float sampai AudioTrack (perlu player di-rebuild)",
+                    checked = hiRes,
+                    onCheckedChange = vm::setHiResOutput
+                )
+                ToggleRow(
+                    icon = { Icon(Icons.Rounded.GraphicEq, contentDescription = null) },
+                    title = "Dither TPDF + Noise Shaping",
+                    subtitle = "Hilangkan artifact kuantisasi 16-bit saat efek aktif",
+                    checked = dither,
+                    onCheckedChange = vm::setDither
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Rounded.Speed, contentDescription = null)
+                    Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                        Text("Headroom", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "Ruang aman sebelum efek; kurangi level agar tidak pecah",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Text(
+                        if (headroom <= -0.05f) String.format("%.0f dB", headroom) else "0 dB",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Slider(
+                    value = headroom,
+                    onValueChange = vm::setHeadroom,
+                    valueRange = -3f..0f
+                )
+            }
+        }
 
         Text(
             text = if (container.enhancer.isAiModelLoaded) {
