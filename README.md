@@ -93,7 +93,7 @@ then enable the table below:
 
 ### AI (on-device)
 
-- **AI Enhance** — real-time enhancement on the playback path via Media3 `AudioProcessor`; a **transparent DSP enhancer** (adaptive gain toward −18 dBFS + soft-knee limiter, no EQ coloring, no hard clip). Active for PCM16 and float/hi-res tracks.
+- **AI Enhance** — real-time enhancement on the playback path via Media3 `AudioProcessor`; a **transparent DSP enhancer** (adaptive gain toward −18 dBFS + soft-knee limiter, no EQ coloring, no hard clip). Works on every track, including hi-res/FLAC (decoder output is normalized into the chain).
 - **Vocal separator** — STFT center-channel with soft ratio mask (no neural model).
 - No neural models are bundled: the previous `denoiser_v1.tflite` was trained on synthetic 16 kHz audio and degraded real music into buzzing artifacts, so it was removed in favor of the transparent DSP enhancer.
 
@@ -101,7 +101,7 @@ then enable the table below:
 
 - **AMOLED** theme (pure black), **AI Enhance** toggle (real-time), **Auto Normalization** (EBU R128), **Direct Mode** — rebuilds the sink without the DSP chain for the cleanest output path, **Crossfade** slider, **Sleep Timer**, AI model status, and **About App & Developer** (full info screen).
 - **Output Audio** (output path quality):
-  - **Hi-Res 24-bit Output** — the decoder → DSP → AudioTrack path stays float (not down-converted to 16-bit); the player rebuilds automatically while preserving the queue & position,
+  - **Hi-Res 24-bit Output** — float 24-bit path for **Direct mode** only (shown when Direct is on; media3's float-output sink excludes the custom DSP chain, so with effects active the chain runs 16-bit and every toggle stays responsive); the player rebuilds automatically while preserving the queue & position,
   - **TPDF Dither + Noise Shaping** — on/off; when off, 16-bit conversion uses plain rounding,
   - **Headroom** −3..0 dB — headroom before effects so EQ/presets are less likely to clip.
 
@@ -130,8 +130,7 @@ All processors extend `PcmAudioProcessor`, which:
 - stays always active so effect toggles apply instantly without seeking/track changes,
 - up-mixes **mono → stereo** for 3D/8D effects,
 - passes audio through untouched (zero-copy) when the effect is off,
-- applies **TPDF dither + 2nd-order noise shaping** when re-encoding to PCM16 after an active effect (toggleable in Settings; passthrough stays bit-exact),
-- with **Hi-Res Output** enabled, the whole chain runs in float all the way to AudioTrack.
+- applies **TPDF dither + 2nd-order noise shaping** when re-encoding to PCM16 after an active effect (toggleable in Settings; passthrough stays bit-exact).
 
 ## Modules (MVVM + Repository)
 

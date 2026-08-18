@@ -42,6 +42,7 @@ class PlaybackService : MediaSessionService() {
             DefaultRenderersFactory(this).apply {
                 // Keep the hi-res/FLAC software-decoder fallback in direct mode too.
                 setEnableDecoderFallback(true)
+                // Direct mode is a true bypass, so media3's float path is safe here.
                 setEnableAudioFloatOutput(hiRes)
                 setEnableAudioTrackPlaybackParams(hiRes)
             }
@@ -60,7 +61,13 @@ class PlaybackService : MediaSessionService() {
                     AudioLimiterBridge.processor
                 )
             ).apply {
-                setEnableAudioFloatOutput(hiRes)
+                // NEVER enable media3's float output while the DSP chain is in
+                // use: DefaultAudioSink builds the float-output pipeline from
+                // its internal converters only and drops every custom
+                // AudioProcessor, so on hi-res PCM all effects would silently
+                // stop responding until the player is rebuilt. The chain runs
+                // at 16-bit instead, and toggles always take effect live.
+                setEnableAudioFloatOutput(false)
                 setEnableAudioTrackPlaybackParams(hiRes)
             }
         }

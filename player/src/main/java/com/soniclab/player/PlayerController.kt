@@ -319,7 +319,8 @@ class PlayerController(private val context: Context) {
 
     /**
      * Rebuilds the playback service with hi-res float output enabled/disabled
-     * (decoder -> DSP -> AudioTrack stays float; queue/position preserved).
+     * (queue/position preserved). Only affects Direct mode: with the DSP chain
+     * active the sink runs 16-bit so the effects keep working.
      */
     fun setHiResOutput(enabled: Boolean) {
         AudioOutputBridge.hiResEnabled = enabled

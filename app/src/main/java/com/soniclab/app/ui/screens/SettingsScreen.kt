@@ -134,13 +134,18 @@ fun SettingsScreen(container: AppContainer, onOpenAbout: () -> Unit, onOpenEqual
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
-                ToggleRow(
-                    icon = { Icon(Icons.Rounded.HighQuality, contentDescription = null) },
-                    title = "Output Hi-Res 24-bit",
-                    subtitle = "FLAC/audio hi-res mengalir sebagai float sampai AudioTrack (perlu player di-rebuild)",
-                    checked = hiRes,
-                    onCheckedChange = vm::setHiResOutput
-                )
+                // Hi-res float output only works in Direct mode: media3's
+                // float-output pipeline drops the custom DSP chain, so enabling
+                // it while effects are active would silently disable every toggle.
+                if (directOutput) {
+                    ToggleRow(
+                        icon = { Icon(Icons.Rounded.HighQuality, contentDescription = null) },
+                        title = "Output Hi-Res 24-bit",
+                        subtitle = "Jalur float 24-bit untuk Mode Langsung (tanpa DSP)",
+                        checked = hiRes,
+                        onCheckedChange = vm::setHiResOutput
+                    )
+                }
                 ToggleRow(
                     icon = { Icon(Icons.Rounded.GraphicEq, contentDescription = null) },
                     title = "Dither TPDF + Noise Shaping",
