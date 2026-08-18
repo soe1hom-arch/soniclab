@@ -34,7 +34,10 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.NavType
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import android.net.Uri
 import com.soniclab.app.di.AppContainer
 import com.soniclab.app.ui.common.MiniPlayerBar
 import com.soniclab.app.ui.screens.AboutScreen
@@ -157,16 +160,44 @@ fun SonicLabAppRoot(container: AppContainer) {
                 fadeOut(tween(150)) + slideOutVertically(tween(180)) { it / 24 }
             }
         ) {
-            composable("home") { LibraryScreen(container) { navController.navigate("player") } }
+            composable("home") {
+                LibraryScreen(
+                    container,
+                    onOpenPlayer = { navController.navigate("player") },
+                    onOpenStudio = { track ->
+                        navController.navigate(
+                            "studio?uri=${Uri.encode(track.uri.toString())}&title=${Uri.encode(track.title)}"
+                        )
+                    }
+                )
+            }
             composable("player") {
                 PlayerScreen(
                     container,
                     onOpenEqualizer = { navController.navigate("equalizer") }
                 )
             }
-            composable("studio") { StudioScreen(container) }
+            composable(
+                "studio?uri={uri}&title={title}",
+                arguments = listOf(
+                    navArgument("uri") {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    },
+                    navArgument("title") {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    }
+                )
+            ) { entry ->
+                StudioScreen(
+                    container,
+                    uri = entry.arguments?.getString("uri")?.takeIf { it.isNotBlank() },
+                    title = entry.arguments?.getString("title")?.takeIf { it.isNotBlank() }
+                )
+            }
             composable("equalizer") {
-                EqualizerScreen(container, onOpenStudio = { navController.navigate("studio") })
+                EqualizerScreen(container)
             }
             composable("settings") {
                 SettingsScreen(container, onOpenAbout = { navController.navigate("about") })

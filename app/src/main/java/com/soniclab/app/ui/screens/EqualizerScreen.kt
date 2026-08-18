@@ -19,9 +19,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.GraphicEq
-import androidx.compose.material.icons.rounded.SettingsInputComponent
 import androidx.compose.material.icons.rounded.SurroundSound
 import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -34,6 +34,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -48,8 +49,10 @@ import com.soniclab.app.ui.common.appViewModel
 import com.soniclab.player.SpatialAudioProcessor
 import java.util.Locale
 
+private data class ResetConfirm(val title: String, val body: String, val action: () -> Unit)
+
 @Composable
-fun EqualizerScreen(container: AppContainer, onOpenStudio: () -> Unit) {
+fun EqualizerScreen(container: AppContainer) {
     val haptic = LocalHapticFeedback.current
     val vm: EqualizerViewModel = appViewModel { EqualizerViewModel(it) }
     val gains by vm.bandGains.collectAsStateWithLifecycle()
@@ -64,6 +67,7 @@ fun EqualizerScreen(container: AppContainer, onOpenStudio: () -> Unit) {
     val spatialWidth = vm.spatialWidth
     val rotationSeconds = vm.rotationSeconds
     val panDepth = vm.panDepth
+    var resetConfirm by remember { mutableStateOf<ResetConfirm?>(null) }
 
     Column(
         modifier = Modifier
@@ -79,7 +83,11 @@ fun EqualizerScreen(container: AppContainer, onOpenStudio: () -> Unit) {
             )
             TextButton(onClick = {
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                vm.reset()
+                resetConfirm = ResetConfirm(
+                    "Atur Ulang Semua",
+                    "Semua penyetelan EQ, efek 3D/8D, dan tone akan kembali ke nilai bawaan.",
+                    vm::reset
+                )
             }) { Text("Atur Ulang") }
         }
 
@@ -97,7 +105,11 @@ fun EqualizerScreen(container: AppContainer, onOpenStudio: () -> Unit) {
             initiallyExpanded = true,
             onReset = {
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                vm.resetPresetSection()
+                resetConfirm = ResetConfirm(
+                    "Atur Ulang Prasetel & EQ",
+                    "Prasetel, band EQ, bass, dan balance akan kembali ke nilai bawaan.",
+                    vm::resetPresetSection
+                )
             }
         ) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 8.dp)) {
@@ -158,7 +170,11 @@ fun EqualizerScreen(container: AppContainer, onOpenStudio: () -> Unit) {
             initiallyExpanded = true,
             onReset = {
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                vm.resetSpatialSection()
+                resetConfirm = ResetConfirm(
+                    "Atur Ulang Mode 3D/8D",
+                    "Efek ruang, surround, dan lebar panggung akan kembali ke nilai bawaan.",
+                    vm::resetSpatialSection
+                )
             }
         ) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 8.dp)) {
@@ -234,7 +250,11 @@ fun EqualizerScreen(container: AppContainer, onOpenStudio: () -> Unit) {
             initiallyExpanded = false,
             onReset = {
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                vm.resetToneSection()
+                resetConfirm = ResetConfirm(
+                    "Atur Ulang Tone & Efek",
+                    "Treble, reverb, limiter, ukuran ruangan, dan pitch akan kembali ke nilai bawaan.",
+                    vm::resetToneSection
+                )
             }
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
@@ -277,30 +297,24 @@ fun EqualizerScreen(container: AppContainer, onOpenStudio: () -> Unit) {
             )
         }
 
-        SettingSection(
-            title = "Studio: Analisis & DSP",
-            subtitle = "Analyzer, konversi WAV & alat DSP lanjutan",
-            icon = Icons.Rounded.SettingsInputComponent,
-            initiallyExpanded = false
-        ) {
-            Text(
-                "Analisis lagu (waveform, info file, loudness), vocal remover, enhancer, dan alat konversi/cut tersedia di Studio.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-            OutlinedButton(
-                onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onOpenStudio()
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Rounded.GraphicEq, contentDescription = null)
-                Text(" Buka Studio")
-            }
-        }
         Spacer(Modifier.height(8.dp))
+    }
+    resetConfirm?.let { confirm ->
+        AlertDialog(
+            onDismissRequest = { resetConfirm = null },
+            title = { Text(confirm.title) },
+            text = { Text(confirm.body) },
+            confirmButton = {
+                TextButton(onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    resetConfirm = null
+                    confirm.action()
+                }) { Text("Atur Ulang") }
+            },
+            dismissButton = {
+                TextButton(onClick = { resetConfirm = null }) { Text("Batal") }
+            }
+        )
     }
 }
 

@@ -78,7 +78,11 @@ private enum class LibraryTab(val label: String) {
 }
 
 @Composable
-fun LibraryScreen(container: AppContainer, onOpenPlayer: () -> Unit) {
+fun LibraryScreen(
+    container: AppContainer,
+    onOpenPlayer: () -> Unit,
+    onOpenStudio: (Track) -> Unit
+) {
     val vm: LibraryViewModel = appViewModel { LibraryViewModel(it) }
     val tracks by vm.tracks.collectAsStateWithLifecycle()
     val favorites by vm.favorites.collectAsStateWithLifecycle()
@@ -153,6 +157,7 @@ fun LibraryScreen(container: AppContainer, onOpenPlayer: () -> Unit) {
                         selection,
                         currentTrackId = playerState.currentTrack?.id,
                         onOpenPlayer = onOpenPlayer,
+                        onOpenStudio = onOpenStudio,
                         onPlayNext = { container.playerController.addToQueueNext(it) },
                         onAddToQueue = { container.playerController.addToQueueEnd(it) }
                     )
@@ -171,6 +176,7 @@ private fun TracksTab(
     selection: String?,
     currentTrackId: Long?,
     onOpenPlayer: () -> Unit,
+    onOpenStudio: (Track) -> Unit,
     onPlayNext: (Track) -> Unit,
     onAddToQueue: (Track) -> Unit
 ) {
@@ -221,6 +227,7 @@ private fun TracksTab(
                         onOpenPlayer()
                     },
                     onFavorite = { vm.toggleFavorite(track.id) },
+                    onOpenStudio = { onOpenStudio(track) },
                     onPlayNext = { onPlayNext(track) },
                     onAddToQueue = { onAddToQueue(track) }
                 )
@@ -369,6 +376,7 @@ private fun TrackRow(
     isCurrent: Boolean,
     onClick: () -> Unit,
     onFavorite: () -> Unit,
+    onOpenStudio: () -> Unit,
     onPlayNext: () -> Unit,
     onAddToQueue: () -> Unit
 ) {
@@ -454,6 +462,14 @@ private fun TrackRow(
                         menuOpen = false
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         onAddToQueue()
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Buka di Studio (Offline)") },
+                    onClick = {
+                        menuOpen = false
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onOpenStudio()
                     }
                 )
             }

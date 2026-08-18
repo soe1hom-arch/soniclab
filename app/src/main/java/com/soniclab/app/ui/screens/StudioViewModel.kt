@@ -81,6 +81,10 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
         fileName = displayName
         message = null
         lastResult = null
+        info = null
+        waveform = emptyList()
+        lufs = 0f
+        sourceLabel = null
     }
 
     fun onPickSecond(uri: Uri?, displayName: String?) {

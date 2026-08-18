@@ -38,27 +38,31 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import android.net.Uri
 import android.os.Build
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.soniclab.app.di.AppContainer
-import kotlinx.coroutines.delay
 import com.soniclab.app.ui.common.appViewModel
 import com.soniclab.visualizer.WaveformVisualizer
 import java.util.Locale
 
 @Composable
-fun StudioScreen(container: AppContainer) {
+fun StudioScreen(container: AppContainer, uri: String? = null, title: String? = null) {
     val vm: StudioViewModel = appViewModel { StudioViewModel(it) }
     val pickedUri = vm.pickedUri
     val pickedUri2 = vm.pickedUri2
@@ -71,18 +75,22 @@ fun StudioScreen(container: AppContainer) {
     val lufs = vm.lufs
     val playerState by vm.playerState.collectAsStateWithLifecycle()
 
-    // Terhubung langsung: saat studio dibuka, lagu yang sedang diputar jadi File 1.
-    LaunchedEffect(Unit) {
-        vm.useCurrentTrack()
+    // File 1 diisi dari lagu yang dipilih di Library; fallback ke lagu yang sedang diputar.
+    LaunchedEffect(uri, title) {
+        if (uri != null) {
+            vm.onPick(Uri.parse(uri), title)
+        } else {
+            vm.useCurrentTrack()
+        }
     }
 
-    // Pesan sementara (mis. hasil simpan) ditutup otomatis.
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Pesan sementara (mis. hasil simpan) tampil sebagai Snackbar.
     LaunchedEffect(message) {
-        val current = message
-        if (current != null) {
-            delay(8000)
-            vm.clearMessageIfCurrent(current)
-        }
+        val current = message ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(current)
+        vm.clearMessageIfCurrent(current)
     }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -98,13 +106,15 @@ fun StudioScreen(container: AppContainer) {
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
+    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
         Text("Studio", style = MaterialTheme.typography.headlineLarge)
         Text(
             "Analisis, konversi & DSP — langsung ke lagu yang sedang diputar.",
@@ -144,19 +154,6 @@ fun StudioScreen(container: AppContainer) {
                 Text(" Menganalisis…", style = MaterialTheme.typography.bodyLarge)
             }
         }
-        message?.let {
-            Text(
-                it,
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (it.startsWith("Gagal") || it.contains("butuh")) {
-                    MaterialTheme.colorScheme.error
-                } else {
-                    MaterialTheme.colorScheme.primary
-                },
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-
         vm.lastResult?.let { result ->
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(
@@ -299,6 +296,7 @@ fun StudioScreen(container: AppContainer) {
             ToolActionRow(pickedUri != null && !working, Icons.Rounded.Equalizer, "Normalizer (−14 LUFS)", "Ratakan loudness ke target", vm::normalize)
             ToolActionRow(pickedUri != null && !working, Icons.Rounded.MicOff, "Vocal Remover", "Hilangkan vokal (butuh file stereo)", vm::vocalReduction)
         }
+    }
     }
 }
 
