@@ -210,6 +210,26 @@ class AudioProcessorsTest {
         assertTrue(abs(out[1] + 8000) <= 2)
     }
 
+    @Test
+    fun gain_baseAndAutoAreAdditive() {
+        val p = GainAudioProcessor()
+        p.configure(stereoFloat)
+        // +6 dB preset boost canceled by -6 dB auto normalization -> passthrough.
+        p.baseGainDb = 6f
+        p.autoGainDb = -6f
+        p.queueInput(floats(0.5f, -0.25f))
+        val flat = readFloats(p.getOutput())
+        assertEquals(0.5f, flat[0], 1e-6f)
+        assertEquals(-0.25f, flat[1], 1e-6f)
+        // Disabling auto normalization keeps the preset boost (never zeroed).
+        p.autoGainDb = 0f
+        p.queueInput(floats(0.5f, -0.25f))
+        val boosted = readFloats(p.getOutput())
+        val expected = 0.5f * 10f.pow(6f / 20f)
+        assertEquals(expected, boosted[0], 1e-5f)
+        assertEquals(-expected / 2f, boosted[1], 1e-5f)
+    }
+
     // --- ToneAudioProcessor ---
 
     @Test
@@ -372,9 +392,10 @@ class AudioProcessorsTest {
         p.enabled = true
         p.enhancer = IdentityEnhancer
         p.configure(monoPcm16)
-        p.queueInput(sineBuffer(440f, 1024, 44100))
+        // 1323 frames = 3 chunks of 441 (~10ms @ 44.1 kHz).
+        p.queueInput(sineBuffer(440f, 1323, 44100))
         val out = readShorts(p.getOutput())
-        assertEquals(1024, out.size)
+        assertEquals(1323, out.size)
         p.queueEndOfStream()
         assertEquals(0, p.getOutput().remaining())
         assertTrue(p.isEnded)

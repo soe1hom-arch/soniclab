@@ -70,9 +70,11 @@ class EffectsController {
             AudioSpatialBridge.spatial3d = true
             AudioSpatialBridge.widthStrength = width
         }
-        // Preset room reverb (Cinema/Jazz) and legacy loudness boost.
+        // Preset room reverb (Cinema/Jazz) and legacy loudness boost. The
+        // boost lives in baseGainDb so system toggles (auto-normalize, Direct
+        // mode) never wipe it.
         if (preset.reverbEnabled) AudioReverbBridge.wetMix = REVERB_DEFAULT_WET
-        if (preset.loudnessBoostDb != 0f) AudioGainBridge.gainDb = preset.loudnessBoostDb
+        AudioGainBridge.baseGainDb = preset.loudnessBoostDb
         refreshState()
     }
 

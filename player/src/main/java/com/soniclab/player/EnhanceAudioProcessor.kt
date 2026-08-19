@@ -13,9 +13,12 @@ import com.soniclab.ai.AiEnhancer
  * the enhancement too). When disabled (or no enhancer is attached) audio is
  * passed through untouched.
  *
- * Audio is accumulated in per-channel frames of [frameChunk] samples; each
- * channel is enhanced independently (the bundled TFLite model is mono) and
- * re-interleaved. Runs on the audio thread, so the enhancer must be cheap.
+ * Audio is accumulated in per-channel frames of ~10 ms ([frameChunk] follows
+ * the sample rate: 441 @ 44.1 kHz, 960 @ 96 kHz); each channel is enhanced
+ * independently (the bundled model is mono) and re-interleaved. A fixed
+ * 512-frame chunk would shrink to ~5 ms at 96 kHz and make the enhancer's
+ * gain adaptation audibly grainy on hi-res tracks. Runs on the audio thread,
+ * so the enhancer must be cheap.
  */
 class EnhanceAudioProcessor : PcmAudioProcessor() {
 
@@ -78,7 +81,7 @@ class EnhanceAudioProcessor : PcmAudioProcessor() {
         pending.clear()
     }
 
-    companion object {
-        private const val frameChunk = 512
-    }
+    /** ~10 ms of frames at the current sample rate (256..4096). */
+    private val frameChunk: Int
+        get() = (sampleRateHz / 100).coerceIn(256, 4096)
 }

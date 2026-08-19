@@ -42,6 +42,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -83,8 +84,13 @@ fun SettingsScreen(container: AppContainer, onOpenAbout: () -> Unit, onOpenEqual
         ToggleRow(
             icon = { Icon(Icons.Rounded.AutoAwesome, contentDescription = null) },
             title = "AI Enhance",
-            subtitle = "Penyempurnaan suara real-time saat playback (on-device)",
+            subtitle = if (directOutput) {
+                "Nonaktif saat Mode Langsung aktif — nyalakan kembali untuk efek DSP"
+            } else {
+                "Penyempurnaan suara real-time saat playback (on-device)"
+            },
             checked = aiEnhance,
+            enabled = !directOutput,
             onCheckedChange = vm::setAiEnhance
         )
 
@@ -117,7 +123,11 @@ fun SettingsScreen(container: AppContainer, onOpenAbout: () -> Unit, onOpenEqual
             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                 Text("Equalizer & Efek Suara", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "Bass, 10-band EQ, 3D/8D, reverb, tone & balance",
+                    if (directOutput) {
+                        "Dilewati di Mode Langsung — nonaktifkan Direct untuk memakai efek"
+                    } else {
+                        "Bass, 10-band EQ, 3D/8D, reverb, tone & balance"
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -134,9 +144,9 @@ fun SettingsScreen(container: AppContainer, onOpenAbout: () -> Unit, onOpenEqual
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
-                // Hi-res float output only works in Direct mode: media3's
-                // float-output pipeline drops the custom DSP chain, so enabling
-                // it while effects are active would silently disable every toggle.
+                // With the custom DspAudioSink the DSP chain always runs in
+                // 32-bit float and reaches the AudioTrack as hi-res float, so
+                // this toggle only changes the Direct (no-DSP) path.
                 if (directOutput) {
                     ToggleRow(
                         icon = { Icon(Icons.Rounded.HighQuality, contentDescription = null) },
@@ -258,10 +268,14 @@ private fun ToggleRow(
     title: String,
     subtitle: String,
     checked: Boolean,
+    enabled: Boolean = true,
     onCheckedChange: (Boolean) -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 10.dp)
+            .alpha(if (enabled) 1f else 0.45f),
         verticalAlignment = Alignment.CenterVertically
     ) {
         icon()
@@ -273,6 +287,6 @@ private fun ToggleRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        Switch(checked = checked, enabled = enabled, onCheckedChange = onCheckedChange)
     }
 }

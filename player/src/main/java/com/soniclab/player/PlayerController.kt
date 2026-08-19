@@ -113,7 +113,7 @@ class PlayerController(private val context: Context) {
                 val uri = mediaItem?.localConfiguration?.uri
                 scope.launch(Dispatchers.IO) {
                     val gain = computeReplayGainDb(uri)
-                    AudioGainBridge.gainDb = gain ?: 0f
+                    AudioGainBridge.autoGainDb = if (autoNormalize) gain ?: 0f else 0f
                 }
             }
             syncFromController()
@@ -307,7 +307,6 @@ class PlayerController(private val context: Context) {
      */
     fun setDirectOutput(enabled: Boolean) {
         DirectOutputBridge.enabled = enabled
-        if (enabled) AudioGainBridge.gainDb = 0f
         runCatching {
             context.startService(
                 Intent(context, PlaybackService::class.java)
@@ -320,7 +319,8 @@ class PlayerController(private val context: Context) {
     /**
      * Rebuilds the playback service with hi-res float output enabled/disabled
      * (queue/position preserved). Only affects Direct mode: with the DSP chain
-     * active the sink runs 16-bit so the effects keep working.
+     * active, DspAudioSink always runs the effects in 32-bit float and outputs
+     * float PCM to the AudioTrack regardless of this flag.
      */
     fun setHiResOutput(enabled: Boolean) {
         AudioOutputBridge.hiResEnabled = enabled
@@ -347,7 +347,17 @@ class PlayerController(private val context: Context) {
 
     fun setAutoNormalize(enabled: Boolean) {
         autoNormalize = enabled
-        if (!enabled) AudioGainBridge.gainDb = 0f
+        if (enabled) {
+            // Apply to the current track immediately (per-track recompute
+            // still happens on every transition).
+            val uri = controller?.currentMediaItem?.localConfiguration?.uri
+            scope.launch(Dispatchers.IO) {
+                val gain = computeReplayGainDb(uri)
+                AudioGainBridge.autoGainDb = if (autoNormalize) gain ?: 0f else 0f
+            }
+        } else {
+            AudioGainBridge.autoGainDb = 0f
+        }
     }
 
     /**

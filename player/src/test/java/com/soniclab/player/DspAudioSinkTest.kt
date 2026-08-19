@@ -253,13 +253,13 @@ class DspAudioSinkTest {
         assertTrue(sink.handleBuffer(pcm16(*shortsA), 0L, 1))
         assertTrue("chunk not full -> nothing fed yet", fake.fed.isEmpty())
 
-        val framesB = 500 // 600 total -> one 512-frame chunk emitted
+        val framesB = 500 // 600 total -> one 441-frame chunk emitted (~10ms @44.1k)
         val shortsB = ShortArray(framesB) { (0.1f * sin(2.0 * PI * 440.0 * (it + framesA) / 44100.0).toFloat() * 32767f).roundToInt().toShort() }
         assertTrue(sink.handleBuffer(pcm16(*shortsB), 10_000L, 1))
-        assertEquals(512, fake.fed[0].size)
+        assertEquals(441, fake.fed[0].size)
 
         sink.playToEndOfStream()
-        assertEquals("tail chunk must flush at EOS", 88, fake.fed[1].size)
+        assertEquals("tail chunk must flush at EOS", 159, fake.fed[1].size)
         assertTrue(fake.ended)
     }
 
@@ -286,7 +286,7 @@ class DspAudioSinkTest {
         val framesB = 500
         val shortsB = ShortArray(framesB) { (0.1f * sin(2.0 * PI * 440.0 * (it + framesA) / 44100.0).toFloat() * 32767f).roundToInt().toShort() }
         assertTrue(sink.handleBuffer(pcm16(*shortsB), 10_000L, 1))
-        assertEquals(512, fake.fed[0].size)
+        assertEquals(441, fake.fed[0].size)
         // The chunk contains frames from the FIRST input buffer, so its PTS
         // must be the first buffer's PTS, not the second buffer's.
         assertEquals(0L, fake.pts[0])
