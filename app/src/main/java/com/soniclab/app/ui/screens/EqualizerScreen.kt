@@ -36,6 +36,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -80,6 +81,8 @@ fun EqualizerScreen(container: AppContainer) {
     val rotationSeconds = vm.rotationSeconds
     val panDepth = vm.panDepth
     var resetConfirm by remember { mutableStateOf<ResetConfirm?>(null) }
+    val directOutput by container.settingsRepository.directOutputEnabled
+        .collectAsStateWithLifecycle(initialValue = false)
 
     Column(
         modifier = Modifier
@@ -101,6 +104,37 @@ fun EqualizerScreen(container: AppContainer) {
                     vm::reset
                 )
             }) { Text("Atur Ulang") }
+        }
+
+        if (directOutput) {
+            Surface(
+                color = MaterialTheme.colorScheme.tertiaryContainer,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Rounded.GraphicEq,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                    Column(Modifier.padding(start = 12.dp)) {
+                        Text(
+                            "Mode Langsung aktif",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                        Text(
+                            "Semua efek DSP dilewati di jalur output. Nonaktifkan Mode Langsung di Pengaturan untuk mendengar penyetelan ini.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                    }
+                }
+            }
         }
 
         Text(

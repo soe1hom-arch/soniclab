@@ -306,6 +306,7 @@ class PlayerController(private val context: Context) {
      * contributing gain so the signal path is as clean as possible.
      */
     fun setDirectOutput(enabled: Boolean) {
+        if (enabled == DirectOutputBridge.enabled) return
         DirectOutputBridge.enabled = enabled
         runCatching {
             context.startService(

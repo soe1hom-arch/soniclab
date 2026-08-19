@@ -75,11 +75,12 @@ class PlaybackService : MediaSessionService() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_SET_DIRECT_OUTPUT) {
-            val enabled = intent.getBooleanExtra(EXTRA_DIRECT_OUTPUT, false)
-            if (enabled != DirectOutputBridge.enabled) {
-                DirectOutputBridge.enabled = enabled
-                rebuildPlayer()
-            }
+            // Always rebuild: the caller pre-sets the bridge before starting
+            // the service, so an equality check here could never trigger and
+            // the live session stayed stuck in the previous mode until some
+            // other toggle (e.g. hi-res output) forced a rebuild.
+            DirectOutputBridge.enabled = intent.getBooleanExtra(EXTRA_DIRECT_OUTPUT, false)
+            rebuildPlayer()
         } else if (intent?.action == ACTION_RECONFIGURE_OUTPUT) {
             // Output flags (e.g. hi-res float) changed: rebuild preserving the queue.
             rebuildPlayer()
