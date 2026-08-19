@@ -63,17 +63,21 @@ class EffectsController {
         // Bass: 0..1000 -> 0..+8 dB low-shelf (keeps the preset's character
         // without the old dual BassBoost path).
         AudioToneBridge.bassDb = (preset.bassStrength.coerceIn(0, 1000) / 1000f) * BASS_MAX_DB
-        // Virtualizer maps onto the 3D widening; only applies when > 0 so the
-        // user's manual spatial setting is left alone by flat-ish presets.
+        // A preset is a complete recipe for the sections it drives: virtualizer
+        // turns 3D widening on when requested and off otherwise, so switching
+        // presets (or back to Flat) never leaves a stale effect running.
         val width = (preset.virtualizerStrength.coerceIn(0, 1000) / 1000f) * VIRT_MAX_WIDTH
         if (preset.virtualizerStrength > 0) {
             AudioSpatialBridge.spatial3d = true
             AudioSpatialBridge.widthStrength = width
+        } else {
+            AudioSpatialBridge.spatial3d = false
         }
-        // Preset room reverb (Cinema/Jazz) and legacy loudness boost. The
-        // boost lives in baseGainDb so system toggles (auto-normalize, Direct
-        // mode) never wipe it.
-        if (preset.reverbEnabled) AudioReverbBridge.wetMix = REVERB_DEFAULT_WET
+        // Preset room reverb (Cinema/Jazz) and legacy loudness boost. Reverb is
+        // preset-driven too: 0 when the preset doesn't ask for it. The boost
+        // lives in baseGainDb so system toggles (auto-normalize, Direct mode)
+        // never wipe it.
+        AudioReverbBridge.wetMix = if (preset.reverbEnabled) REVERB_DEFAULT_WET else 0f
         AudioGainBridge.baseGainDb = preset.loudnessBoostDb
         refreshState()
     }
@@ -110,10 +114,16 @@ class EffectsController {
         refreshState()
     }
 
-    /** Zeros EQ bands, bass and virtualizer; balance is reset by the caller. */
+    /**
+     * Returns the preset-driven sound to a clean baseline: zeros EQ bands,
+     * bass, preset reverb and the virtualizer's 3D widening. Balance, treble,
+     * 8D/Surround and the rest are owned by their own sections.
+     */
     fun reset() {
         AudioEqualizerBridge.resetAll()
         AudioToneBridge.bassDb = 0f
+        AudioReverbBridge.wetMix = 0f
+        AudioSpatialBridge.spatial3d = false
         _activePreset.value = null
         refreshState()
     }

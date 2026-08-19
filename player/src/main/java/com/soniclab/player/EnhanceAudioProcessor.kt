@@ -59,6 +59,12 @@ class EnhanceAudioProcessor : PcmAudioProcessor() {
 
     override fun onEndOfStream() {
         val e = enhancer ?: return
+        if (!enabled) {
+            // Stale frames buffered while the effect was active must not be
+            // released at EOS after the user switched it off mid-track.
+            pending.clear()
+            return
+        }
         val remainingFrames = pending.size / inputChannels
         if (remainingFrames <= 0) return
         val slice = FloatArray(pending.size) { pending[it] }
