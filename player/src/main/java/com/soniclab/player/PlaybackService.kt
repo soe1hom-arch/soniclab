@@ -61,13 +61,10 @@ class PlaybackService : MediaSessionService() {
                     AudioLimiterBridge.processor
                 )
             ).apply {
-                // NEVER enable media3's float output while the DSP chain is in
-                // use: DefaultAudioSink builds the float-output pipeline from
-                // its internal converters only and drops every custom
-                // AudioProcessor, so on hi-res PCM all effects would silently
-                // stop responding until the player is rebuilt. The chain runs
-                // at 16-bit instead, and toggles always take effect live.
-                setEnableAudioFloatOutput(false)
+                // The DSP chain runs inside DspAudioSink in 32-bit float, so
+                // media3's own float path is never used (it would drop every
+                // custom processor). Hi-res float output is therefore always
+                // on in DSP mode.
                 setEnableAudioTrackPlaybackParams(hiRes)
             }
         }
@@ -165,10 +162,13 @@ private class EnhanceRenderersFactory(context: Context, private val processors: 
         enableFloatOutput: Boolean,
         enableAudioTrackPlaybackParams: Boolean
     ): AudioSink {
-        return DefaultAudioSink.Builder(context)
-            .setAudioProcessors(processors)
-            .setEnableFloatOutput(enableFloatOutput)
+        // The delegate is a plain float-capable writer/position tracker with
+        // an empty processor list; DspAudioSink runs the DSP chain itself.
+        val delegate = DefaultAudioSink.Builder(context)
+            .setAudioProcessors(arrayOf())
+            .setEnableFloatOutput(true)
             .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
             .build()
+        return DspAudioSink(delegate, processors.toList())
     }
 }

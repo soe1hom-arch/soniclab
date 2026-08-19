@@ -7,10 +7,9 @@ package com.soniclab.player
 
 /**
  * Build-time output configuration read by [PlaybackService] whenever the
- * player is (re)built. Hi-res float output only applies in Direct mode
- * (no DSP): media3's float-output pipeline excludes custom processors, so
- * enabling it while the DSP chain is active would silently bypass every
- * effect on hi-res PCM.
+ * player is (re)built. Only affects Direct mode (no DSP), where media3's own
+ * float path is used. With the DSP chain active, [DspAudioSink] always runs
+ * the chain in 32-bit float and outputs float PCM regardless of this flag.
  */
 object AudioOutputBridge {
     @Volatile
