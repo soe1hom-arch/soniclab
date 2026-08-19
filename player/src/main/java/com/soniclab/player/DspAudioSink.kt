@@ -34,6 +34,18 @@ import java.nio.ByteOrder
  *
  * Encoder delay/padding (gapless trimming) is handled here since media3 only
  * trims on its 16-bit path.
+ *
+ * Timing contract (mirrors [DefaultAudioSink]): the delegate's internal
+ * position timeline advances per *first-seen* buffer (its submitted-frame
+ * count), not per consumed byte, and it forces a re-sync (with an
+ * `onPositionDiscontinuity`) when the PTS we pass disagrees by more than
+ * 200ms. We therefore stamp every chunk handed to the delegate with
+ * `firstPtsUs + submittedFrames * frameDuration`, computed up front when the
+ * chunk is created, and never re-stamp a partially written chunk. The renderer
+ * input is consumed in bounded slices so that when the AudioTrack applies
+ * backpressure the sink stops feeding (returns `false`, retaining the buffer)
+ * instead of building a multi-second internal queue that would desync the
+ * position.
  */
 class DspAudioSink(
     private val delegate: AudioSink,
@@ -47,12 +59,17 @@ class DspAudioSink(
     private var sampleRate = 0
     private var outFrameSize = 0
 
+    private var inputChannels = 0
+    private var inputFrameSize = 0
+
     private var pendingInput: ByteBuffer? = null
     private var pendingOut: ByteBuffer? = null
     private var outputBytes = ByteArray(0)
     private var outputStart = 0
     private var outputEnd = 0
-    private var nextPtsUs = C.TIME_UNSET
+    private var pendingOutPtsUs = C.TIME_UNSET
+    private var firstPtsUs = C.TIME_UNSET
+    private var submittedFrames = 0L
     private var eosQueued = false
 
     private var delayFramesRemaining = 0
@@ -95,6 +112,8 @@ class DspAudioSink(
         rawMode = true
         inputEncoding = inputFormat.pcmEncoding
         sampleRate = inputFormat.sampleRate
+        inputChannels = inputFormat.channelCount
+        inputFrameSize = inputChannels * bytesPerSample(inputEncoding)
 
         // Configure the chain in the float domain.
         pipeline.configure(
@@ -134,29 +153,23 @@ class DspAudioSink(
         }
         check(pendingInput == null || buffer === pendingInput)
 
+        if (pendingInput == null) {
+            pendingInput = buffer
+            if (firstPtsUs == C.TIME_UNSET) firstPtsUs = presentationTimeUs
+        }
+
         // Feed the delegate anything already waiting first (backpressure).
         drainToDelegate()
 
-        if (pendingInput == null) {
-            pendingInput = buffer
+        // Consume input only as fast as the delegate absorbs output, so the
+        // internal queue stays bounded. Return false (retain the buffer) once
+        // the queue limit is hit; the renderer retries with the same buffer.
+        while (pendingInput?.hasRemaining() == true) {
+            if ((outputEnd - outputStart) / outFrameSize >= sampleRate) break
+            processNextInputSlice()
+            drainToDelegate()
         }
-        val input = pendingInput
-        if (input != null && input.hasRemaining()) {
-            val floatOut = pipeline.process(input, inputEncoding)
-            if (!input.hasRemaining()) pendingInput = null
-            if (floatOut.hasRemaining()) {
-                if (nextPtsUs == C.TIME_UNSET) nextPtsUs = presentationTimeUs
-                appendOutput(floatOut)
-            }
-        } else if (input != null) {
-            // Empty input buffer: nothing to process.
-            pendingInput = null
-        }
-        drainToDelegate()
-
-        // Mirrors DefaultAudioSink: the buffer is handled as soon as the input
-        // is consumed; chain output may still be buffered here (or in the
-        // delegate) and is drained on subsequent calls.
+        if (pendingInput?.hasRemaining() == false) pendingInput = null
         return pendingInput == null
     }
 
@@ -165,6 +178,12 @@ class DspAudioSink(
             delegate.playToEndOfStream()
             return
         }
+        // Consume any input still retained by backpressure.
+        while (pendingInput?.hasRemaining() == true) {
+            processNextInputSlice()
+            drainToDelegate()
+        }
+        pendingInput = null
         if (!eosQueued) {
             eosQueued = true
             appendOutput(pipeline.endOfStream())
@@ -183,7 +202,7 @@ class DspAudioSink(
     }
 
     override fun isEnded(): Boolean =
-        eosQueued && pendingOut == null && outputStart >= outputEnd && delegate.isEnded()
+        eosQueued && pendingInput == null && pendingOut == null && outputStart >= outputEnd && delegate.isEnded()
 
     override fun hasPendingData(): Boolean =
         pendingOut != null || outputStart < outputEnd || pendingInput != null || delegate.hasPendingData()
@@ -259,6 +278,8 @@ class DspAudioSink(
         rawMode = false
         inputEncoding = C.ENCODING_PCM_16BIT
         sampleRate = 0
+        inputChannels = 0
+        inputFrameSize = 0
         outFrameSize = 0
         delayFramesRemaining = 0
         paddingFrames = 0
@@ -275,8 +296,26 @@ class DspAudioSink(
         outputBytes = ByteArray(0)
         outputStart = 0
         outputEnd = 0
-        nextPtsUs = C.TIME_UNSET
+        pendingOutPtsUs = C.TIME_UNSET
+        firstPtsUs = C.TIME_UNSET
+        submittedFrames = 0L
         eosQueued = false
+    }
+
+    /** Processes at most [INPUT_SLICE_FRAMES] frames of the retained input. */
+    private fun processNextInputSlice() {
+        val input = pendingInput ?: return
+        var sliceBytes = minOf(INPUT_SLICE_FRAMES * inputFrameSize, input.remaining())
+        sliceBytes -= sliceBytes % inputFrameSize
+        if (sliceBytes <= 0) {
+            // Trailing partial frame: consume it; decodeToFloat drops it.
+            sliceBytes = input.remaining()
+        }
+        val slice = input.duplicate().order(ByteOrder.LITTLE_ENDIAN)
+        slice.limit(slice.position() + sliceBytes)
+        val floatOut = pipeline.process(slice, inputEncoding)
+        input.position(input.position() + sliceBytes)
+        appendOutput(floatOut)
     }
 
     /** Appends float PCM [bytes], dropping any remaining encoder-delay frames first. */
@@ -312,22 +351,31 @@ class DspAudioSink(
             if (pendingOut == null) {
                 val retain = paddingFrames * outFrameSize
                 val feedable = outputEnd - outputStart - retain
-                if (feedable <= 0) return
+                if (feedable <= 0 || firstPtsUs == C.TIME_UNSET) return
+                // Stamp this chunk once, from the submitted-frame count, so the
+                // delegate's expected timeline always matches (no re-sync).
+                pendingOutPtsUs = firstPtsUs + submittedFrames * 1_000_000L / sampleRate
+                submittedFrames += feedable / outFrameSize
                 pendingOut = ByteBuffer
                     .wrap(outputBytes, outputStart, feedable)
                     .order(ByteOrder.LITTLE_ENDIAN)
             }
             val out = pendingOut!!
             val before = out.position()
-            val ok = delegate.handleBuffer(out, nextPtsUs, 1)
+            val ok = delegate.handleBuffer(out, pendingOutPtsUs, 1)
             val consumed = out.position() - before
             outputStart += consumed
-            if (consumed > 0 && nextPtsUs != C.TIME_UNSET && outFrameSize > 0) {
-                nextPtsUs += (consumed / outFrameSize) * 1_000_000L / sampleRate
-            }
             if (!out.hasRemaining()) pendingOut = null
             if (!ok || consumed == 0) return
         }
+    }
+
+    private fun bytesPerSample(encoding: Int): Int = when (encoding) {
+        C.ENCODING_PCM_16BIT -> 2
+        C.ENCODING_PCM_24BIT -> 3
+        C.ENCODING_PCM_32BIT -> 4
+        C.ENCODING_PCM_FLOAT -> 4
+        else -> throw IllegalArgumentException("Unsupported PCM encoding $encoding")
     }
 
     private fun supportsEncoding(format: Format): Boolean {
@@ -340,4 +388,9 @@ class DspAudioSink(
             encoding == C.ENCODING_PCM_24BIT ||
             encoding == C.ENCODING_PCM_32BIT ||
             encoding == C.ENCODING_PCM_FLOAT
+
+    private companion object {
+        /** Frames of renderer input consumed per processing step. */
+        private const val INPUT_SLICE_FRAMES = 4096
+    }
 }
