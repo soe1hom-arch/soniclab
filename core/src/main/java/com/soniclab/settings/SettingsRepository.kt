@@ -40,7 +40,6 @@ data class EffectSettings(
     val limiterEnabled: Boolean = true,
     val directOutputEnabled: Boolean = false,
     val hiResOutput: Boolean = false,
-    val ditherEnabled: Boolean = true,
     val headroomDb: Float = 0f
 )
 
@@ -79,7 +78,6 @@ class SettingsRepository(private val context: Context) {
         val LIMITER_ENABLED = booleanPreferencesKey("limiter_enabled")
         val DIRECT_OUTPUT_ENABLED = booleanPreferencesKey("direct_output_enabled")
         val HI_RES_OUTPUT = booleanPreferencesKey("hi_res_output")
-        val DITHER_ENABLED = booleanPreferencesKey("dither_enabled")
         val HEADROOM_DB = floatPreferencesKey("headroom_db")
     }
 
@@ -95,7 +93,6 @@ class SettingsRepository(private val context: Context) {
     val limiterEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.LIMITER_ENABLED] ?: true }
     val directOutputEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.DIRECT_OUTPUT_ENABLED] ?: false }
     val hiResOutputEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.HI_RES_OUTPUT] ?: false }
-    val ditherEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.DITHER_ENABLED] ?: true }
     val headroomDb: Flow<Float> = context.dataStore.data.map { it[Keys.HEADROOM_DB] ?: 0f }
 
     /** Reads every effect/replay setting once (used at app startup to restore state). */
@@ -122,7 +119,6 @@ class SettingsRepository(private val context: Context) {
             limiterEnabled = p[Keys.LIMITER_ENABLED] ?: true,
             directOutputEnabled = p[Keys.DIRECT_OUTPUT_ENABLED] ?: false,
             hiResOutput = p[Keys.HI_RES_OUTPUT] ?: false,
-            ditherEnabled = p[Keys.DITHER_ENABLED] ?: true,
             headroomDb = p[Keys.HEADROOM_DB] ?: 0f
         )
     }
@@ -173,10 +169,6 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setHiResOutputEnabled(enabled: Boolean) {
         context.dataStore.edit { it[Keys.HI_RES_OUTPUT] = enabled }
-    }
-
-    suspend fun setDitherEnabled(enabled: Boolean) {
-        context.dataStore.edit { it[Keys.DITHER_ENABLED] = enabled }
     }
 
     suspend fun setHeadroomDb(db: Float) {

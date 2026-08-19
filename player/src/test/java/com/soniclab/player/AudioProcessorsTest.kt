@@ -322,17 +322,17 @@ class AudioProcessorsTest {
         assertTrue("boosted rms ${rms(out)} vs flat ${rms(flat)}", rms(out) > rms(flat) * 1.5f)
     }
 
-    // --- PCM16 dither / noise shaping ---
+    // --- PCM16 encode ---
 
     @Test
-    fun dither_16bit_encodesWithinTolerance() {
+    fun pcm16_encode_withinTolerance() {
         val p = GainAudioProcessor()
         p.gainDb = 0.1f // tiny non-identity gain forces the float -> 16-bit path
         p.configure(stereoPcm16)
         p.queueInput(pcm16(8000, -8000, 16000, -16000))
         val out = readShorts(p.getOutput())
         assertEquals(4, out.size)
-        // Gain of +0.1 dB ~ +1.16%; rounding + dither stays within a couple of LSB.
+        // Gain of +0.1 dB ~ +1.16%; plain rounding stays within a couple of LSB.
         assertTrue(abs(out[0] - 8093) <= 2)
         assertTrue(abs(out[1] + 8093) <= 2)
         assertTrue(abs(out[2] - 16186) <= 2)
@@ -340,33 +340,27 @@ class AudioProcessorsTest {
     }
 
     @Test
-    fun dither_longBufferStaysClean() {
-        // Regression: the noise shaper must feed back only the raw quantizer
-        // error. The old loop accumulated the error (unstable pole) and an
-        // entire buffer decayed into full-scale alternating noise (SNR ~ -12 dB).
+    fun pcm16_encode_staysClean() {
+        // The 16-bit encode path (plain rounding) must track the ideal gain
+        // within a couple of LSB and never blow up into noise.
         val n = 16384
         val input = ShortArray(n) { (sin(2.0 * PI * 440.0 / 44100.0 * it) * 12000).toInt().toShort() }
-        DitherBridge.enabled = true
-        try {
-            val p = GainAudioProcessor().apply { gainDb = 0.5f }
-            p.configure(monoPcm16)
-            p.queueInput(pcm16(*input))
-            val out = readShorts(p.getOutput())
-            assertEquals(n, out.size)
-            val gain = 10f.pow(0.5f / 20f)
-            var maxErr = 0
-            for (k in out.indices) {
-                val ideal = (input[k] * gain).toInt().coerceIn(-32768, 32767)
-                maxErr = max(maxErr, abs(out[k] - ideal))
-            }
-            assertTrue("dither must not blow up the signal (maxErr=$maxErr LSB)", maxErr <= 8)
-        } finally {
-            DitherBridge.enabled = true
+        val p = GainAudioProcessor().apply { gainDb = 0.5f }
+        p.configure(monoPcm16)
+        p.queueInput(pcm16(*input))
+        val out = readShorts(p.getOutput())
+        assertEquals(n, out.size)
+        val gain = 10f.pow(0.5f / 20f)
+        var maxErr = 0
+        for (k in out.indices) {
+            val ideal = (input[k] * gain).toInt().coerceIn(-32768, 32767)
+            maxErr = max(maxErr, abs(out[k] - ideal))
         }
+        assertTrue("encode must not blow up the signal (maxErr=$maxErr LSB)", maxErr <= 2)
     }
 
     @Test
-    fun dither_passthrough_staysBitExact() {
+    fun pcm16_passthrough_staysBitExact() {
         val p = GainAudioProcessor()
         p.gainDb = 0f
         p.configure(stereoPcm16)

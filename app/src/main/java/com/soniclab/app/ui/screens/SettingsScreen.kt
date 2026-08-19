@@ -51,6 +51,7 @@ import com.soniclab.app.di.AppContainer
 import com.soniclab.app.ui.common.appViewModel
 import com.soniclab.app.ui.theme.CyanAccent
 import com.soniclab.app.ui.theme.PurpleAccent
+import java.util.Locale
 
 @Composable
 fun SettingsScreen(container: AppContainer, onOpenAbout: () -> Unit, onOpenEqualizer: () -> Unit) {
@@ -62,7 +63,6 @@ fun SettingsScreen(container: AppContainer, onOpenAbout: () -> Unit, onOpenEqual
     val autoNormalize by vm.autoNormalizeEnabled.collectAsStateWithLifecycle(initialValue = false)
     val directOutput by vm.directOutputEnabled.collectAsStateWithLifecycle(initialValue = false)
     val hiRes by vm.hiResOutputEnabled.collectAsStateWithLifecycle(initialValue = false)
-    val dither by vm.ditherEnabled.collectAsStateWithLifecycle(initialValue = true)
     val headroom by vm.headroomDb.collectAsStateWithLifecycle(initialValue = 0f)
 
     Column(
@@ -156,13 +156,6 @@ fun SettingsScreen(container: AppContainer, onOpenAbout: () -> Unit, onOpenEqual
                         onCheckedChange = vm::setHiResOutput
                     )
                 }
-                ToggleRow(
-                    icon = { Icon(Icons.Rounded.GraphicEq, contentDescription = null) },
-                    title = "Dither TPDF + Noise Shaping",
-                    subtitle = "Hilangkan artifact kuantisasi 16-bit saat efek aktif",
-                    checked = dither,
-                    onCheckedChange = vm::setDither
-                )
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -177,7 +170,7 @@ fun SettingsScreen(container: AppContainer, onOpenAbout: () -> Unit, onOpenEqual
                         )
                     }
                     Text(
-                        if (headroom <= -0.05f) String.format("%.0f dB", headroom) else "0 dB",
+                        if (headroom <= -0.05f) String.format(Locale.US, "%.0f dB", headroom) else "0 dB",
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.primary
                     )

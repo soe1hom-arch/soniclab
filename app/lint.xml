@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    ObsoleteSdkInt is a false positive here: AGP's resource merger silently
+    drops `mipmap-anydpi` folders without a version qualifier, which would
+    remove the launcher icons. Keep -v26 and ignore the check.
+-->
+<lint>
+    <issue id="ObsoleteSdkInt" severity="ignore" />
+</lint>

@@ -102,7 +102,6 @@ then enable the table below:
 - **AMOLED** theme (pure black), **AI Enhance** toggle (real-time), **Auto Normalization** (EBU R128), **Direct Mode** — rebuilds the sink without the DSP chain for the cleanest output path, **Crossfade** slider, **Sleep Timer**, AI model status, and **About App & Developer** (full info screen).
 - **Output Audio** (output path quality):
   - **Hi-Res 24-bit Output** — with the DSP chain active the whole chain runs in **32-bit float** through a custom `AudioSink` wrapper and reaches AudioTrack as float PCM (never down-converted), so effects and hi-res work together; the toggle shown in Direct mode controls media3's own float path for the cleanest bypass. The player rebuilds automatically while preserving the queue & position,
-  - **TPDF Dither + Noise Shaping** — on/off; when off, 16-bit conversion uses plain rounding,
   - **Headroom** −3..0 dB — headroom before effects so EQ/presets are less likely to clip.
 
 ### UI & icons
@@ -130,7 +129,7 @@ All processors extend `PcmAudioProcessor`, which:
 - stays always active so effect toggles apply instantly without seeking/track changes,
 - up-mixes **mono → stereo** for 3D/8D effects,
 - passes audio through untouched (zero-copy) when the effect is off,
-- applies **TPDF dither + 2nd-order noise shaping** when re-encoding to PCM16 after an active effect (toggleable in Settings; passthrough stays bit-exact),
+- never re-encodes to PCM16 during playback: the chain stays in 32-bit float end-to-end (the 16-bit converter is only a format fallback),
 - runs inside `DspAudioSink`, which normalizes every renderer buffer (16/24/32-bit or float) to **32-bit float** before the chain and feeds the output to a float-capable `DefaultAudioSink` — hi-res quality is preserved end-to-end while the DSP chain stays active.
 
 ## Modules (MVVM + Repository)
@@ -139,7 +138,7 @@ Modular structure (4 modules) with clear separation of concerns: data, audio pro
 
 - `:core` — domain models (Track/Playlist/Preset), result wrapper, permissions, time utils, MediaStore scanning, playlists/favorites, DataStore preferences
 - `:dsp` — audio signal processing & analysis: audioengine (Oboe scaffold), DSP toolkit & WAV conversion (MediaCodec), analyzer (FFT, **R128 LUFS**, waveform, codec info), and on-device AI (TensorFlow Lite + DSP fallback)
-- `:player` — Media3 ExoPlayer + MediaSessionService (notifications, lock screen, Android Auto), `PcmAudioProcessor` chain (balance/headroom/gain/**10-band EQ**/tone/reverb/enhance/spatial/limiter), Direct mode, hi-res float output, dither on/off, speed, crossfade, sleep timer, live pitch via `PlaybackParameters`
+- `:player` — Media3 ExoPlayer + MediaSessionService (notifications, lock screen, Android Auto), `PcmAudioProcessor` chain (balance/headroom/gain/**10-band EQ**/tone/reverb/enhance/spatial/limiter), Direct mode, hi-res float output, speed, crossfade, sleep timer, live pitch via `PlaybackParameters`
 - `:app` — Compose UI (theme, navigation, screens, About) + spectrum/waveform visualizer
 
 ## Build
@@ -157,7 +156,7 @@ Debug APK: `app/build/outputs/apk/debug/app-debug.apk`
 ```bash
 ./gradlew test               # all JVM unit tests
 ./gradlew :dsp:testDebugUnitTest      # DSP/PCM toolkit unit tests
-./gradlew :player:testDebugUnitTest   # player DSP chain unit tests (balance/headroom/gain/eq/tone/reverb/spatial/limiter/dither)
+./gradlew :player:testDebugUnitTest   # player DSP chain unit tests (balance/headroom/gain/eq/tone/reverb/spatial/limiter)
 ./gradlew :app:lintDebug     # Android Lint
 ```
 

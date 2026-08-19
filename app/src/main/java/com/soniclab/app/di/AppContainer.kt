@@ -20,7 +20,6 @@ import com.soniclab.player.AudioReverbBridge
 import com.soniclab.player.AudioSpatialBridge
 import com.soniclab.player.AudioToneBridge
 import com.soniclab.player.AudioOutputBridge
-import com.soniclab.player.DitherBridge
 import com.soniclab.player.PlayerController
 import com.soniclab.playlist.FavoritesRepository
 import com.soniclab.playlist.PlaylistRepository
@@ -90,7 +89,6 @@ class AppContainer(context: Context) {
         }
 
         AudioLimiterBridge.enabled = s.limiterEnabled
-        DitherBridge.enabled = s.ditherEnabled
         AudioHeadroomBridge.headroomDb = s.headroomDb
 
         playerController.setDirectOutput(s.directOutputEnabled)

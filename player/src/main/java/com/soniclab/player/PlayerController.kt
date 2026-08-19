@@ -333,11 +333,6 @@ class PlayerController(private val context: Context) {
         }
     }
 
-    /** Toggles TPDF dither + noise shaping in the PCM16 encode path. */
-    fun setDitherEnabled(enabled: Boolean) {
-        DitherBridge.enabled = enabled
-    }
-
     /** Fixed pre-effect headroom in dB (-3..0); 0 = no attenuation. */
     fun setHeadroomDb(db: Float) {
         AudioHeadroomBridge.headroomDb = db

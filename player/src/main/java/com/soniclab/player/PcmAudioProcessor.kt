@@ -37,10 +37,6 @@ abstract class PcmAudioProcessor : AudioProcessor {
     private var outputBuffer: ByteBuffer = AudioProcessor.EMPTY_BUFFER
     private var ended = false
 
-    /** Per-channel [e1, e2] error history of the 2nd-order noise shaper. */
-    private var noiseShapeState = FloatArray(0)
-    private var ditherSeed = 0x9E3779B9
-
     /** Format this processor emits for [input]; override to change channels. */
     protected open fun outputFormat(input: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat = input
 
@@ -67,7 +63,6 @@ abstract class PcmAudioProcessor : AudioProcessor {
         outputChannels = output.channelCount
         outputBuffer = AudioProcessor.EMPTY_BUFFER
         ended = false
-        noiseShapeState = FloatArray(outputChannels.coerceAtLeast(1) * 2)
         onFormatChanged()
         return output
     }
@@ -100,7 +95,6 @@ abstract class PcmAudioProcessor : AudioProcessor {
     override fun flush() {
         outputBuffer = AudioProcessor.EMPTY_BUFFER
         ended = false
-        noiseShapeState.fill(0f)
         onFlush()
     }
 
@@ -155,50 +149,14 @@ abstract class PcmAudioProcessor : AudioProcessor {
     }
 
     /**
-     * PCM16 conversion. When [DitherBridge.enabled] (default) it applies TPDF
-     * dither + 2nd-order (1 - z^-1)^2 noise shaping to remove the quantization
-     * distortion a naive truncation would add on top of the DSP; when disabled
-     * it does plain rounding. This path only runs when an effect is actually
-     * active (the passthrough path is bit-exact).
+     * PCM16 conversion with plain rounding (the DSP chain runs in 32-bit float
+     * end-to-end, so this path is only a format-conversion fallback; it never
+     * runs during normal playback).
      */
     private fun encode16(values: FloatArray, bytes: ByteBuffer) {
         if (values.isEmpty()) return
-        val ch = outputChannels.coerceAtLeast(1)
-        if (noiseShapeState.size < ch * 2) noiseShapeState = FloatArray(ch * 2)
-        val lsb = 1f / 32768f
-        val dithering = DitherBridge.enabled
-        var i = 0
-        while (i < values.size) {
-            val v = values[i].coerceIn(-1f, 1f)
-            if (!dithering) {
-                bytes.putShort((v * 32768f).roundToInt().coerceIn(-32768, 32767).toShort())
-                i++
-                continue
-            }
-            val base = (i % ch) * 2
-            val e1 = noiseShapeState[base]
-            val e2 = noiseShapeState[base + 1]
-            val shaped = v + (nextRandom() - nextRandom()) * lsb
-            // Error-feedback (1 - z^-1)^2 shaping: feed back only the RAW
-            // quantizer error (y - pre), never the accumulated error, or the
-            // loop becomes unstable and blows the signal into full-scale noise.
-            val pre = shaped - 2f * e1 + e2
-            val y = (pre * 32768f).roundToInt().coerceIn(-32768, 32767)
-            val err = y / 32768f - pre
-            noiseShapeState[base] = err
-            noiseShapeState[base + 1] = e1
-            bytes.putShort(y.toShort())
-            i++
+        for (v in values) {
+            bytes.putShort((v.coerceIn(-1f, 1f) * 32768f).roundToInt().coerceIn(-32768, 32767).toShort())
         }
-    }
-
-    /** Cheap xorshift32 PRNG for the TPDF dither (no allocation, audio-thread safe). */
-    private fun nextRandom(): Float {
-        var x = ditherSeed
-        x = x xor (x shl 13)
-        x = x xor (x ushr 17)
-        x = x xor (x shl 5)
-        ditherSeed = x
-        return (x ushr 8 and 0xFFFF).toFloat() / 65536f
     }
 }

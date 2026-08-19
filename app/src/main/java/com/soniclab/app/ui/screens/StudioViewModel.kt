@@ -51,7 +51,7 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
         private set
     var working by mutableStateOf(false)
         private set
-    var progress by mutableStateOf(0f)
+    var progress by mutableFloatStateOf(0f)
         private set
     var message by mutableStateOf<String?>(null)
         private set
@@ -64,7 +64,7 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
         private set
     var waveform by mutableStateOf<List<Pair<Float, Float>>>(emptyList())
         private set
-    var lufs by mutableStateOf(0f)
+    var lufs by mutableFloatStateOf(0f)
         private set
     var sourceLabel by mutableStateOf<String?>(null)
         private set

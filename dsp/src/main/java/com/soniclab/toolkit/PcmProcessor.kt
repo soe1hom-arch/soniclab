@@ -13,6 +13,7 @@ import kotlin.math.cos
 import kotlin.math.log10
 import kotlin.math.min
 import kotlin.math.pow
+import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -91,10 +92,12 @@ object PcmProcessor {
     }
 
     /**
-     * Tempo change without pitch shift using stereo-aware SOLA
-     * (Synchronized Overlap-Add). [factor] > 1 slows down (longer
-     * duration), < 1 speeds up. Channels are stretched with a shared
-     * placement offset so the stereo image stays intact.
+     * Time-stretches without pitch shift using stereo-aware SOLA
+     * (Synchronized Overlap-Add). [factor] is the *stretch ratio*,
+     * output duration / input duration: > 1 slows down (longer),
+     * < 1 speeds up. The Studio "tempo" control (a speed multiplier)
+     * converts to this ratio as 1/factor. Channels are stretched with a
+     * shared placement offset so the stereo image stays intact.
      */
     fun timeStretch(
         data: PcmData,
@@ -247,69 +250,83 @@ object PcmProcessor {
         var read = 0
         var write = 0
         var frameIndex = 0
-        while (read + frame <= totalFrames) {
+        var lastWritten = 0
+        while (read < totalFrames) {
+            val n = minOf(frame, totalFrames - read)
             var bestK = 0
-            if (!onset.getOrElse(frameIndex) { false }) {
-            var bestScore = Double.NEGATIVE_INFINITY
-            for (k in -searchHalf..searchHalf) {
-                val outPos = write + k
-                if (outPos < 0 || outPos + corrWindow > outFrames) continue
-                var corr = 0.0
-                var inEnergy = 0.0
-                var outEnergy = 0.0
-                for (i in 0 until corrWindow) {
-                    for (c in 0 until channels) {
-                        val a = input[(read + i) * channels + c]
-                        val b = out[(outPos + i) * channels + c]
-                        corr += a.toDouble() * b
-                        inEnergy += a.toDouble() * a
-                        outEnergy += b.toDouble() * b
+            if (n == frame && !onset.getOrElse(frameIndex) { false }) {
+                var bestScore = Double.NEGATIVE_INFINITY
+                for (k in -searchHalf..searchHalf) {
+                    val outPos = write + k
+                    if (outPos < 0 || outPos + corrWindow > outFrames) continue
+                    var corr = 0.0
+                    var inEnergy = 0.0
+                    var outEnergy = 0.0
+                    for (i in 0 until corrWindow) {
+                        for (c in 0 until channels) {
+                            val a = input[(read + i) * channels + c]
+                            val b = out[(outPos + i) * channels + c]
+                            corr += a.toDouble() * b
+                            inEnergy += a.toDouble() * a
+                            outEnergy += b.toDouble() * b
+                        }
+                    }
+                    val score = corr / sqrt(inEnergy * outEnergy).coerceAtLeast(1e-9)
+                    if (score > bestScore) {
+                        bestScore = score
+                        bestK = k
                     }
                 }
-                val score = corr / sqrt(inEnergy * outEnergy).coerceAtLeast(1e-9)
-                if (score > bestScore) {
-                    bestScore = score
-                    bestK = k
-                }
-            }
             }
 
-            val place = write + bestK
+            val place = (write + bestK).coerceAtLeast(0)
+            val overlap = if (n == frame) minOf(frame - synthesisHop, n) else 0
             for (i in 0 until overlap) {
                 val weight = hann(i, overlap)
                 for (c in 0 until channels) {
                     val src = (read + i) * channels + c
                     val dst = (place + i) * channels + c
-                    out[dst] = (input[src] * weight + out[dst] * (1.0 - weight)).toFloat()
+                    if (dst < out.size) {
+                        out[dst] = (input[src] * weight + out[dst] * (1.0 - weight)).toFloat()
+                    }
                 }
             }
-            for (i in overlap until frame) {
+            for (i in overlap until n) {
                 for (c in 0 until channels) {
-                    out[(place + i) * channels + c] = input[(read + i) * channels + c]
+                    val src = (read + i) * channels + c
+                    val dst = (place + i) * channels + c
+                    if (dst < out.size) out[dst] = input[src]
                 }
             }
+            lastWritten = maxOf(lastWritten, place + n)
             read += analysisHop
             write += synthesisHop
             frameIndex++
         }
 
-        val usedFrames = write.coerceAtMost(outFrames)
-        val fadeLen = minOf(512, usedFrames / 2)
+        // Pin the output to the exact target length. WSOLA placement offsets
+        // can drift a few percent (the correlation search is biased by the
+        // boundary), so trim/pad to `totalFrames * factor` — the tail is
+        // already faded, so a trim of a fraction of a frame is inaudible.
+        val targetFrames = (totalFrames.toDouble() * safeFactor).roundToInt().coerceAtLeast(1)
+        val finalFrames = targetFrames.coerceAtMost(outFrames).coerceAtLeast(1)
+        val fadeLen = minOf(512, finalFrames / 2)
         for (c in 0 until channels) {
             for (i in 0 until fadeLen) {
                 out[i * channels + c] = (out[i * channels + c] * hann(i, fadeLen)).toFloat()
             }
-            for (i in 0 until fadeLen) {
-                val idx = (usedFrames - 1 - i) * channels + c
-                out[idx] = (out[idx] * (1.0 - hann(i, fadeLen))).toFloat()
+            val endStart = (finalFrames - fadeLen).coerceAtLeast(0)
+            for (i in endStart until finalFrames) {
+                val idx = i * channels + c
+                out[idx] = (out[idx] * (1.0 - hann(i - endStart, fadeLen))).toFloat()
             }
         }
 
         // Gentle headroom so overlap-add accumulation never clips.
-        for (i in out.indices) {
+        for (i in 0 until finalFrames * channels) {
             out[i] = (out[i] * HEADROOM).coerceIn(-1f, 1f)
         }
-        return out.copyOf(usedFrames * channels)
+        return out.copyOf(finalFrames * channels)
     }
 
     private fun detectOnsets(input: FloatArray, channels: Int, analysisHop: Int, count: Int): BooleanArray {

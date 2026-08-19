@@ -171,6 +171,11 @@ class MediaCodecAudioToolkit(private val context: Context) : AudioToolkit {
             }
         }
 
+    /**
+     * Tempo change without pitch shift: [factor] is the speed multiplier
+     * (2.0 = twice as fast, output half as long; 0.5 = half speed, twice as
+     * long), converted to the internal stretch ratio 1/factor.
+     */
     override suspend fun changeTempo(
         uri: Uri,
         factor: Float,
@@ -181,7 +186,7 @@ class MediaCodecAudioToolkit(private val context: Context) : AudioToolkit {
             try {
                 val decoded = decodePcmBytes(uri, startMs = null, endMs = null, onProgress)
                 val data = PcmProcessor.toPcmData(decoded.pcmBytes, decoded.sampleRate, decoded.channels)
-                writeWavFile(outputPath, PcmProcessor.timeStretch(data, factor, quality))
+                writeWavFile(outputPath, PcmProcessor.timeStretch(data, 1f / factor, quality))
                 onProgress(1f)
                 ToolkitResult.Success(outputPath)
             } catch (e: Exception) {
