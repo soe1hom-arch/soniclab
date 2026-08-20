@@ -14,6 +14,7 @@ import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
+import androidx.media3.exoplayer.audio.DefaultAudioTrackBufferSizeProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 
@@ -39,7 +40,7 @@ class PlaybackService : MediaSessionService() {
         val direct = DirectOutputBridge.enabled
         val hiRes = AudioOutputBridge.hiResEnabled
         val factory = if (direct) {
-            DefaultRenderersFactory(this).apply {
+            DirectRenderersFactory(this).apply {
                 // Keep the hi-res/FLAC software-decoder fallback in direct mode too.
                 setEnableDecoderFallback(true)
                 // Direct mode is a true bypass, so media3's float path is safe here.
@@ -169,7 +170,37 @@ private class EnhanceRenderersFactory(context: Context, private val processors: 
             .setAudioProcessors(arrayOf())
             .setEnableFloatOutput(true)
             .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+            .setAudioTrackBufferSizeProvider(BUFFER_SIZE_PROVIDER)
             .build()
         return DspAudioSink(delegate, processors.toList())
     }
 }
+
+/** Direct (bypass) mode: media3's stock sink with the tighter buffer policy. */
+private class DirectRenderersFactory(context: Context) : DefaultRenderersFactory(context) {
+    override fun buildAudioSink(
+        context: Context,
+        enableFloatOutput: Boolean,
+        enableAudioTrackPlaybackParams: Boolean
+    ): AudioSink {
+        return DefaultAudioSink.Builder(context)
+            .setEnableFloatOutput(enableFloatOutput)
+            .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+            .setAudioTrackBufferSizeProvider(BUFFER_SIZE_PROVIDER)
+            .build()
+    }
+}
+
+/**
+ * AudioTrack buffer sizing. Media3's default keeps 250-750 ms of PCM queued
+ * (min buffer x4); on devices with a large HAL minimum this multiplies into
+ * multi-second buffers that delay pause/seek response. Halving the
+ * multiplication factor and lowering the floor to 150 ms trims the queued
+ * audio while the 750 ms ceiling keeps enough safety margin for the software
+ * DSP chain to never underrun on slower devices.
+ */
+private val BUFFER_SIZE_PROVIDER: DefaultAudioSink.AudioTrackBufferSizeProvider =
+    DefaultAudioTrackBufferSizeProvider.Builder()
+        .setPcmBufferMultiplicationFactor(2)
+        .setMinPcmBufferDurationUs(150_000)
+        .build()
