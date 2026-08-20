@@ -93,9 +93,10 @@ then enable the table below:
 
 ### AI (on-device)
 
-- **AI Enhance** — real-time enhancement on the playback path via Media3 `AudioProcessor`; a **transparent DSP enhancer** (adaptive gain toward −18 dBFS + soft-knee limiter, no EQ coloring, no hard clip). Works on every track, including hi-res/FLAC.
+- **AI Enhance** — real-time enhancement on the playback path via Media3 `AudioProcessor`, driven by `NeuralEnhancer`: it loads a bundled TFLite model when present and otherwise falls back to the **transparent DSP enhancer** (adaptive gain toward −18 dBFS + soft-knee limiter, no EQ coloring, no hard clip). Works on every track, including hi-res/FLAC. The Settings screen reports which engine is actually active.
 - **Vocal separator** — STFT center-channel with soft ratio mask (no neural model).
-- No neural models are bundled: the previous `denoiser_v1.tflite` was trained on synthetic 16 kHz audio and degraded real music into buzzing artifacts, so it was removed in favor of the transparent DSP enhancer.
+- **Native low-latency engine** — the `dsp` module ships a real Oboe (C++) engine compiled to `.so` (`libsoniclab_oboe.so`, 4 ABIs): 48 kHz float capture, playback, and full-duplex on the fast audio path, wired to Kotlin through JNI (`OboeNativeEngine`). It is not yet connected to the Media3 sink; that is on the [roadmap](#roadmap).
+- No neural models are bundled: the previous `denoiser_v1.tflite` was trained on synthetic 16 kHz audio and degraded real music into buzzing artifacts, so it was removed in favor of the transparent DSP enhancer. The strongest open neural enhancer (**DeepFilterNet**, Apache-2.0/MIT) is ONNX-only, which needs ONNX Runtime Mobile rather than TFLite — see [On-device AI models](#on-device-ai-models).
 
 ### Settings
 
@@ -176,9 +177,20 @@ Or build locally with the command above.
 
 The app currently ships **without** neural models: the synthetic denoiser was
 removed because its quality on real music was below the transparent DSP
-enhancer. A higher-quality model trained on real music data is on the
-[roadmap](#roadmap). Training scripts, when reintroduced, will live in
-`scripts/` (pure NumPy + flatbuffers, no TensorFlow/PyTorch toolchain).
+enhancer. The best open neural enhancer available today is
+**DeepFilterNet** (github.com/Rikorose/DeepFilterNet) — Apache-2.0/MIT, ~4.6k
+stars, trained for speech denoising at 48 kHz. Its models are **ONNX**, so a
+real integration would add ONNX Runtime Mobile; forcing them into TFLite is
+fragile and loses quality. And because DeepFilterNet targets speech, applying
+it to full-band music audibly changes the timbre — bundling it now would
+repeat the `denoiser_v1` mistake.
+
+That is why the AI Enhance path is a seam: `NeuralEnhancer` activates
+automatically the moment a contract-compliant `.tflite` model appears at
+`models/ai_enhancer_v1.tflite` (see `dsp/src/main/assets/models/README.md`),
+and otherwise stays on the transparent DSP enhancer. A model trained on real
+music is on the [roadmap](#roadmap). Training scripts, when reintroduced, will
+live in `scripts/` (pure NumPy + flatbuffers, no TensorFlow/PyTorch toolchain).
 
 ## Honest status
 
@@ -187,7 +199,8 @@ enhancer. A higher-quality model trained on real music data is on the
 
 ## Roadmap
 
-- Higher-quality AI model trained on real music data.
+- Wire `OboeNativeEngine` into the playback sink (custom `AudioSink` on the fast audio path, replacing the current Media3 `DefaultAudioSink` wrapper) so the DSP chain runs inside the native engine; add live mic monitoring via the full-duplex stream.
+- Higher-quality AI model: either a music-trained TFLite model dropped into `assets/models/`, or DeepFilterNet via ONNX Runtime Mobile.
 - More WSOLA quality knobs (quality presets in the UI).
 - Migrating UI strings to resources (`strings.xml`) for formal multi-language support.
 - Signed release build.

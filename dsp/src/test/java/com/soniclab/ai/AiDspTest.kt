@@ -38,6 +38,20 @@ class AiDspTest {
     }
 
     @Test
+    fun neuralEnhancer_withoutModel_fallsBackToClassicEnhancer() {
+        val e = NeuralEnhancer(null)
+        assertTrue(!e.isAiModelLoaded)
+        // Display name must say the DSP fallback is active, not claim AI.
+        assertEquals("DSP Enhance (transparan)", e.displayName)
+        val samples = FloatArray(4096) { 0.2f }
+        val out = e.enhance(samples)
+        assertTrue(out.all { it.isFinite() })
+        assertTrue(out.all { abs(it) <= 1f })
+        val rms = sqrt(out.sumOf { (it * it).toDouble() } / out.size)
+        assertEquals(0.2, rms, 0.05)
+    }
+
+    @Test
     fun spectralVocalRemover_splitsCenterFromPannedSide() {
         val frames = 44100 * 2
         val input = FloatArray(frames * 2)
