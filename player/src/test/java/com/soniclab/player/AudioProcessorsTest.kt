@@ -293,6 +293,50 @@ class AudioProcessorsTest {
         assertTrue(different > 0)
     }
 
+    // --- EnhanceAudioProcessor: overshoot must be smoothed, not hard-clipped ---
+
+    @Test
+    fun enhance_overshootIsHandedToLimiterNotFlatTopped() {
+        // A boosting enhancer (simulating adaptive/neural gain) pushes peaks
+        // past 1.0. The old per-sample clamp flattened those samples at +-1.0
+        // (harsh "pecah"); the final limiter must instead scale the whole
+        // frame down smoothly and keep the waveform intact.
+        val boost = EnhanceAudioProcessor().apply {
+            enabled = true
+            enhancer = object : AiEnhancer {
+                override val isAiModelLoaded = false
+                override val displayName = "test-boost"
+                override fun enhance(samples: FloatArray): FloatArray {
+                    for (i in samples.indices) samples[i] *= 2f
+                    return samples
+                }
+            }
+        }
+        val limiter = LimiterAudioProcessor()
+        val pipeline = DspFramePipeline(listOf(boost, limiter))
+        pipeline.configure(stereoFloat)
+
+        val n = 2048
+        val sine = FloatArray(n * 2) { i ->
+            (0.6f * sin(2.0 * PI * 440.0 * (i / 2) / 44100.0)).toFloat()
+        }
+        val out = readFloats(pipeline.process(floats(*sine), C.ENCODING_PCM_FLOAT)) +
+            readFloats(pipeline.endOfStream())
+        assertTrue("chunked enhancer emits audio", out.isNotEmpty())
+        val pk = out.maxOf { abs(it) }
+        assertTrue(
+            "limiter holds overshoot near threshold (peak=$pk)",
+            pk <= LimiterAudioProcessor.DEFAULT_THRESHOLD + 0.01f
+        )
+        // No flat top: near the ceiling the waveform must still have distinct
+        // values, i.e. it was scaled down, not truncated.
+        val nearPeak = out.filter { abs(it) > pk * 0.99f }
+        assertTrue(
+            "soft limiting keeps distinct samples near peak (${nearPeak.size} samples, bits=${nearPeak.map { it.toBits() }.toSet().size})",
+            nearPeak.map { it.toBits() }.toSet().size > 2
+        )
+    }
+
     // --- EqualizerAudioProcessor ---
 
     @Test

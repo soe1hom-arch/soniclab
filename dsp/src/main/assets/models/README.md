@@ -22,7 +22,7 @@ No neural models are bundled in this APK right now.
 
 - **AI Enhance** uses `NeuralEnhancer` — an `AiEnhancer` implementation that
   loads `models/ai_enhancer_v1.tflite` when present and otherwise falls back
-  to `ClassicEnhancer` (transparent DSP: adaptive gain toward −18 dBFS +
+  to `ClassicEnhancer` (transparent DSP: adaptive gain toward −20 dBFS +
   soft-knee limiter, no EQ coloring, no hard clip).
 - The Studio vocal remover is a spectral center-channel extractor
   (`SpectralVocalRemover`, STFT + soft ratio mask) — no neural model.

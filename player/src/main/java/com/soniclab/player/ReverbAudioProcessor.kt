@@ -88,10 +88,14 @@ class ReverbAudioProcessor : PcmAudioProcessor() {
         private val COMB_TUNINGS = floatArrayOf(0.0297f, 0.0371f, 0.0411f, 0.0437f)
         private val ALLPASS_TUNINGS = floatArrayOf(0.0051f, 0.0017f)
         private const val STEREO_OFFSET = 23
-        private const val DAMPING = 0.45f
+        // Damping 0.55 = darker, shorter HF tail: the reverb sits behind the
+        // dry signal instead of splashing over it.
+        private const val DAMPING = 0.55f
         private const val ALLPASS_FEEDBACK = 0.5f
-        private const val FEEDBACK_MIN = 0.7f
-        private const val FEEDBACK_MAX = 0.9f
-        private const val REVERB_GAIN = 0.55f
+        private const val FEEDBACK_MIN = 0.6f
+        private const val FEEDBACK_MAX = 0.82f
+        // Wet tail gain — ~0.3 keeps a real "room" feel; 0.55 sounded like a
+        // cathedral even at low wet mixes.
+        private const val REVERB_GAIN = 0.3f
     }
 }

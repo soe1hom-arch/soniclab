@@ -139,6 +139,6 @@ class EffectsController {
         private const val EqualizerBandCount = 10
         private const val BASS_MAX_DB = 8f
         private const val VIRT_MAX_WIDTH = 0.8f
-        private const val REVERB_DEFAULT_WET = 0.25f
+        private const val REVERB_DEFAULT_WET = 0.15f
     }
 }

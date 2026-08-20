@@ -93,7 +93,7 @@ then enable the table below:
 
 ### AI (on-device)
 
-- **AI Enhance** — real-time enhancement on the playback path via Media3 `AudioProcessor`, driven by `NeuralEnhancer`: it loads a bundled TFLite model when present and otherwise falls back to the **transparent DSP enhancer** (adaptive gain toward −18 dBFS + soft-knee limiter, no EQ coloring, no hard clip). Works on every track, including hi-res/FLAC. The Settings screen reports which engine is actually active.
+- **AI Enhance** — real-time enhancement on the playback path via Media3 `AudioProcessor`, driven by `NeuralEnhancer`: it loads a bundled TFLite model when present and otherwise falls back to the **transparent DSP enhancer** (adaptive gain toward −20 dBFS + soft-knee limiter, no EQ coloring, no hard clip). Works on every track, including hi-res/FLAC. The Settings screen reports which engine is actually active.
 - **Vocal separator** — STFT center-channel with soft ratio mask (no neural model).
 - **Native low-latency engine** — the `dsp` module ships a real Oboe (C++) engine compiled to `.so` (`libsoniclab_oboe.so`, 4 ABIs): 48 kHz float capture, playback, and full-duplex on the fast audio path, wired to Kotlin through JNI (`OboeNativeEngine`). It is not yet connected to the Media3 sink; that is on the [roadmap](#roadmap).
 - No neural models are bundled: the previous `denoiser_v1.tflite` was trained on synthetic 16 kHz audio and degraded real music into buzzing artifacts, so it was removed in favor of the transparent DSP enhancer. The strongest open neural enhancer (**DeepFilterNet**, Apache-2.0/MIT) is ONNX-only, which needs ONNX Runtime Mobile rather than TFLite — see [On-device AI models](#on-device-ai-models).

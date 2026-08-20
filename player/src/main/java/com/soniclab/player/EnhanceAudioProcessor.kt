@@ -19,6 +19,11 @@ import com.soniclab.ai.AiEnhancer
  * 512-frame chunk would shrink to ~5 ms at 96 kHz and make the enhancer's
  * gain adaptation audibly grainy on hi-res tracks. Runs on the audio thread,
  * so the enhancer must be cheap.
+ *
+ * Enhancer output is never hard-clamped here: a per-sample clamp at ±1 would
+ * flat-top peaks into harsh "pecah" distortion before the final limiter ever
+ * sees them. Overshoot is smoothed by the enhancer's own soft limiter and
+ * caught by [LimiterAudioProcessor] at the end of the chain instead.
  */
 class EnhanceAudioProcessor : PcmAudioProcessor() {
 
@@ -50,7 +55,7 @@ class EnhanceAudioProcessor : PcmAudioProcessor() {
             val enhanced = Array(inputChannels) { c -> e.enhance(perChannel[c]) }
             for (frame in 0 until frameChunk) {
                 for (c in 0 until inputChannels) {
-                    result[write++] = enhanced[c][frame].coerceIn(-1f, 1f)
+                    result[write++] = guardSample(enhanced[c][frame])
                 }
             }
         }
@@ -76,7 +81,7 @@ class EnhanceAudioProcessor : PcmAudioProcessor() {
         var write = 0
         for (frame in 0 until remainingFrames) {
             for (c in 0 until inputChannels) {
-                result[write++] = enhanced[c][frame].coerceIn(-1f, 1f)
+                result[write++] = guardSample(enhanced[c][frame])
             }
         }
         appendOutput(result)
@@ -86,6 +91,9 @@ class EnhanceAudioProcessor : PcmAudioProcessor() {
     override fun onFlush() {
         pending.clear()
     }
+
+    /** Passes real samples through; guards NaN/Inf from a broken model. */
+    private fun guardSample(v: Float): Float = if (v.isFinite()) v else 0f
 
     /** ~10 ms of frames at the current sample rate (256..4096). */
     private val frameChunk: Int

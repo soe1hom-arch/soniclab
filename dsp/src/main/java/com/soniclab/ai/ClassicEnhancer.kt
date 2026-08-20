@@ -48,21 +48,27 @@ class ClassicEnhancer : AiEnhancer {
         return samples
     }
 
-    /** Smooth overshoot limiter — continuous, never a hard clip. */
+    /** Smooth overshoot limiter — continuous, never a hard clip. Linear below
+     *  1.0, then bends toward a hard ceiling of 1 + 1/[LIMIT_SHARPNESS], so a
+     *  hot passage can never be truncated into a flat top. */
     private fun softLimit(x: Float): Float {
         val a = abs(x)
         if (a <= 1f) return x
-        return sign(x) * (1f + LIMIT_SLOPE * kotlin.math.ln(a))
+        val over = a - 1f
+        return sign(x) * (1f + over / (1f + LIMIT_SHARPNESS * over))
     }
 
     private fun sign(x: Float): Float = if (x < 0f) -1f else 1f
 
     companion object {
-        /** RMS target in dBFS — moderately loud, never hot. */
-        private const val TARGET_RMS_DB = -18f
+        /** RMS target in dBFS — moderate, matched to a hot-mastered library. */
+        private const val TARGET_RMS_DB = -20f
         private const val ATTACK = 0.25f
         private const val RELEASE = 0.02f
-        private const val MAX_GAIN_DB = 9f
-        private const val LIMIT_SLOPE = 0.12f
+        /** Ceiling for the adaptive boost — gentle, so quiet passages gain
+         *  presence without the limiter "breathing". */
+        private const val MAX_GAIN_DB = 4.5f
+        /** Higher = tighter ceiling (1 + 1/8 = 1.125 max overshoot). */
+        private const val LIMIT_SHARPNESS = 8f
     }
 }
