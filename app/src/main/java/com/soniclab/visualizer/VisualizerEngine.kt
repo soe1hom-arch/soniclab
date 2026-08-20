@@ -20,6 +20,8 @@ import kotlin.math.log10
 class VisualizerEngine(private val buckets: Int = 48) {
 
     private var visualizer: Visualizer? = null
+    private var currentSession = 0
+    private var failedSession = 0
     private val smoothing = FloatArray(buckets)
 
     private val _spectrum = MutableStateFlow(FloatArray(buckets))
@@ -29,8 +31,15 @@ class VisualizerEngine(private val buckets: Int = 48) {
     val isActive: StateFlow<Boolean> = _isActive.asStateFlow()
 
     fun attachTo(sessionId: Int) {
+        if (sessionId <= 0) return
+        // attachTo is driven by UI state updates (4x/second while playing);
+        // never recreate the Visualizer for the same session.
+        if (sessionId == currentSession && visualizer != null) return
+        // A session that failed once (device blocked the effect, stale
+        // session, ...) must not be retried on every tick — log spam and
+        // pointless AudioFlinger churn.
+        if (sessionId == failedSession) return
         release()
-        if (sessionId == 0) return
         try {
             val vis = Visualizer(sessionId)
             val captureSize = 1024
@@ -51,8 +60,10 @@ class VisualizerEngine(private val buckets: Int = 48) {
                 true
             )
             vis.enabled = true
+            currentSession = sessionId
             _isActive.value = true
         } catch (e: Exception) {
+            failedSession = sessionId
             release()
         }
     }

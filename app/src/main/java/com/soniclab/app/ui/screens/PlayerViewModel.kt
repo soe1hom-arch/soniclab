@@ -26,14 +26,19 @@ class PlayerViewModel(private val container: AppContainer) : ViewModel() {
     var spatialMode by mutableIntStateOf(AudioSpatialBridge.mode)
         private set
 
+    private var lastAttachedSession = 0
+
     init {
         viewModelScope.launch {
             container.playerController.uiState.collectLatest { state ->
                 if (state.hasTrack) {
                     // Visualizer needs the audio session; the software EQ chain
                     // no longer does (it runs inside the DSP pipeline).
+                    // Only (re)attach when the session actually changes: the
+                    // state flow ticks every ~250ms for the position bar.
                     val sessionId = container.playerController.audioSessionId
-                    if (sessionId != 0) {
+                    if (sessionId != 0 && sessionId != lastAttachedSession) {
+                        lastAttachedSession = sessionId
                         container.visualizerEngine.attachTo(sessionId)
                     }
                 }
