@@ -46,6 +46,7 @@ import android.net.Uri
 import com.soniclab.app.di.AppContainer
 import com.soniclab.app.ui.common.MiniPlayerBar
 import com.soniclab.app.ui.screens.AboutScreen
+import com.soniclab.app.ui.screens.LicensesScreen
 import com.soniclab.app.ui.screens.EqualizerScreen
 import com.soniclab.app.ui.screens.LibraryScreen
 import com.soniclab.app.ui.screens.PlayerScreen
@@ -225,7 +226,13 @@ fun SonicLabAppRoot(container: AppContainer) {
                     onOpenEqualizer = { navController.navigate("equalizer") }
                 )
             }
-            composable("about") { AboutScreen(onBack = { navController.popBackStack() }) }
+            composable("about") {
+                AboutScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenLicenses = { navController.navigate("licenses") }
+                )
+            }
+            composable("licenses") { LicensesScreen(onBack = { navController.popBackStack() }) }
         }
     }
 }

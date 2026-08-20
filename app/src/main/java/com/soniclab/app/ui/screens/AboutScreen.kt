@@ -28,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.Copyright
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Description
@@ -60,7 +61,7 @@ import com.soniclab.app.ui.theme.PurpleAccent
 private const val GITHUB_URL = "https://github.com/soe1hom-arch/soniclab"
 
 @Composable
-fun AboutScreen(onBack: () -> Unit) {
+fun AboutScreen(onBack: () -> Unit, onOpenLicenses: () -> Unit = {}) {
     val context = LocalContext.current
 
     Column(
@@ -107,6 +108,12 @@ fun AboutScreen(onBack: () -> Unit) {
         AboutSection("Informasi Aplikasi") {
             AboutRow(Icons.Rounded.Info, "Versi", "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
             AboutRow(Icons.Rounded.Description, "Lisensi", "Apache-2.0 — open source")
+            AboutRow(
+                Icons.Rounded.Copyright,
+                "Kredit pihak ketiga",
+                "Media3, Oboe, TensorFlow Lite, AndroidX, Kotlin — Apache-2.0",
+                onClick = onOpenLicenses
+            )
             AboutRow(
                 Icons.Rounded.Code,
                 "Kode sumber",

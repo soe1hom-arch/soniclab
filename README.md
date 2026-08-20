@@ -212,3 +212,7 @@ live in `scripts/` (pure NumPy + flatbuffers, no TensorFlow/PyTorch toolchain).
 Every source file in this repository carries an SPDX header
 (`SPDX-License-Identifier: Apache-2.0`) so the license is machine-readable
 and traceable per file.
+
+Third-party components (AndroidX, Media3, Oboe, TensorFlow Lite, Kotlin, …)
+are credited in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md); the APK
+also bundles the notices and shows them in **Tentang → Kredit pihak ketiga**.
