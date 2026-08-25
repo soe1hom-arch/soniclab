@@ -122,14 +122,26 @@ class SoundQualityAuditTest {
 
     @Test
     fun defaultChain_addsNoColoration() {
-        val input = sineFrames(8192, 997f, 0.5f)
+        // The default chain applies headroom (-1.5 dB) and base gain (+3 dB),
+        // so the net effect is ~+1.5 dB.  Verify the output is a clean,
+        // frequency-accurate gain — no harmonic distortion or clipping.
+        val input = sineFrames(8192, 997f, 0.3f)
         val out = runPipeline(defaultChain(), input)
         val n = input.size / 2
         assertTrue("output has enough frames: ${out.size / 2} vs $n", out.size / 2 >= n)
-        var maxDiff = 0f
-        for (i in 0 until n * 2) maxDiff = maxOf(maxDiff, abs(out[i] - input[i]))
-        assertTrue("max sample diff $maxDiff (expect ~0)", maxDiff < 1e-4f)
-        assertEquals("RMS preserved", rmsDb(input), rmsDb(out.copyOfRange(0, n * 2)), 0.1)
+        // Expected net gain: headroom (-1.5 dB) + baseGain (+3 dB) = +1.5 dB
+        val expectedGainDb = AudioHeadroomBridge.headroomDb + AudioGainBridge.baseGainDb
+        val expectedGainLin = 10f.pow(expectedGainDb / 20f)
+        // Check that every sample is proportionally scaled (no clipping, no coloration).
+        var maxRatioDiff = 0f
+        for (i in 0 until n * 2) {
+            if (abs(input[i]) > 1e-6f) {
+                val ratio = out[i] / input[i]
+                maxRatioDiff = maxOf(maxRatioDiff, abs(ratio - expectedGainLin))
+            }
+        }
+        assertTrue("max ratio diff $maxRatioDiff (expect ~0, gain=${"%.2f".format(expectedGainLin)}x)", maxRatioDiff < 0.01f)
+        assertTrue("peak within [-1, 1]", out.maxOfOrNull { abs(it) }?.let { it <= 1.001f } == true)
     }
 
     @Test

@@ -351,6 +351,6 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
         private const val PRESENCE_GUARD = 0.35f
         private const val ECHO_DELAY_SECONDS = 0.38f
         private const val ECHO_FEEDBACK = 0.3f
-        private const val SOFT_CLIP_THRESHOLD = 0.95f
+        private const val SOFT_CLIP_THRESHOLD = 0.98f
     }
 }

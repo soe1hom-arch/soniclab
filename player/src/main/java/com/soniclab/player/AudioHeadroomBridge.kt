@@ -11,11 +11,13 @@ package com.soniclab.player
  * final limiter. 0 dB = passthrough.
  */
 object AudioHeadroomBridge {
-    val processor = GainAudioProcessor()
+    val processor = GainAudioProcessor().also { it.gainDb = DEFAULT_HEADROOM_DB }
 
     var headroomDb: Float
         get() = processor.gainDb
         set(value) {
             processor.gainDb = value.coerceIn(-3f, 0f)
         }
+
+    private const val DEFAULT_HEADROOM_DB = -1.5f
 }

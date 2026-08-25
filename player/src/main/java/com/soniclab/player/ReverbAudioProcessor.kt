@@ -90,7 +90,7 @@ class ReverbAudioProcessor : PcmAudioProcessor() {
         private const val STEREO_OFFSET = 23
         // Damping 0.55 = darker, shorter HF tail: the reverb sits behind the
         // dry signal instead of splashing over it.
-        private const val DAMPING = 0.55f
+        private const val DAMPING = 0.65f
         private const val ALLPASS_FEEDBACK = 0.5f
         private const val FEEDBACK_MIN = 0.6f
         private const val FEEDBACK_MAX = 0.82f

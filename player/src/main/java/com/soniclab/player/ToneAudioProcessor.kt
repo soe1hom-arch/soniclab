@@ -134,7 +134,7 @@ class ToneAudioProcessor : PcmAudioProcessor() {
     }
 
     companion object {
-        private const val BASS_FREQ_HZ = 220f
+        private const val BASS_FREQ_HZ = 150f
         private const val TREBLE_FREQ_HZ = 3200f
         private const val SHELF_Q = 0.71f
     }

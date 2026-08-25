@@ -13,7 +13,7 @@ package com.soniclab.player
  * never wipes the user's preset gain.
  */
 object AudioGainBridge {
-    val processor = GainAudioProcessor()
+    val processor = GainAudioProcessor().also { it.baseGainDb = DEFAULT_BASE_GAIN_DB }
 
     /** User/preset loudness boost in dB (0 = flat). */
     var baseGainDb: Float
@@ -28,4 +28,6 @@ object AudioGainBridge {
         set(value) {
             processor.autoGainDb = value
         }
+
+    private const val DEFAULT_BASE_GAIN_DB = 3f
 }

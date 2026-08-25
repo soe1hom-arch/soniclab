@@ -111,6 +111,6 @@ class EqualizerAudioProcessor : PcmAudioProcessor() {
         val CENTER_FREQS = floatArrayOf(
             31.25f, 62.5f, 125f, 250f, 500f, 1000f, 2000f, 4000f, 8000f, 16000f
         )
-        private const val BAND_Q = 1.41f
+        private const val BAND_Q = 0.71f
     }
 }

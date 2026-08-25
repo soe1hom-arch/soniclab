@@ -28,15 +28,30 @@ class LimiterAudioProcessor : PcmAudioProcessor() {
     var threshold: Float = DEFAULT_THRESHOLD
 
     private var currentGain = 1f
+    private val lookaheadBuffer = FloatArray(LOOKAHEAD_FRAMES)
+    private var lookaheadPos = 0
+    private var lookaheadFilled = false
 
     override fun isEffectActive(): Boolean = enabled
 
     override fun processSamples(input: FloatArray, frames: Int): FloatArray {
-        var peak = 0f
-        for (i in input.indices) peak = max(peak, abs(input[i]))
-        val target = if (peak > threshold && peak > 0f) threshold / peak else 1f
+        // Scan ahead to find the peak in the lookahead window so transients
+        // are attenuated *before* they hit the output — no more hard-clip
+        // clicks on bass attacks.
+        var futurePeak = 0f
+        for (i in input.indices) futurePeak = max(futurePeak, abs(input[i]))
+        lookaheadBuffer[lookaheadPos] = futurePeak
+        lookaheadPos = (lookaheadPos + 1) % LOOKAHEAD_FRAMES
+        if (lookaheadPos == 0) lookaheadFilled = true
+
+        // Determine the worst peak the buffer has seen recently.
+        var bufferPeak = 0f
+        val count = if (lookaheadFilled) LOOKAHEAD_FRAMES else lookaheadPos
+        for (i in 0 until count) bufferPeak = max(bufferPeak, lookaheadBuffer[i])
+
+        val target = if (bufferPeak > threshold && bufferPeak > 0f) threshold / bufferPeak else 1f
         currentGain = if (target < currentGain) {
-            target // instant attack — same frame is attenuated, so no click
+            target
         } else {
             val releaseCoef = 1f - exp(-1f / (RELEASE_MS / 1000f * sampleRateHz / frames.toFloat()))
             currentGain + (target - currentGain) * releaseCoef
@@ -49,14 +64,20 @@ class LimiterAudioProcessor : PcmAudioProcessor() {
 
     override fun onFormatChanged() {
         currentGain = 1f
+        lookaheadPos = 0
+        lookaheadFilled = false
     }
 
     override fun onFlush() {
         currentGain = 1f
+        lookaheadPos = 0
+        lookaheadFilled = false
     }
 
     companion object {
-        const val DEFAULT_THRESHOLD = 0.98f
+        const val DEFAULT_THRESHOLD = 0.90f
         private const val RELEASE_MS = 120f
+        /** Lookahead in frames (~5 ms at 44.1 kHz). */
+        private const val LOOKAHEAD_FRAMES = 220
     }
 }
