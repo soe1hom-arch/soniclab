@@ -62,7 +62,7 @@ class ClassicEnhancer : AiEnhancer {
 
     companion object {
         /** RMS target in dBFS — moderate, matched to a hot-mastered library. */
-        private const val TARGET_RMS_DB = -20f
+        private const val TARGET_RMS_DB = -16f
         private const val ATTACK = 0.25f
         private const val RELEASE = 0.02f
         /** Ceiling for the adaptive boost — gentle, so quiet passages gain
