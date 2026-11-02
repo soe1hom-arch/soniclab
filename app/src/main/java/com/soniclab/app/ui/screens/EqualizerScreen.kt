@@ -212,12 +212,12 @@ fun EqualizerScreen(container: AppContainer) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 FilterChip(
-                    selected = vm.effectsBypassed,
+                    selected = vm.isEffectsBypassed,
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        vm.setEffectsBypassed(!vm.effectsBypassed)
+                        vm.setEffectsBypassed(!vm.isEffectsBypassed)
                     },
-                    label = { Text(if (vm.effectsBypassed) "A/B: Asli" else "A/B: Efek") }
+                    label = { Text(if (vm.isEffectsBypassed) "A/B: Asli" else "A/B: Efek") }
                 )
                 Text(
                     "Bandingkan suara asli dan hasil efek",

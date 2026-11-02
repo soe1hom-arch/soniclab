@@ -39,7 +39,7 @@ class EqualizerViewModel(private val container: AppContainer) : ViewModel() {
     val loudnessMatchEnabled = container.settingsRepository.loudnessMatchEnabled
     val userPresets = container.settingsRepository.userPresets
 
-    var effectsBypassed by mutableStateOf(AudioBypassBridge.enabled)
+    var isEffectsBypassed by mutableStateOf(AudioBypassBridge.enabled)
         private set
     var outputPeakDb by mutableFloatStateOf(AudioLimiterBridge.outputPeakDb)
         private set
@@ -57,7 +57,7 @@ class EqualizerViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     fun setEffectsBypassed(enabled: Boolean) {
-        effectsBypassed = enabled
+        isEffectsBypassed = enabled
         AudioBypassBridge.abBypass = enabled
     }
 
