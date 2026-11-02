@@ -143,6 +143,7 @@ class AudioProcessorsTest {
     @Test
     fun limiter_reducesPeakToThreshold() {
         val p = LimiterAudioProcessor()
+        p.enabled = true
         p.threshold = LimiterAudioProcessor.DEFAULT_THRESHOLD
         p.configure(stereoFloat)
         p.queueInput(floats(2f, -2f, 0.5f, 0.5f))
@@ -313,6 +314,7 @@ class AudioProcessorsTest {
             }
         }
         val limiter = LimiterAudioProcessor()
+        limiter.enabled = true
         val pipeline = DspFramePipeline(listOf(boost, limiter))
         pipeline.configure(stereoFloat)
 
