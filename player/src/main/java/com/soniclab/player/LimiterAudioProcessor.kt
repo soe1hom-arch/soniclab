@@ -21,9 +21,19 @@ import kotlin.math.max
 class LimiterAudioProcessor : PcmAudioProcessor() {
 
     @Volatile
-    // Keep the clean/flat default transparent. Users can enable the limiter
-    // when applying EQ, presets, or other boosts that may exceed full scale.
-    var enabled: Boolean = false
+    /** Kept for settings/API compatibility; the safety stage is always active. */
+    @Deprecated("The final safety limiter is always active")
+    var enabled: Boolean = true
+
+    /** Most recent output peak in dBFS, exposed for the UI meter. */
+    @Volatile
+    var outputPeakDb: Float = -60f
+        private set
+
+    /** Most recent gain reduction in dB, where 0 means no reduction. */
+    @Volatile
+    var gainReductionDb: Float = 0f
+        private set
 
     /** Peak level above which gain reduction kicks in (0..1). */
     @Volatile
@@ -34,7 +44,7 @@ class LimiterAudioProcessor : PcmAudioProcessor() {
     private var lookaheadPos = 0
     private var lookaheadFilled = false
 
-    override fun isEffectActive(): Boolean = enabled
+    override fun isEffectActive(): Boolean = true
 
     override fun processSamples(input: FloatArray, frames: Int): FloatArray {
         // Scan ahead to find the peak in the lookahead window so transients
@@ -58,20 +68,27 @@ class LimiterAudioProcessor : PcmAudioProcessor() {
             val releaseCoef = 1f - exp(-1f / (RELEASE_MS / 1000f * sampleRateHz / frames.toFloat()))
             currentGain + (target - currentGain) * releaseCoef
         }
-        if (currentGain != 1f) {
-            for (i in input.indices) input[i] *= currentGain
-        }
+        for (i in input.indices) input[i] *= currentGain
+        val peak = input.maxOfOrNull { abs(it) } ?: 0f
+        outputPeakDb = if (peak > 0f) (20f * kotlin.math.log10(peak)).coerceAtLeast(-60f) else -60f
+        gainReductionDb = if (currentGain in 0f..1f && currentGain > 0f) {
+            (20f * kotlin.math.log10(currentGain)).coerceAtMost(0f)
+        } else 0f
         return input
     }
 
     override fun onFormatChanged() {
         currentGain = 1f
+        outputPeakDb = -60f
+        gainReductionDb = 0f
         lookaheadPos = 0
         lookaheadFilled = false
     }
 
     override fun onFlush() {
         currentGain = 1f
+        outputPeakDb = -60f
+        gainReductionDb = 0f
         lookaheadPos = 0
         lookaheadFilled = false
     }

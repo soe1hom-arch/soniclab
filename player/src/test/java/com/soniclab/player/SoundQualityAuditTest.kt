@@ -130,7 +130,8 @@ class SoundQualityAuditTest {
         val n = input.size / 2
         assertTrue("output has enough frames: ${out.size / 2} vs $n", out.size / 2 >= n)
         // Expected net gain: headroom (-1.5 dB) + baseGain (+3 dB) = +1.5 dB
-        val expectedGainDb = AudioHeadroomBridge.headroomDb + AudioGainBridge.baseGainDb
+        val expectedGainDb = AudioHeadroomBridge.headroomDb +
+            AudioGainBridge.baseGainDb + AudioGainBridge.processor.effectCompensationDb
         val expectedGainLin = 10f.pow(expectedGainDb / 20f)
         // Check that every sample is proportionally scaled (no clipping, no coloration).
         var maxRatioDiff = 0f

@@ -27,11 +27,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.SurroundSound
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
@@ -39,6 +45,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -72,6 +79,10 @@ fun EqualizerScreen(container: AppContainer) {
     val preset by vm.activePreset.collectAsStateWithLifecycle()
     val bass by vm.bassStrength.collectAsStateWithLifecycle()
     val playerState by container.playerController.uiState.collectAsStateWithLifecycle()
+    val headroom by vm.headroomDb.collectAsStateWithLifecycle(initialValue = -1.5f)
+    val effectsEnabled by vm.effectsEnabled.collectAsStateWithLifecycle(initialValue = true)
+    val loudnessMatchEnabled by vm.loudnessMatchEnabled.collectAsStateWithLifecycle(initialValue = true)
+    val userPresets by vm.userPresets.collectAsStateWithLifecycle(initialValue = emptyList())
     val balance = vm.balance
     val spatialMode = vm.spatialMode
     val spatial3d = vm.spatial3d
@@ -81,6 +92,8 @@ fun EqualizerScreen(container: AppContainer) {
     val rotationSeconds = vm.rotationSeconds
     val panDepth = vm.panDepth
     var resetConfirm by remember { mutableStateOf<ResetConfirm?>(null) }
+    var showSavePreset by rememberSaveable { mutableStateOf(false) }
+    var newPresetName by rememberSaveable { mutableStateOf("") }
     val directOutput by container.settingsRepository.directOutputEnabled
         .collectAsStateWithLifecycle(initialValue = false)
 
@@ -104,6 +117,55 @@ fun EqualizerScreen(container: AppContainer) {
                     vm::reset
                 )
             }) { Text("Atur Ulang") }
+        }
+
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Efek Equalizer", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        if (effectsEnabled) "EQ dan efek aktif; limiter keamanan tetap bekerja."
+                        else "Semua efek kreatif dimatikan; limiter keamanan tetap bekerja.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = effectsEnabled,
+                    onCheckedChange = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        vm.setEffectsEnabled(it)
+                    }
+                )
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f).padding(horizontal = 4.dp)) {
+                Text("Kompensasi Loudness", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "Menjaga efek tidak terdengar lebih kecil akibat headroom; limiter tetap membatasi peak.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(
+                checked = loudnessMatchEnabled,
+                onCheckedChange = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    vm.setLoudnessMatchEnabled(it)
+                }
+            )
         }
 
         if (directOutput) {
@@ -137,17 +199,40 @@ fun EqualizerScreen(container: AppContainer) {
             }
         }
 
-        Text(
-            "Semua efek & penyetelan langsung diterapkan ke lagu yang sedang diputar (real-time). Ketuk menu untuk membuka penyetelannya.",
+            Text(
+                "Semua efek & penyetelan langsung diterapkan ke lagu yang sedang diputar (real-time). Ketuk menu untuk membuka penyetelannya.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                FilterChip(
+                    selected = vm.effectsBypassed,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        vm.setEffectsBypassed(!vm.effectsBypassed)
+                    },
+                    label = { Text(if (vm.effectsBypassed) "A/B: Asli" else "A/B: Efek") }
+                )
+                Text(
+                    "Bandingkan suara asli dan hasil efek",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            OutputMeter(vm.outputPeakDb, vm.gainReductionDb)
 
         SettingSection(
             title = "Prasetel Equalizer",
             subtitle = "Prasetel suara, band EQ, bass & balance",
             icon = Icons.Rounded.Tune,
+            help = "Preset mengubah karakter suara secara menyeluruh. Band EQ mengatur frekuensi tertentu, Bass menambah energi rendah, Balance mengatur distribusi kiri-kanan, dan Headroom memberi ruang aman sebelum efek diproses.",
             initiallyExpanded = true,
             onReset = {
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -169,6 +254,39 @@ fun EqualizerScreen(container: AppContainer) {
                         label = { Text(p.name) }
                     )
                 }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Text("Preset Saya", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                TextButton(onClick = {
+                    newPresetName = ""
+                    showSavePreset = true
+                }) {
+                    Icon(Icons.Rounded.Save, contentDescription = null)
+                    Text(" Simpan Saat Ini")
+                }
+            }
+            if (userPresets.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    userPresets.forEach { userPreset ->
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                            FilterChip(
+                                selected = false,
+                                onClick = { vm.applyUserPreset(userPreset) },
+                                label = { Text(userPreset.name) },
+                                modifier = Modifier.weight(1f)
+                            )
+                            IconButton(onClick = { vm.deleteUserPreset(userPreset.id) }) {
+                                Icon(Icons.Rounded.Delete, contentDescription = "Hapus ${userPreset.name}")
+                            }
+                        }
+                    }
+                }
+            } else {
+                Text(
+                    "Belum ada preset pengguna. Simpan penyetelan saat ini untuk menggunakannya lagi.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             Text(
                 "Equalizer software 10-band — konsisten di semua perangkat dan langsung berlaku saat diputar.",
@@ -195,6 +313,13 @@ fun EqualizerScreen(container: AppContainer) {
                 valueText = balanceText,
                 onValueChange = vm::updateBalance
             )
+            ToneSlider(
+                label = "Headroom / Preamp",
+                value = headroom,
+                valueRange = -3f..0f,
+                valueText = String.format(Locale.US, "%.1f dB", headroom),
+                onValueChange = vm::setHeadroom
+            )
             EqVisualizer(
                 gains = gains,
                 onBandChange = { band, gainMb -> vm.setBandGain(band, gainMb) }
@@ -205,6 +330,7 @@ fun EqualizerScreen(container: AppContainer) {
             title = "Mode 3D / 8D",
             subtitle = "Efek ruang: pilih prasetel atau racik sendiri 3D, 8D & Surround",
             icon = Icons.Rounded.SurroundSound,
+            help = "3D memperlebar panggung stereo. 8D menggerakkan suara kiri-kanan. Surround menambahkan gema ruang. Gunakan intensitas sedang karena nilai tinggi dapat membuat vokal menjauh atau suara terasa pecah.",
             initiallyExpanded = false,
             onReset = {
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -285,6 +411,7 @@ fun EqualizerScreen(container: AppContainer) {
             title = "Tone & Efek",
             subtitle = "Treble, reverb, limiter, ukuran ruangan & pitch langsung",
             icon = Icons.Rounded.GraphicEq,
+            help = "Treble mengatur detail frekuensi tinggi. Reverb menambahkan ruang, sedangkan ukuran ruangan mengubah karakter gema. Pitch mengubah tinggi nada. Limiter final aktif permanen untuk mencegah clipping.",
             initiallyExpanded = false,
             onReset = {
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -295,12 +422,9 @@ fun EqualizerScreen(container: AppContainer) {
                 )
             }
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
-                Text("Limiter (anti-pecah)", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-                Switch(checked = vm.limiterEnabled, onCheckedChange = vm::setLimiter)
-            }
+            Text("Limiter final aktif", style = MaterialTheme.typography.titleSmall)
             Text(
-                "Mencegah distorsi saat preset boost penuh atau lagu keras.",
+                "Proteksi permanen mencegah clipping saat preset boost, Surround, atau lagu keras digunakan.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 6.dp)
@@ -350,6 +474,55 @@ fun EqualizerScreen(container: AppContainer) {
             onDismiss = { resetConfirm = null }
         )
     }
+    if (showSavePreset) {
+        AlertDialog(
+            onDismissRequest = { showSavePreset = false },
+            title = { Text("Simpan Preset Pengguna") },
+            text = {
+                OutlinedTextField(
+                    value = newPresetName,
+                    onValueChange = { newPresetName = it },
+                    label = { Text("Nama preset") },
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = newPresetName.trim().isNotEmpty(),
+                    onClick = {
+                        vm.saveCurrentPreset(newPresetName)
+                        showSavePreset = false
+                    }
+                ) { Text("Simpan") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSavePreset = false }) { Text("Batal") }
+            }
+        )
+    }
+}
+
+@Composable
+private fun OutputMeter(peakDb: Float, reductionDb: Float) {
+    val normalized = ((peakDb + 60f) / 60f).coerceIn(0f, 1f)
+    val peakLabel = if (peakDb <= -59.5f) "—" else String.format(Locale.US, "%.1f dBFS", peakDb)
+    val reductionLabel = if (reductionDb < -0.1f) {
+        String.format(Locale.US, "Proteksi %.1f dB", reductionDb)
+    } else {
+        "Tidak ada clipping"
+    }
+    Column(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("Level output", style = MaterialTheme.typography.labelLarge)
+            Text(peakLabel, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+        }
+        LinearProgressIndicator(
+            progress = { normalized },
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            color = if (peakDb > -1f) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+        )
+        Text(reductionLabel, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
 }
 
 @Composable
@@ -357,11 +530,13 @@ private fun SettingSection(
     title: String,
     subtitle: String,
     icon: ImageVector,
+    help: String,
     initiallyExpanded: Boolean,
     onReset: (() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
     var expanded by rememberSaveable { mutableStateOf(initiallyExpanded) }
+    var helpExpanded by rememberSaveable { mutableStateOf(false) }
     Column(modifier = Modifier.padding(vertical = 4.dp)) {
         Row(
             modifier = Modifier
@@ -383,10 +558,32 @@ private fun SettingSection(
                 TextButton(onClick = onReset) { Text("Atur Ulang") }
             }
             Icon(
+                Icons.Rounded.Info,
+                contentDescription = if (helpExpanded) "Sembunyikan penjelasan" else "Tampilkan penjelasan",
+                tint = if (helpExpanded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .clickable { helpExpanded = !helpExpanded }
+                    .padding(8.dp)
+            )
+            Icon(
                 if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
                 contentDescription = if (expanded) "Tutup" else "Buka",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+        AnimatedVisibility(visible = helpExpanded) {
+            Surface(
+                color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.55f),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
+            ) {
+                Text(
+                    help,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                    modifier = Modifier.padding(12.dp)
+                )
+            }
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
         AnimatedVisibility(visible = expanded) {

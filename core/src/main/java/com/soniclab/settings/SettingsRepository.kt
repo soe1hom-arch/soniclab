@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.soniclab.core.model.UserPreset
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -37,10 +38,12 @@ data class EffectSettings(
     val bandGains: Map<Int, Int> = emptyMap(),
     val activePresetId: String = "none",
     val playbackSpeed: Float = 1f,
-    val limiterEnabled: Boolean = false,
+    val limiterEnabled: Boolean = true,
+    val effectsEnabled: Boolean = true,
+    val loudnessMatchEnabled: Boolean = true,
     val directOutputEnabled: Boolean = false,
     val hiResOutput: Boolean = false,
-    val headroomDb: Float = 0f
+    val headroomDb: Float = -1.5f
 )
 
 /**
@@ -76,10 +79,13 @@ class SettingsRepository(private val context: Context) {
         val VIRTUALIZER_STRENGTH = intPreferencesKey("virtualizer_strength")
         val BAND_GAINS = stringPreferencesKey("band_gains")
         val LIMITER_ENABLED = booleanPreferencesKey("limiter_enabled")
+        val EFFECTS_ENABLED = booleanPreferencesKey("effects_enabled")
+        val LOUDNESS_MATCH_ENABLED = booleanPreferencesKey("loudness_match_enabled")
         val DIRECT_OUTPUT_ENABLED = booleanPreferencesKey("direct_output_enabled")
         val HI_RES_OUTPUT = booleanPreferencesKey("hi_res_output")
         val HEADROOM_DB = floatPreferencesKey("headroom_db")
         val RECENT_TRACK_IDS = stringPreferencesKey("recent_track_ids")
+        val USER_PRESETS = stringPreferencesKey("user_presets")
     }
 
     val activePresetId: Flow<String> = context.dataStore.data.map { it[Keys.ACTIVE_PRESET_ID] ?: "none" }
@@ -91,13 +97,18 @@ class SettingsRepository(private val context: Context) {
     val amoledTheme: Flow<Boolean> = context.dataStore.data.map { it[Keys.AMOLED_THEME] ?: false }
     val aiEnhanceEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.AI_ENHANCE_ENABLED] ?: false }
     val autoNormalizeEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.AUTO_NORMALIZE_ENABLED] ?: false }
-    val limiterEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.LIMITER_ENABLED] ?: false }
+    val limiterEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.LIMITER_ENABLED] ?: true }
+    val effectsEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.EFFECTS_ENABLED] ?: true }
+    val loudnessMatchEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.LOUDNESS_MATCH_ENABLED] ?: true }
     val directOutputEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.DIRECT_OUTPUT_ENABLED] ?: false }
     val hiResOutputEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.HI_RES_OUTPUT] ?: false }
-    val headroomDb: Flow<Float> = context.dataStore.data.map { it[Keys.HEADROOM_DB] ?: 0f }
+    val headroomDb: Flow<Float> = context.dataStore.data.map { it[Keys.HEADROOM_DB] ?: -1.5f }
     val recentTrackIds: Flow<List<Long>> = context.dataStore.data.map { prefs ->
         prefs[Keys.RECENT_TRACK_IDS].orEmpty().split(",")
             .mapNotNull { it.toLongOrNull() }
+    }
+    val userPresets: Flow<List<UserPreset>> = context.dataStore.data.map { prefs ->
+        decodeUserPresets(prefs[Keys.USER_PRESETS])
     }
 
     /** Reads every effect/replay setting once (used at app startup to restore state). */
@@ -121,10 +132,12 @@ class SettingsRepository(private val context: Context) {
             bandGains = parseBandGains(p[Keys.BAND_GAINS]),
             activePresetId = p[Keys.ACTIVE_PRESET_ID] ?: "none",
             playbackSpeed = p[Keys.PLAYBACK_SPEED] ?: 1f,
-            limiterEnabled = p[Keys.LIMITER_ENABLED] ?: false,
+            limiterEnabled = p[Keys.LIMITER_ENABLED] ?: true,
+            effectsEnabled = p[Keys.EFFECTS_ENABLED] ?: true,
+            loudnessMatchEnabled = p[Keys.LOUDNESS_MATCH_ENABLED] ?: true,
             directOutputEnabled = p[Keys.DIRECT_OUTPUT_ENABLED] ?: false,
             hiResOutput = p[Keys.HI_RES_OUTPUT] ?: false,
-            headroomDb = p[Keys.HEADROOM_DB] ?: 0f
+            headroomDb = p[Keys.HEADROOM_DB] ?: -1.5f
         )
     }
 
@@ -168,6 +181,14 @@ class SettingsRepository(private val context: Context) {
         context.dataStore.edit { it[Keys.LIMITER_ENABLED] = enabled }
     }
 
+    suspend fun setEffectsEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.EFFECTS_ENABLED] = enabled }
+    }
+
+    suspend fun setLoudnessMatchEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.LOUDNESS_MATCH_ENABLED] = enabled }
+    }
+
     suspend fun setDirectOutputEnabled(value: Boolean) {
         context.dataStore.edit { it[Keys.DIRECT_OUTPUT_ENABLED] = value }
     }
@@ -178,6 +199,22 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setHeadroomDb(db: Float) {
         context.dataStore.edit { it[Keys.HEADROOM_DB] = db.coerceIn(-3f, 0f) }
+    }
+
+    suspend fun saveUserPreset(preset: UserPreset) {
+        context.dataStore.edit { prefs ->
+            val updated = decodeUserPresets(prefs[Keys.USER_PRESETS])
+                .filterNot { it.id == preset.id } + preset
+            prefs[Keys.USER_PRESETS] = encodeUserPresets(updated)
+        }
+    }
+
+    suspend fun deleteUserPreset(id: String) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.USER_PRESETS] = encodeUserPresets(
+                decodeUserPresets(prefs[Keys.USER_PRESETS]).filterNot { it.id == id }
+            )
+        }
     }
 
     /** Stores a short, newest-first local playback history. */
@@ -258,4 +295,51 @@ class SettingsRepository(private val context: Context) {
             band to gain
         }.toMap()
     }
+
+    private fun encodeUserPresets(presets: List<UserPreset>): String = presets.joinToString("\n") { p ->
+        val bands = p.bandGainsMb.entries.sortedBy { it.key }.joinToString(";") { "${it.key}:${it.value}" }
+        listOf(
+            p.id, p.name.replace("|", " ").replace("\n", " "), bands,
+            p.bassStrength, p.balance, p.trebleDb, p.spatialMode,
+            p.spatial3d, p.spatial8d, p.surround, p.spatialWidth,
+            p.rotationSeconds, p.panDepth, p.reverbWet, p.reverbRoom,
+            p.pitchSemitones, p.headroomDb
+        ).joinToString("|")
+    }
+
+    private fun decodeUserPresets(raw: String?): List<UserPreset> = raw.orEmpty()
+        .lineSequence()
+        .mapNotNull { line ->
+            val fields = line.split("|", limit = 17)
+            if (fields.size != 17) return@mapNotNull null
+            val bassStrength = fields[3].toIntOrNull() ?: return@mapNotNull null
+            val balance = fields[4].toFloatOrNull() ?: return@mapNotNull null
+            val trebleDb = fields[5].toFloatOrNull() ?: return@mapNotNull null
+            val spatialMode = fields[6].toIntOrNull() ?: return@mapNotNull null
+            val spatialWidth = fields[10].toFloatOrNull() ?: return@mapNotNull null
+            val rotationSeconds = fields[11].toFloatOrNull() ?: return@mapNotNull null
+            val panDepth = fields[12].toFloatOrNull() ?: return@mapNotNull null
+            val reverbWet = fields[13].toFloatOrNull() ?: return@mapNotNull null
+            val reverbRoom = fields[14].toFloatOrNull() ?: return@mapNotNull null
+            val pitchSemitones = fields[15].toFloatOrNull() ?: return@mapNotNull null
+            val headroomDb = fields[16].toFloatOrNull() ?: return@mapNotNull null
+            val bands = fields[2].split(";").mapNotNull { part ->
+                val pair = part.split(":")
+                if (pair.size != 2) null else {
+                    val band = pair[0].toIntOrNull()
+                    val gain = pair[1].toIntOrNull()
+                    if (band == null || gain == null) null else band to gain
+                }
+            }.toMap()
+            UserPreset(
+                id = fields[0], name = fields[1], bandGainsMb = bands,
+                bassStrength = bassStrength, balance = balance, trebleDb = trebleDb,
+                spatialMode = spatialMode, spatial3d = fields[7].toBoolean(),
+                spatial8d = fields[8].toBoolean(), surround = fields[9].toBoolean(),
+                spatialWidth = spatialWidth, rotationSeconds = rotationSeconds,
+                panDepth = panDepth, reverbWet = reverbWet,
+                reverbRoom = reverbRoom, pitchSemitones = pitchSemitones,
+                headroomDb = headroomDb
+            )
+        }.toList()
 }

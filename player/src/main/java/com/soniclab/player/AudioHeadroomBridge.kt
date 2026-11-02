@@ -16,7 +16,9 @@ object AudioHeadroomBridge {
     var headroomDb: Float
         get() = processor.gainDb
         set(value) {
-            processor.gainDb = value.coerceIn(-3f, 0f)
+            val db = value.coerceIn(-3f, 0f)
+            processor.gainDb = db
+            AudioGainBridge.effectCompensationDb = if (AudioGainBridge.loudnessMatchEnabled) -db else 0f
         }
 
     private const val DEFAULT_HEADROOM_DB = -1.5f

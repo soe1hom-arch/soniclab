@@ -14,13 +14,19 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.soniclab.app.di.AppContainer
 import com.soniclab.core.model.Preset
+import com.soniclab.core.model.UserPreset
 import com.soniclab.player.AudioBalanceBridge
+import com.soniclab.player.AudioBypassBridge
+import com.soniclab.player.AudioGainBridge
+import com.soniclab.player.AudioHeadroomBridge
 import com.soniclab.player.AudioLimiterBridge
 import com.soniclab.player.AudioReverbBridge
 import com.soniclab.player.AudioSpatialBridge
 import com.soniclab.player.AudioToneBridge
 import com.soniclab.player.SpatialAudioProcessor
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
 class EqualizerViewModel(private val container: AppContainer) : ViewModel() {
 
@@ -28,6 +34,49 @@ class EqualizerViewModel(private val container: AppContainer) : ViewModel() {
     val activePreset = container.audioEffects.activePreset
     val bassStrength = container.audioEffects.bassStrength
     val presets: List<Preset> = Preset.presets
+    val headroomDb = container.settingsRepository.headroomDb
+    val effectsEnabled = container.settingsRepository.effectsEnabled
+    val loudnessMatchEnabled = container.settingsRepository.loudnessMatchEnabled
+    val userPresets = container.settingsRepository.userPresets
+
+    var effectsBypassed by mutableStateOf(AudioBypassBridge.enabled)
+        private set
+    var outputPeakDb by mutableFloatStateOf(AudioLimiterBridge.processor.outputPeakDb)
+        private set
+    var gainReductionDb by mutableFloatStateOf(AudioLimiterBridge.processor.gainReductionDb)
+        private set
+
+    init {
+        viewModelScope.launch {
+            while (isActive) {
+                outputPeakDb = AudioLimiterBridge.processor.outputPeakDb
+                gainReductionDb = AudioLimiterBridge.processor.gainReductionDb
+                delay(100)
+            }
+        }
+    }
+
+    fun setEffectsBypassed(enabled: Boolean) {
+        effectsBypassed = enabled
+        AudioBypassBridge.abBypass = enabled
+    }
+
+    fun setEffectsEnabled(enabled: Boolean) {
+        AudioBypassBridge.masterEffectsEnabled = enabled
+        viewModelScope.launch { container.settingsRepository.setEffectsEnabled(enabled) }
+    }
+
+    fun setLoudnessMatchEnabled(enabled: Boolean) {
+        AudioGainBridge.loudnessMatchEnabled = enabled
+        AudioHeadroomBridge.headroomDb = AudioHeadroomBridge.headroomDb
+        viewModelScope.launch { container.settingsRepository.setLoudnessMatchEnabled(enabled) }
+    }
+
+    fun setHeadroom(value: Float) {
+        val db = value.coerceIn(-3f, 0f)
+        AudioHeadroomBridge.headroomDb = db
+        viewModelScope.launch { container.settingsRepository.setHeadroomDb(db) }
+    }
 
     var balance by mutableFloatStateOf(AudioBalanceBridge.balance)
         private set
@@ -50,6 +99,82 @@ class EqualizerViewModel(private val container: AppContainer) : ViewModel() {
     fun applyPreset(preset: Preset) {
         container.audioEffects.applyPreset(preset)
         viewModelScope.launch { container.settingsRepository.setActivePresetId(preset.id) }
+    }
+
+    fun saveCurrentPreset(name: String) {
+        val cleanName = name.trim().replace("|", " ").replace("\n", " ")
+        if (cleanName.isBlank()) return
+        val preset = UserPreset(
+            id = "user_${System.currentTimeMillis()}",
+            name = cleanName,
+            bandGainsMb = container.audioEffects.bandGains.value.mapIndexed { index, gain -> index to gain }.toMap(),
+            bassStrength = bassStrength.value,
+            balance = balance,
+            trebleDb = trebleDb,
+            spatialMode = spatialMode,
+            spatial3d = spatial3d,
+            spatial8d = spatial8d,
+            surround = surround,
+            spatialWidth = spatialWidth,
+            rotationSeconds = rotationSeconds,
+            panDepth = panDepth,
+            reverbWet = reverbWet,
+            reverbRoom = reverbRoom,
+            pitchSemitones = playbackPitch,
+            headroomDb = AudioHeadroomBridge.headroomDb
+        )
+        viewModelScope.launch { container.settingsRepository.saveUserPreset(preset) }
+    }
+
+    fun applyUserPreset(preset: UserPreset) {
+        container.audioEffects.restoreCustom(preset.bandGainsMb, preset.bassStrength.toShort(), 0)
+        AudioGainBridge.baseGainDb = 0f
+        balance = preset.balance.coerceIn(-1f, 1f)
+        AudioBalanceBridge.balance = balance
+        trebleDb = preset.trebleDb.coerceIn(-6f, 6f)
+        AudioToneBridge.trebleDb = trebleDb
+        AudioSpatialBridge.mode = preset.spatialMode
+        if (preset.spatialMode == SpatialAudioProcessor.MODE_CUSTOM) {
+            AudioSpatialBridge.spatial3d = preset.spatial3d
+            AudioSpatialBridge.spatial8d = preset.spatial8d
+            AudioSpatialBridge.surround = preset.surround
+        }
+        spatialMode = AudioSpatialBridge.mode
+        spatial3d = AudioSpatialBridge.spatial3d
+        spatial8d = AudioSpatialBridge.spatial8d
+        surround = AudioSpatialBridge.surround
+        spatialWidth = preset.spatialWidth.coerceIn(0f, 1f)
+        rotationSeconds = preset.rotationSeconds.coerceIn(4f, 60f)
+        panDepth = preset.panDepth.coerceIn(0f, 1f)
+        AudioSpatialBridge.widthStrength = spatialWidth
+        AudioSpatialBridge.rotationSeconds = rotationSeconds
+        AudioSpatialBridge.panDepth = panDepth
+        reverbWet = preset.reverbWet.coerceIn(0f, 1f)
+        reverbRoom = preset.reverbRoom.coerceIn(0f, 1f)
+        AudioReverbBridge.wetMix = reverbWet
+        AudioReverbBridge.roomSize = reverbRoom
+        AudioHeadroomBridge.headroomDb = preset.headroomDb
+        container.playerController.setPitchSemitones(preset.pitchSemitones)
+        viewModelScope.launch {
+            container.settingsRepository.setActivePresetId("none")
+            container.settingsRepository.setBandGains(preset.bandGainsMb)
+            container.settingsRepository.setBassStrength(preset.bassStrength)
+            container.settingsRepository.setBalance(balance)
+            container.settingsRepository.setTrebleDb(trebleDb)
+            container.settingsRepository.setSpatial(
+                AudioSpatialBridge.mode, spatial3d, spatial8d, surround
+            )
+            container.settingsRepository.setSpatialWidth(spatialWidth)
+            container.settingsRepository.setRotationSeconds(rotationSeconds)
+            container.settingsRepository.setPanDepth(panDepth)
+            container.settingsRepository.setReverb(reverbWet, reverbRoom)
+            container.settingsRepository.setPitchSemitones(preset.pitchSemitones)
+            container.settingsRepository.setHeadroomDb(preset.headroomDb)
+        }
+    }
+
+    fun deleteUserPreset(id: String) {
+        viewModelScope.launch { container.settingsRepository.deleteUserPreset(id) }
     }
 
     fun setBandGain(band: Int, gainMb: Int) {
@@ -139,9 +264,6 @@ class EqualizerViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
-    var limiterEnabled by mutableStateOf(AudioLimiterBridge.enabled)
-        private set
-
     var trebleDb by mutableFloatStateOf(AudioToneBridge.trebleDb)
         private set
 
@@ -155,9 +277,10 @@ class EqualizerViewModel(private val container: AppContainer) : ViewModel() {
         get() = container.playerController.uiState.value.playbackPitch
 
     fun setLimiter(enabled: Boolean) {
-        limiterEnabled = enabled
-        AudioLimiterBridge.enabled = enabled
-        viewModelScope.launch { container.settingsRepository.setLimiterEnabled(enabled) }
+        // Kept for callers from older UI versions; the final safety stage is
+        // intentionally always active.
+        AudioLimiterBridge.enabled = true
+        viewModelScope.launch { container.settingsRepository.setLimiterEnabled(true) }
     }
 
     fun updateTreble(value: Float) {
@@ -222,7 +345,7 @@ class EqualizerViewModel(private val container: AppContainer) : ViewModel() {
         resetPitch()
         // Reset returns to the transparent clean baseline. Enable the limiter
         // manually when using aggressive EQ/preset boosts.
-        setLimiter(false)
+        setLimiter(true)
     }
 
     fun reset() {

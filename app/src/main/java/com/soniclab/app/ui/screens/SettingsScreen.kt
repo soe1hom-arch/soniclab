@@ -63,7 +63,7 @@ fun SettingsScreen(container: AppContainer, onOpenAbout: () -> Unit, onOpenEqual
     val autoNormalize by vm.autoNormalizeEnabled.collectAsStateWithLifecycle(initialValue = false)
     val directOutput by vm.directOutputEnabled.collectAsStateWithLifecycle(initialValue = false)
     val hiRes by vm.hiResOutputEnabled.collectAsStateWithLifecycle(initialValue = false)
-    val headroom by vm.headroomDb.collectAsStateWithLifecycle(initialValue = 0f)
+    val headroom by vm.headroomDb.collectAsStateWithLifecycle(initialValue = -1.5f)
 
     Column(
         modifier = Modifier

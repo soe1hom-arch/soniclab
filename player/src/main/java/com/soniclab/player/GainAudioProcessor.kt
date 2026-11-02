@@ -30,10 +30,14 @@ class GainAudioProcessor : PcmAudioProcessor() {
     @Volatile
     var autoGainDb: Float = 0f
 
+    /** Conservative makeup gain that offsets user-selected pre-effect headroom. */
+    @Volatile
+    var effectCompensationDb: Float = 0f
+
     override fun isEffectActive(): Boolean = gainDb != 0f || baseGainDb != 0f || autoGainDb != 0f
 
     override fun processSamples(input: FloatArray, frames: Int): FloatArray {
-        val gain = 10f.pow((gainDb + baseGainDb + autoGainDb) / 20f)
+        val gain = 10f.pow((gainDb + baseGainDb + autoGainDb + effectCompensationDb) / 20f)
         for (i in input.indices) input[i] *= gain
         return input
     }

@@ -36,6 +36,7 @@ abstract class PcmAudioProcessor : AudioProcessor {
 
     private var outputBuffer: ByteBuffer = AudioProcessor.EMPTY_BUFFER
     private var ended = false
+    private var bypassState = false
 
     /** Format this processor emits for [input]; override to change channels. */
     protected open fun outputFormat(input: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat = input
@@ -70,6 +71,32 @@ abstract class PcmAudioProcessor : AudioProcessor {
     override fun isActive(): Boolean = true
 
     override fun queueInput(inputBuffer: ByteBuffer) {
+        // A/B comparison bypasses creative effects while preserving the final
+        // limiter. Keep channel conversion intact for mono spatial output.
+        val bypass = AudioBypassBridge.enabled && this !is LimiterAudioProcessor
+        if (bypass != bypassState) {
+            // Drop any buffered enhancer/reverb tail when switching A/B so
+            // stale processed audio cannot leak into the comparison.
+            onFlush()
+            bypassState = bypass
+        }
+        if (bypass) {
+            val frames = inputBuffer.remaining() / bytesPerSample / inputChannels
+            val input = decode(inputBuffer, frames * inputChannels)
+            val output = if (inputChannels == outputChannels) {
+                input
+            } else {
+                FloatArray(frames * outputChannels).also { out ->
+                    for (frame in 0 until frames) {
+                        for (channel in 0 until outputChannels) {
+                            out[frame * outputChannels + channel] = input[frame * inputChannels]
+                        }
+                    }
+                }
+            }
+            outputBuffer = encode(output)
+            return
+        }
         if (!isEffectActive()) {
             outputBuffer = inputBuffer
             return

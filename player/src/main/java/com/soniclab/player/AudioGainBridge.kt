@@ -29,5 +29,15 @@ object AudioGainBridge {
             processor.autoGainDb = value
         }
 
+    /** Makeup gain used by the optional loudness-matching feature. */
+    var effectCompensationDb: Float
+        get() = processor.effectCompensationDb
+        set(value) {
+            processor.effectCompensationDb = value.coerceIn(0f, 3f)
+        }
+
+    @Volatile
+    var loudnessMatchEnabled: Boolean = true
+
     private const val DEFAULT_BASE_GAIN_DB = 3f
 }

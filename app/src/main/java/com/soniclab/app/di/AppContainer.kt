@@ -13,8 +13,10 @@ import com.soniclab.analyzer.PcmReader
 import com.soniclab.analyzer.WaveformAnalyzer
 import com.soniclab.library.LibraryRepository
 import com.soniclab.player.AudioBalanceBridge
+import com.soniclab.player.AudioBypassBridge
 import com.soniclab.player.AudioEnhanceBridge
 import com.soniclab.player.AudioHeadroomBridge
+import com.soniclab.player.AudioGainBridge
 import com.soniclab.player.AudioLimiterBridge
 import com.soniclab.player.AudioReverbBridge
 import com.soniclab.player.AudioSpatialBridge
@@ -88,7 +90,12 @@ class AppContainer(context: Context) {
             )
         }
 
-        AudioLimiterBridge.enabled = s.limiterEnabled
+        // The limiter is a permanent final safety stage. Keep reading the
+        // legacy preference for migration compatibility, but do not disable it.
+        AudioLimiterBridge.enabled = true
+        AudioGainBridge.loudnessMatchEnabled = s.loudnessMatchEnabled
+        AudioBypassBridge.masterEffectsEnabled = s.effectsEnabled
+        AudioBypassBridge.abBypass = false
         AudioHeadroomBridge.headroomDb = s.headroomDb
 
         playerController.setDirectOutput(s.directOutputEnabled)
