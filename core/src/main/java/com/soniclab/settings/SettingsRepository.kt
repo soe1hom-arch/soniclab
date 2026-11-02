@@ -79,6 +79,7 @@ class SettingsRepository(private val context: Context) {
         val DIRECT_OUTPUT_ENABLED = booleanPreferencesKey("direct_output_enabled")
         val HI_RES_OUTPUT = booleanPreferencesKey("hi_res_output")
         val HEADROOM_DB = floatPreferencesKey("headroom_db")
+        val RECENT_TRACK_IDS = stringPreferencesKey("recent_track_ids")
     }
 
     val activePresetId: Flow<String> = context.dataStore.data.map { it[Keys.ACTIVE_PRESET_ID] ?: "none" }
@@ -94,6 +95,10 @@ class SettingsRepository(private val context: Context) {
     val directOutputEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.DIRECT_OUTPUT_ENABLED] ?: false }
     val hiResOutputEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.HI_RES_OUTPUT] ?: false }
     val headroomDb: Flow<Float> = context.dataStore.data.map { it[Keys.HEADROOM_DB] ?: 0f }
+    val recentTrackIds: Flow<List<Long>> = context.dataStore.data.map { prefs ->
+        prefs[Keys.RECENT_TRACK_IDS].orEmpty().split(",")
+            .mapNotNull { it.toLongOrNull() }
+    }
 
     /** Reads every effect/replay setting once (used at app startup to restore state). */
     suspend fun loadEffectSettings(): EffectSettings {
@@ -173,6 +178,20 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setHeadroomDb(db: Float) {
         context.dataStore.edit { it[Keys.HEADROOM_DB] = db.coerceIn(-3f, 0f) }
+    }
+
+    /** Stores a short, newest-first local playback history. */
+    suspend fun recordRecentlyPlayed(trackId: Long) {
+        if (trackId <= 0L) return
+        context.dataStore.edit { prefs ->
+            val current = prefs[Keys.RECENT_TRACK_IDS].orEmpty().split(",")
+                .mapNotNull { it.toLongOrNull() }
+            val updated = buildList {
+                add(trackId)
+                current.filter { it != trackId }.take(29).forEach(::add)
+            }
+            prefs[Keys.RECENT_TRACK_IDS] = updated.joinToString(",")
+        }
     }
 
     // --- Effect chain persistence (kept across app restarts) ---

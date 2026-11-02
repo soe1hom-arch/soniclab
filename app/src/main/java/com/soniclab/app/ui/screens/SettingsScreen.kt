@@ -29,7 +29,6 @@ import androidx.compose.material.icons.rounded.HighQuality
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Timer
-import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -49,6 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.soniclab.app.BuildConfig
 import com.soniclab.app.di.AppContainer
 import com.soniclab.app.ui.common.appViewModel
+import com.soniclab.app.ui.common.SonicCard
 import com.soniclab.app.ui.theme.CyanAccent
 import com.soniclab.app.ui.theme.PurpleAccent
 import java.util.Locale
@@ -135,7 +135,7 @@ fun SettingsScreen(container: AppContainer, onOpenAbout: () -> Unit, onOpenEqual
             Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
-        Card(modifier = Modifier.fillMaxWidth()) {
+        SonicCard(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Output Audio", style = MaterialTheme.typography.titleMedium)
                 Text(

@@ -21,6 +21,7 @@ import androidx.media3.session.SessionToken
 import com.soniclab.analyzer.R128Meter
 import com.soniclab.analyzer.PcmReader
 import com.soniclab.core.model.Track
+import com.soniclab.settings.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -39,7 +40,10 @@ private const val TAG = "PlayerController"
  * App-facing controller that binds to [PlaybackService] through a MediaController
  * and exposes a reactive [PlayerUiState] for Compose.
  */
-class PlayerController(private val context: Context) {
+class PlayerController(
+    private val context: Context,
+    private val settingsRepository: SettingsRepository
+) {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var controller: MediaController? = null
@@ -59,6 +63,9 @@ class PlayerController(private val context: Context) {
     private var crossfadeMs: Long = 0L
     private var fadeJob: Job? = null
     private var sleepTimerJob: Job? = null
+
+    /** Guards end-of-queue recovery from running more than once per item. */
+    private var recoveredEndedMediaId: String? = null
 
     /** Media ids of tracks the user queued manually (Putar Berikutnya / Tambahkan ke Antrean). */
     private val manualQueueIds = mutableListOf<Long>()
@@ -92,6 +99,17 @@ class PlayerController(private val context: Context) {
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
+            // ExoPlayer normally advances the queue itself. Recover once when
+            // a decoder/service edge case leaves it ended with a next item.
+            if (playbackState == Player.STATE_ENDED) {
+                val c = controller
+                val mediaId = c?.currentMediaItem?.mediaId
+                if (c != null && c.playWhenReady && c.hasNextMediaItem() && mediaId != null && mediaId != recoveredEndedMediaId) {
+                    recoveredEndedMediaId = mediaId
+                    c.seekToNextMediaItem()
+                    c.play()
+                }
+            }
             val playing = playbackState == Player.STATE_READY
             _uiState.value = _uiState.value.copy(
                 isPlaying = playing && (controller?.playWhenReady == true),
@@ -101,6 +119,10 @@ class PlayerController(private val context: Context) {
         }
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            recoveredEndedMediaId = null
+            mediaItem?.mediaId?.toLongOrNull()?.let { trackId ->
+                scope.launch(Dispatchers.IO) { settingsRepository.recordRecentlyPlayed(trackId) }
+            }
             fadeJob?.cancel()
             fadeJob = null
             if (crossfadeMs > 0) {

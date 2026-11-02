@@ -24,8 +24,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -57,9 +60,11 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -96,6 +101,7 @@ fun LibraryScreen(
     val isLoading by vm.isLoading.collectAsStateWithLifecycle()
     val libraryError by vm.libraryError.collectAsStateWithLifecycle()
     val playerState by container.playerController.uiState.collectAsStateWithLifecycle()
+    val recentIds by vm.recentTrackIds.collectAsStateWithLifecycle(initialValue = emptyList())
     var tab by remember { mutableStateOf(LibraryTab.TRACKS) }
     val selection = vm.selectionLabel()
 
@@ -162,6 +168,8 @@ fun LibraryScreen(
                         vm,
                         favorites,
                         selection,
+                        currentTrack = playerState.currentTrack,
+                        recentTracks = vm.recentTracks(recentIds),
                         currentTrackId = playerState.currentTrack?.id,
                         onOpenPlayer = onOpenPlayer,
                         onOpenStudio = onOpenStudio,
@@ -181,6 +189,8 @@ private fun TracksTab(
     vm: LibraryViewModel,
     favorites: Set<Long>,
     selection: String?,
+    currentTrack: Track?,
+    recentTracks: List<Track>,
     currentTrackId: Long?,
     onOpenPlayer: () -> Unit,
     onOpenStudio: (Track) -> Unit,
@@ -188,11 +198,93 @@ private fun TracksTab(
     onAddToQueue: (Track) -> Unit
 ) {
     val list = vm.visibleTracks()
+    val listState = rememberLazyListState()
+
+    // Reveal the active track whenever the list/context becomes visible.
+    LaunchedEffect(currentTrackId, currentTrack != null, recentTracks.size, selection, vm.query, list.size) {
+        val index = currentTrackId?.let { id -> list.indexOfFirst { it.id == id } } ?: -1
+        if (index >= 0) {
+            val recentOffset = if (recentTracks.isNotEmpty() && selection == null && vm.query.isBlank()) 2 else 0
+            val nowPlayingOffset = if (currentTrack != null && selection == null && vm.query.isBlank()) 1 else 0
+            val headerOffset = recentOffset + nowPlayingOffset + if (selection != null) 1 else 0
+            listState.animateScrollToItem(index + headerOffset)
+        }
+    }
+
     LazyColumn(
+        state = listState,
         modifier = Modifier.fillMaxSize().padding(top = 8.dp),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
+        if (recentTracks.isNotEmpty() && selection == null && vm.query.isBlank()) {
+            item(key = "recent-header") {
+                Text("Terakhir Diputar", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 4.dp, bottom = 6.dp))
+            }
+            item(key = "recent-tracks") {
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    recentTracks.take(8).forEach { recent ->
+                        Column(
+                            modifier = Modifier.width(112.dp).clickable {
+                                vm.play(listOf(recent), 0)
+                                onOpenPlayer()
+                            }
+                        ) {
+                            AlbumArt(
+                                albumId = recent.albumId,
+                                modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(10.dp))
+                            )
+                            Text(recent.title, style = MaterialTheme.typography.labelLarge, maxLines = 1, modifier = Modifier.padding(top = 5.dp))
+                            Text(recent.artist, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+            }
+        }
+        if (currentTrack != null && selection == null && vm.query.isBlank()) {
+            item(key = "now-playing") {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.secondaryContainer)
+                        .clickable(onClick = onOpenPlayer)
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Rounded.GraphicEq,
+                        contentDescription = "Sedang Diputar",
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
+                        Text(
+                            "Sedang Diputar",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                        Text(
+                            currentTrack.title,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            maxLines = 1
+                        )
+                        Text(
+                            currentTrack.artist,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
+                            maxLines = 1
+                        )
+                    }
+                    Icon(Icons.Rounded.PlayCircle, contentDescription = "Buka pemutar", tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+        }
         if (selection != null) {
             item(key = "selection") {
                 Row(

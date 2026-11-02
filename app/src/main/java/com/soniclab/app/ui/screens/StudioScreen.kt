@@ -34,9 +34,7 @@ import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -63,6 +61,7 @@ import android.os.Build
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.soniclab.app.di.AppContainer
 import com.soniclab.app.ui.common.appViewModel
+import com.soniclab.app.ui.common.SonicCard
 import com.soniclab.visualizer.WaveformVisualizer
 import java.util.Locale
 
@@ -127,7 +126,7 @@ fun StudioScreen(container: AppContainer, uri: String? = null, title: String? = 
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+        SonicCard(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("File Audio", style = MaterialTheme.typography.titleMedium)
                 HorizontalDivider()
@@ -160,7 +159,7 @@ fun StudioScreen(container: AppContainer, uri: String? = null, title: String? = 
             }
         }
         vm.lastResult?.let { result ->
-            Card(modifier = Modifier.fillMaxWidth()) {
+            SonicCard(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -234,7 +233,7 @@ fun StudioScreen(container: AppContainer, uri: String? = null, title: String? = 
         }
 
         info?.let {
-            Card(modifier = Modifier.fillMaxWidth()) {
+            SonicCard(modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp)) {
                     vm.sourceLabel?.let { label ->
                         Text(
@@ -307,7 +306,7 @@ fun StudioScreen(container: AppContainer, uri: String? = null, title: String? = 
 
 @Composable
 private fun SectionCard(title: String, content: @Composable ColumnScope.() -> Unit) {
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+    SonicCard(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium)
             HorizontalDivider()

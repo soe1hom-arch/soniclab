@@ -40,7 +40,7 @@ class AppContainer(context: Context) {
     val favoritesRepository: FavoritesRepository = FavoritesRepository(appContext)
     val settingsRepository: SettingsRepository = SettingsRepository(appContext)
 
-    val playerController: PlayerController = PlayerController(appContext)
+    val playerController: PlayerController = PlayerController(appContext, settingsRepository)
     val audioEffects: EffectsController = EffectsController()
     val visualizerEngine: VisualizerEngine = VisualizerEngine()
 

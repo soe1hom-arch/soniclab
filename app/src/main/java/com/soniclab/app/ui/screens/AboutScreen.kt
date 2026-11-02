@@ -40,7 +40,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -56,6 +55,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.soniclab.app.BuildConfig
 import com.soniclab.app.R
+import com.soniclab.app.ui.common.SonicCard
 import com.soniclab.app.ui.theme.PurpleAccent
 
 private const val GITHUB_URL = "https://github.com/soe1hom-arch/soniclab"
@@ -130,7 +130,7 @@ fun AboutScreen(onBack: () -> Unit, onOpenLicenses: () -> Unit = {}) {
             )
             Text(
                 "Proyek pribadi yang dibuat dengan fokus pada kualitas suara, privasi, " +
-                    "dan pengalaman premium. Umpan balik sangat dihargai — silakan buka " +
+                    "dan pengalaman penggunaan yang baik. Umpan balik sangat dihargai — silakan buka " +
                     "issue di repositori GitHub.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -178,7 +178,7 @@ private fun HeroSection() {
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            "Pemutar musik & toolkit audio premium, sepenuhnya offline.\n" +
+            "Pemutar musik & toolkit audio yang berjalan sepenuhnya offline.\n" +
                 "Tanpa iklan, tanpa akun, tanpa internet.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -189,12 +189,10 @@ private fun HeroSection() {
 
 @Composable
 private fun AboutSection(title: String, content: @Composable () -> Unit) {
-    Surface(
+    SonicCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant
     ) {
         Column(Modifier.padding(vertical = 12.dp)) {
             Text(

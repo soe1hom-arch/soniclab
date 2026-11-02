@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.soniclab.app.di.AppContainer
 import com.soniclab.app.ui.common.AlbumArt
+import com.soniclab.app.ui.common.SonicCard
 import com.soniclab.app.ui.common.appViewModel
 import com.soniclab.core.util.TimeFormat
 import com.soniclab.player.SpatialAudioProcessor
@@ -106,17 +107,20 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit) {
             maxLines = 1
         )
         state.audioInfo?.let { info ->
-            Text(
-                buildString {
-                    append(info.codec)
-                    if (info.sampleRateHz > 0) append(" • ${info.sampleRateHz / 1000f} kHz")
-                    append(" • ${info.bitDepth}")
-                    if (info.channels > 0) append(" • ${if (info.channels == 1) "Mono" else "Stereo"}")
-                },
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
-                maxLines = 1
-            )
+            SonicCard {
+                Text(
+                    buildString {
+                        append(info.codec)
+                        if (info.sampleRateHz > 0) append(" • ${info.sampleRateHz / 1000f} kHz")
+                        append(" • ${info.bitDepth}")
+                        if (info.channels > 0) append(" • ${if (info.channels == 1) "Mono" else "Stereo"}")
+                    },
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                    maxLines = 1,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                )
+            }
         }
 
         Spacer(Modifier.height(24.dp))

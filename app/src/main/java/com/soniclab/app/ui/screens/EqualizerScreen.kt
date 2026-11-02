@@ -29,7 +29,6 @@ import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.SurroundSound
 import androidx.compose.material.icons.rounded.Tune
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -57,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.soniclab.app.di.AppContainer
 import com.soniclab.app.ui.common.appViewModel
+import com.soniclab.app.ui.common.SonicConfirmDialog
 import com.soniclab.app.ui.theme.CyanAccent
 import com.soniclab.app.ui.theme.SurfaceVariantDark
 import com.soniclab.player.SpatialAudioProcessor
@@ -338,20 +338,16 @@ fun EqualizerScreen(container: AppContainer) {
         Spacer(Modifier.height(8.dp))
     }
     resetConfirm?.let { confirm ->
-        AlertDialog(
-            onDismissRequest = { resetConfirm = null },
-            title = { Text(confirm.title) },
-            text = { Text(confirm.body) },
-            confirmButton = {
-                TextButton(onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    resetConfirm = null
-                    confirm.action()
-                }) { Text("Atur Ulang") }
+        SonicConfirmDialog(
+            title = confirm.title,
+            message = confirm.body,
+            confirmLabel = "Atur Ulang",
+            onConfirm = {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                resetConfirm = null
+                confirm.action()
             },
-            dismissButton = {
-                TextButton(onClick = { resetConfirm = null }) { Text("Batal") }
-            }
+            onDismiss = { resetConfirm = null }
         )
     }
 }
@@ -400,7 +396,7 @@ private fun SettingSection(
 }
 
 /**
- * Classic premium 10-band EQ: a row of vertical sliders, boost up, cut down.
+ * 10-band EQ: a row of vertical sliders, boost up, cut down.
  * Frequencies shown as 31 Hz … 16 kHz (the software EQ band centers).
  */
 @Composable

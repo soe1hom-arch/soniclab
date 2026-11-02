@@ -30,6 +30,7 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
     val isLoading = container.libraryRepository.isLoading
     val libraryError = container.libraryRepository.error
     val favorites = container.favoritesRepository.favorites
+    val recentTrackIds = container.settingsRepository.recentTrackIds
 
     var query by mutableStateOf("")
         private set
@@ -113,5 +114,10 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
 
     fun play(tracks: List<Track>, index: Int) {
         container.playerController.playQueue(tracks, index)
+    }
+
+    fun recentTracks(ids: List<Long>): List<Track> {
+        val byId = tracks.value.associateBy { it.id }
+        return ids.mapNotNull { byId[it] }
     }
 }

@@ -31,7 +31,7 @@ fun SonicLabTheme(
     amoled: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    // Force the premium dark look (spec: gray/black tones); AMOLED deepens blacks.
+    // Keep the dark look consistent; AMOLED deepens the black tones.
     val colorScheme = if (amoled) {
         SonicDarkColorScheme.copy(
             background = Color.Black,
