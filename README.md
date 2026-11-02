@@ -1,10 +1,10 @@
-# SonicLab — AI Audio Studio
+# SonicLab — Offline Audio Player & Toolkit
 
 [![Android Build](https://github.com/soe1hom-arch/soniclab/actions/workflows/android-build.yml/badge.svg)](https://github.com/soe1hom-arch/soniclab/actions/workflows/android-build.yml)
 
 
-A premium, **fully offline** Android music player & audio toolkit (Kotlin + Jetpack Compose + Media3).
-A player with real-time DSP effects, an audio toolkit, an analyzer, and on-device AI enhancement — no cloud, no account, no internet.
+An offline Android music player and audio toolkit built with Kotlin, Jetpack Compose, and Media3.
+It includes local library management, real-time playback effects, file tools, and audio analysis.
 
 ## Table of Contents
 
@@ -16,8 +16,8 @@ A player with real-time DSP effects, an audio toolkit, an analyzer, and on-devic
 - [Build](#build)
 - [Test, lint & analysis](#test-lint--analysis)
 - [Download APK](#download-apk)
-- [Honest status](#honest-status)
-- [Roadmap](#roadmap)
+- [Current status](#current-status)
+- [Planned work](#planned-work)
 - [License](#license)
 
 ## Screenshots
@@ -66,14 +66,14 @@ then enable the table below:
 
 - The Equalizer screen is organized into collapsible sections: **EQ Presets**, **3D/8D Mode**, **Tone & Effects**. Only the EQ section is expanded on entry; the rest are collapsed by default.
 - **3D / 8D Mode** — ready-made presets or custom: the **3D**, **8D**, and **Surround** switches can be freely combined (mode becomes "Custom"), plus **3D Strength**, **8D Rotation Speed**, and **8D Pan Depth** sliders (limits pan movement so centered sound stays audible on headphones). **8D+Center** = 8D on normal audio with a center anchor, no stereo widening.
-- **Real-time Tone & Effects** (always active, audible immediately while playing):
-  - **Limiter (anti-clip)** — final DSP stage: peaks above 0 dB are compressed per-frame (instant attack, smooth release), so full boost presets or loud tracks no longer hard-clip,
-  - **Treble** −12..+12 dB (real-time biquad shelf filter),
-  - **Reverb (Room)** 0–100% + **Room Size** slider (Schroeder network: 4 combs + 2 all-passes per channel with stereo detune),
+- **Real-time Tone & Effects** (applied while playing):
+  - **Limiter (anti-clip)** — optional final safety stage for boosted presets; it is off in the clean default profile and uses a 0.98 peak ceiling when enabled,
+  - **Treble** −6..+6 dB (real-time biquad shelf filter),
+  - **Reverb (Room)** 0–40% in the UI + **Room Size** slider (Schroeder network: 4 combs + 2 all-passes per channel with stereo detune),
   - **Pitch (live)** −6..+6 st.
 - **Software 10-band EQ** — peaking bands (31.25 Hz–16 kHz, ±15 dB) running inside the DSP chain, consistent across devices (no dependency on the deprecated `AudioEffect` API), effective even before playback starts. Rendered as a vertical slider visual (boost up, cut down). **Bass** is a real-time biquad shelf, plus stereo **Balance** and presets.
 - **Reset** buttons (all / per-section) ask for confirmation before resetting.
-- **Presets**: `Music HD` is smoother, `Gaming` (V-shape + virtualizer) differs from `Car Audio` (strong bass + boosted mids), `BT Speaker` focuses on mid-bass 100–250 Hz, plus **Bass + Vocal**, **Acoustic**, and **Jazz** (warm room reverb).
+- **Presets**: the bundled profiles use restrained curves to avoid stacking large EQ and bass boosts. They include `Music HD`, `Hi-Fi`, `Studio Monitor`, `Gaming`, `Car Audio`, `Bluetooth Speaker`, `Bass + Vocal`, `Acoustic`, and `Jazz`.
 - **Automatic persistence** — balance, 3D/8D mode, treble, reverb, pitch, bass, and EQ bands are restored when the app reopens.
 
 ### Studio (single screen — opened from the "More" menu of any library track)
@@ -91,26 +91,27 @@ then enable the table below:
 - **Tool results** — every finished tool shows a **Result Ready** card with **Play** (play the result immediately), **Share** (share sheet via FileProvider), and **Save to Downloads** (MediaStore, Android 10+). Status messages (success/failure) appear as a dismissible **Snackbar**.
 - **Analyzer** — one-tap analysis for the playing track or a picked file: waveform preview, audio file info, and **EBU R128 LUFS** loudness via the `PcmReader` pipeline.
 
-### AI (on-device)
+### Enhancement and analysis
 
-- **AI Enhance** — real-time enhancement on the playback path via Media3 `AudioProcessor`, driven by `NeuralEnhancer`: it loads a bundled TFLite model when present and otherwise falls back to the **transparent DSP enhancer** (adaptive gain toward −20 dBFS + soft-knee limiter, no EQ coloring, no hard clip). Works on every track, including hi-res/FLAC. The Settings screen reports which engine is actually active.
-- **Vocal separator** — STFT center-channel with soft ratio mask (no neural model).
-- **Native low-latency engine** — the `dsp` module ships a real Oboe (C++) engine compiled to `.so` (`libsoniclab_oboe.so`, 4 ABIs): 48 kHz float capture, playback, and full-duplex on the fast audio path, wired to Kotlin through JNI (`OboeNativeEngine`). It is not yet connected to the Media3 sink; that is on the [roadmap](#roadmap).
-- No neural models are bundled: the previous `denoiser_v1.tflite` was trained on synthetic 16 kHz audio and degraded real music into buzzing artifacts, so it was removed in favor of the transparent DSP enhancer. The strongest open neural enhancer (**DeepFilterNet**, Apache-2.0/MIT) is ONNX-only, which needs ONNX Runtime Mobile rather than TFLite — see [On-device AI models](#on-device-ai-models).
+- **Enhance** — optional real-time processing on the playback path. With no model installed it uses the transparent DSP fallback, which adapts gain toward −20 dBFS and uses a soft-knee peak limiter.
+- **Vocal separator** — STFT center-channel separation with a soft ratio mask; it does not require a neural model.
+- **Native low-latency engine** — the `dsp` module contains an Oboe C++ engine compiled for four ABIs and exposed through JNI. It is currently a separate engine and is not used by the Media3 playback path.
+- No neural model is bundled. If a compatible model is added under `dsp/src/main/assets/models/`, `NeuralEnhancer` can load it; otherwise playback uses the DSP fallback.
 
 ### Settings
 
 - **AMOLED** theme (pure black), **AI Enhance** toggle (real-time), **Auto Normalization** (EBU R128), **Direct Mode** — rebuilds the sink without the DSP chain for the cleanest output path, **Crossfade** slider, **Sleep Timer**, AI model status, and **About App & Developer** (full info screen).
-- **Output Audio** (output path quality):
-  - **Hi-Res 24-bit Output** — with the DSP chain active the whole chain runs in **32-bit float** through a custom `AudioSink` wrapper and reaches AudioTrack as float PCM (never down-converted), so effects and hi-res work together; the toggle shown in Direct mode controls media3's own float path for the cleanest bypass. The player rebuilds automatically while preserving the queue & position,
+- **Output Audio**:
+  - **Direct Mode** — bypasses the custom DSP chain and rebuilds the player while preserving the queue and position.
+  - **Float output** — the DSP path processes audio in 32-bit float. In Direct Mode, the float-output option controls Media3's float path. The final format still depends on Android's audio mixer and the connected output device.
   - **Headroom** −3..0 dB — headroom before effects so EQ/presets are less likely to clip.
 
 ### UI & icons
 
 - Consistent Indonesian UI throughout the app.
 - **The currently playing track is highlighted** in the track list — colored title + player icon.
-- Premium dark theme (purple/cyan palette) with an AMOLED option.
-- Premium launcher icon: adaptive icon (gradient + waveform EQ with glow), `round` icon, and `monochrome` for Android 13+ themed icons.
+- Dark theme with purple/cyan accents and an AMOLED option.
+- Adaptive, round, and Android 13 monochrome launcher icons.
 - Empty states, screen transitions (fade + slide), About screen, haptic feedback on main controls, and album covers downsampled for RAM efficiency.
 
 ## Real-time DSP chain
@@ -126,12 +127,12 @@ without `AudioProcessor`s; position and queue are preserved).
 
 All processors extend `PcmAudioProcessor`, which:
 
-- accepts **PCM16 and PCM float** (never fails on hi-res/FLAC tracks),
+- accepts PCM16, PCM24, PCM32, and PCM float renderer input,
 - stays always active so effect toggles apply instantly without seeking/track changes,
 - up-mixes **mono → stereo** for 3D/8D effects,
 - passes audio through untouched (zero-copy) when the effect is off,
 - never re-encodes to PCM16 during playback: the chain stays in 32-bit float end-to-end (the 16-bit converter is only a format fallback),
-- runs inside `DspAudioSink`, which normalizes every renderer buffer (16/24/32-bit or float) to **32-bit float** before the chain and feeds the output to a float-capable `DefaultAudioSink` — hi-res quality is preserved end-to-end while the DSP chain stays active.
+- runs inside `DspAudioSink`, which converts renderer input to **32-bit float** before the chain and feeds the result to a float-capable `DefaultAudioSink`. Android's mixer or the output device may still resample or change the final hardware format.
 
 ## Modules (MVVM + Repository)
 
@@ -161,7 +162,7 @@ Debug APK: `app/build/outputs/apk/debug/app-debug.apk`
 ./gradlew :app:lintDebug     # Android Lint
 ```
 
-Status in this repo: build passes, unit tests pass (13/13 in `:dsp`, 23/23 in `:player`), lint 0 errors. CI runs the same checks on every push.
+The latest GitHub Actions build passed on commit `8d65c27`. Device-level audio behavior still requires testing on physical hardware.
 
 ## Download APK
 
@@ -173,34 +174,23 @@ This repo is **public** and GitHub Actions builds a debug APK on every push to `
 
 Or build locally with the command above.
 
-## On-device AI models
+## Optional enhancement models
 
-The app currently ships **without** neural models: the synthetic denoiser was
-removed because its quality on real music was below the transparent DSP
-enhancer. The best open neural enhancer available today is
-**DeepFilterNet** (github.com/Rikorose/DeepFilterNet) — Apache-2.0/MIT, ~4.6k
-stars, trained for speech denoising at 48 kHz. Its models are **ONNX**, so a
-real integration would add ONNX Runtime Mobile; forcing them into TFLite is
-fragile and loses quality. And because DeepFilterNet targets speech, applying
-it to full-band music audibly changes the timbre — bundling it now would
-repeat the `denoiser_v1` mistake.
+The application does not bundle a neural model. `NeuralEnhancer` checks for a
+compatible model at `dsp/src/main/assets/models/ai_enhancer_v1.tflite`; when no
+model is present it uses the DSP fallback. Model requirements are documented in
+[`dsp/src/main/assets/models/README.md`](dsp/src/main/assets/models/README.md).
 
-That is why the AI Enhance path is a seam: `NeuralEnhancer` activates
-automatically the moment a contract-compliant `.tflite` model appears at
-`models/ai_enhancer_v1.tflite` (see `dsp/src/main/assets/models/README.md`),
-and otherwise stays on the transparent DSP enhancer. A model trained on real
-music is on the [roadmap](#roadmap). Training scripts, when reintroduced, will
-live in `scripts/` (pure NumPy + flatbuffers, no TensorFlow/PyTorch toolchain).
+## Current status
 
-## Honest status
+- CI build, unit tests, and Android compilation pass on the latest pushed commit.
+- Playback, MediaSession reconnection, and effect tuning still need broader testing on physical devices.
+- Direct output uses the stock Media3 sink; DSP playback uses the custom float pipeline.
 
-- **Verified by CI**: compile + unit tests + lint green; debug APK generated automatically.
-- **Not yet verified**: runtime behavior on real devices (Direct mode & MediaSession reconnect, MediaSession/notifications, AI Enhance quality on real music, toolkit processing of large files, real-time DSP effect results). This needs manual testing on a physical Android device.
-
-## Roadmap
+## Planned work
 
 - Wire `OboeNativeEngine` into the playback sink (custom `AudioSink` on the fast audio path, replacing the current Media3 `DefaultAudioSink` wrapper) so the DSP chain runs inside the native engine; add live mic monitoring via the full-duplex stream.
-- Higher-quality AI model: either a music-trained TFLite model dropped into `assets/models/`, or DeepFilterNet via ONNX Runtime Mobile.
+- Optional music-trained enhancement model.
 - More WSOLA quality knobs (quality presets in the UI).
 - Migrating UI strings to resources (`strings.xml`) for formal multi-language support.
 - Signed release build.
