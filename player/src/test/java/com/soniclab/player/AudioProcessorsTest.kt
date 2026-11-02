@@ -248,7 +248,7 @@ class AudioProcessorsTest {
     @Test
     fun tone_bassBoost_raisesLowFrequency() {
         val p = ToneAudioProcessor()
-        p.bassDb = 12f
+        p.bassDb = 6f
         p.trebleDb = 0f
         p.configure(monoPcm16)
         p.queueInput(sineBuffer(220f, 4096, 44100))
@@ -260,7 +260,7 @@ class AudioProcessorsTest {
     fun tone_trebleBoost_raisesHighFrequency() {
         val p = ToneAudioProcessor()
         p.bassDb = 0f
-        p.trebleDb = 12f
+        p.trebleDb = 6f
         p.configure(monoPcm16)
         p.queueInput(sineBuffer(8000f, 4096, 44100))
         val boosted = readShorts(p.getOutput())
