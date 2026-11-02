@@ -247,13 +247,21 @@ class AudioProcessorsTest {
 
     @Test
     fun tone_bassBoost_raisesLowFrequency() {
+        val input = sineBuffer(220f, 4096, 44100)
+        val flat = ToneAudioProcessor().apply {
+            bassDb = 0f
+            trebleDb = 0f
+            configure(monoPcm16)
+            queueInput(input.duplicate().order(ByteOrder.nativeOrder()))
+        }
+        val baseline = rms(readShorts(flat.getOutput()))
         val p = ToneAudioProcessor()
         p.bassDb = 6f
         p.trebleDb = 0f
         p.configure(monoPcm16)
         p.queueInput(sineBuffer(220f, 4096, 44100))
         val boosted = readShorts(p.getOutput())
-        assertTrue(rms(boosted) > 0.3f)
+        assertTrue("bass boost must raise low-frequency RMS", rms(boosted) > baseline * 1.05f)
     }
 
     @Test
