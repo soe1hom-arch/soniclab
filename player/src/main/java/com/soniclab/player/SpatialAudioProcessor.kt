@@ -119,11 +119,10 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
             else -> if (out !== input) duplicateMono(input, out)
         }
         if (spatial3d || spatial8d || surround) {
-            // Widening/echo can push peaks past ±1 (side × width up to ~2x);
-            // the PCM clamp in encode() would flat-top them into harsh "pecah"
-            // distortion, so saturate gently here instead. Linear below the
-            // threshold — normal material passes untouched.
-            for (i in out.indices) out[i] = softClip(out[i])
+            // Reserve fixed headroom before the final safety curve. This keeps
+            // widening and room echo from repeatedly entering soft-clip when
+            // the user leaves the optional final limiter disabled.
+            for (i in out.indices) out[i] = softClip(out[i] * SPATIAL_OUTPUT_GAIN)
         }
         return out
     }
@@ -353,6 +352,7 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
         private const val PRESENCE_GUARD = 0.35f
         private const val ECHO_DELAY_SECONDS = 0.38f
         private const val ECHO_FEEDBACK = 0.1f
+        private const val SPATIAL_OUTPUT_GAIN = 0.82f
         private const val SOFT_CLIP_THRESHOLD = 0.98f
     }
 }

@@ -176,6 +176,16 @@ class AudioProcessorsTest {
         }
     }
 
+    @Test
+    fun spatial_surround_reservesHeadroomForRoomEcho() {
+        val p = SpatialAudioProcessor()
+        p.mode = SpatialAudioProcessor.MODE_SURROUND
+        p.configure(stereoFloat)
+        p.queueInput(floats(*FloatArray(4096) { if (it % 2 == 0) 0.95f else -0.95f }))
+        val peak = readFloats(p.getOutput()).maxOf { abs(it) }
+        assertTrue("surround must keep echo peaks below the safety ceiling", peak <= 0.9f)
+    }
+
     // --- BalanceAudioProcessor ---
 
     @Test
