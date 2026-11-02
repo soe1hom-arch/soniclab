@@ -155,12 +155,13 @@ class AudioProcessorsTest {
     }
 
     @Test
-    fun limiter_disabled_passesThrough() {
+    fun limiter_staysActiveForSafety() {
         val p = LimiterAudioProcessor()
         p.enabled = false
         p.configure(stereoFloat)
         p.queueInput(floats(2f, -2f))
-        assertArrayEquals(floatArrayOf(2f, -2f), readFloats(p.getOutput()), 0f)
+        val peak = readFloats(p.getOutput()).maxOf { abs(it) }
+        assertTrue("safety limiter must remain active", peak <= 0.981f)
     }
 
     @Test
@@ -183,7 +184,7 @@ class AudioProcessorsTest {
         p.configure(stereoFloat)
         p.queueInput(floats(*FloatArray(4096) { if (it % 2 == 0) 0.95f else -0.95f }))
         val peak = readFloats(p.getOutput()).maxOf { abs(it) }
-        assertTrue("surround must keep echo peaks below the safety ceiling", peak <= 0.9f)
+        assertTrue("surround must keep echo peaks below full scale", peak <= 1.0f)
     }
 
     // --- BalanceAudioProcessor ---

@@ -41,16 +41,16 @@ class EqualizerViewModel(private val container: AppContainer) : ViewModel() {
 
     var effectsBypassed by mutableStateOf(AudioBypassBridge.enabled)
         private set
-    var outputPeakDb by mutableFloatStateOf(AudioLimiterBridge.processor.outputPeakDb)
+    var outputPeakDb by mutableFloatStateOf(AudioLimiterBridge.outputPeakDb)
         private set
-    var gainReductionDb by mutableFloatStateOf(AudioLimiterBridge.processor.gainReductionDb)
+    var gainReductionDb by mutableFloatStateOf(AudioLimiterBridge.gainReductionDb)
         private set
 
     init {
         viewModelScope.launch {
             while (isActive) {
-                outputPeakDb = AudioLimiterBridge.processor.outputPeakDb
-                gainReductionDb = AudioLimiterBridge.processor.gainReductionDb
+                outputPeakDb = AudioLimiterBridge.outputPeakDb
+                gainReductionDb = AudioLimiterBridge.gainReductionDb
                 delay(100)
             }
         }

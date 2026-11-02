@@ -11,6 +11,13 @@ package com.soniclab.player
 object AudioLimiterBridge {
     val processor = LimiterAudioProcessor()
 
+    val outputPeakDb: Float
+        get() = processor.outputPeakDb
+
+    val gainReductionDb: Float
+        get() = processor.gainReductionDb
+
+    /** Compatibility switch; the final safety stage remains active. */
     var enabled: Boolean
         get() = processor.enabled
         set(value) {

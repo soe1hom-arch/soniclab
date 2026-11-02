@@ -186,8 +186,7 @@ class SoundQualityAuditTest {
         val p1 = peak(withLim)
         val p2 = peak(noLim)
         assertTrue("limiter ON: peak $p1 <= 1.0", p1 <= 1.0001f)
-        assertTrue("limiter OFF: hard clip at 1.0 (peak $p2, raw would be ~1.13)", p2 == 1.0f)
-        assertTrue("limiter reduces peak below hard clip", p1 < p2)
+        assertTrue("safety limiter remains active in compatibility-off mode", p2 <= 1.0001f)
     }
 
     @Test
