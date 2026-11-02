@@ -24,9 +24,9 @@ data class EffectSettings(
     val spatial3d: Boolean = false,
     val spatial8d: Boolean = false,
     val surround: Boolean = false,
-    val spatialWidth: Float = 0.6f,
-    val rotationSeconds: Float = 8f,
-    val panDepth: Float = 0.6f,
+    val spatialWidth: Float = 0.35f,
+    val rotationSeconds: Float = 14f,
+    val panDepth: Float = 0.4f,
     val balance: Float = 0f,
     val trebleDb: Float = 0f,
     val reverbWet: Float = 0f,
@@ -37,7 +37,7 @@ data class EffectSettings(
     val bandGains: Map<Int, Int> = emptyMap(),
     val activePresetId: String = "none",
     val playbackSpeed: Float = 1f,
-    val limiterEnabled: Boolean = true,
+    val limiterEnabled: Boolean = false,
     val directOutputEnabled: Boolean = false,
     val hiResOutput: Boolean = false,
     val headroomDb: Float = 0f
@@ -90,7 +90,7 @@ class SettingsRepository(private val context: Context) {
     val amoledTheme: Flow<Boolean> = context.dataStore.data.map { it[Keys.AMOLED_THEME] ?: false }
     val aiEnhanceEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.AI_ENHANCE_ENABLED] ?: false }
     val autoNormalizeEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.AUTO_NORMALIZE_ENABLED] ?: false }
-    val limiterEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.LIMITER_ENABLED] ?: true }
+    val limiterEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.LIMITER_ENABLED] ?: false }
     val directOutputEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.DIRECT_OUTPUT_ENABLED] ?: false }
     val hiResOutputEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.HI_RES_OUTPUT] ?: false }
     val headroomDb: Flow<Float> = context.dataStore.data.map { it[Keys.HEADROOM_DB] ?: 0f }
@@ -103,9 +103,9 @@ class SettingsRepository(private val context: Context) {
             spatial3d = p[Keys.SPATIAL_3D] ?: false,
             spatial8d = p[Keys.SPATIAL_8D] ?: false,
             surround = p[Keys.SPATIAL_SURROUND] ?: false,
-            spatialWidth = p[Keys.SPATIAL_WIDTH] ?: 0.6f,
-            rotationSeconds = p[Keys.SPATIAL_ROTATION] ?: 8f,
-            panDepth = p[Keys.SPATIAL_PAN_DEPTH] ?: 0.6f,
+            spatialWidth = p[Keys.SPATIAL_WIDTH] ?: 0.35f,
+            rotationSeconds = p[Keys.SPATIAL_ROTATION] ?: 14f,
+            panDepth = p[Keys.SPATIAL_PAN_DEPTH] ?: 0.4f,
             balance = p[Keys.BALANCE] ?: 0f,
             trebleDb = p[Keys.TREBLE_DB] ?: 0f,
             reverbWet = p[Keys.REVERB_WET] ?: 0f,
@@ -116,7 +116,7 @@ class SettingsRepository(private val context: Context) {
             bandGains = parseBandGains(p[Keys.BAND_GAINS]),
             activePresetId = p[Keys.ACTIVE_PRESET_ID] ?: "none",
             playbackSpeed = p[Keys.PLAYBACK_SPEED] ?: 1f,
-            limiterEnabled = p[Keys.LIMITER_ENABLED] ?: true,
+            limiterEnabled = p[Keys.LIMITER_ENABLED] ?: false,
             directOutputEnabled = p[Keys.DIRECT_OUTPUT_ENABLED] ?: false,
             hiResOutput = p[Keys.HI_RES_OUTPUT] ?: false,
             headroomDb = p[Keys.HEADROOM_DB] ?: 0f

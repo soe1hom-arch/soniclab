@@ -7,7 +7,7 @@ package com.soniclab.player
 
 /**
  * Single-process bridge for the real-time bass/treble tone control. The
- * service reads [processor]; the UI sets [bassDb] / [trebleDb] (-12..+12).
+ * service reads [processor]; the UI sets [bassDb] / [trebleDb] (-6..+6).
  */
 object AudioToneBridge {
     val processor = ToneAudioProcessor()
@@ -15,12 +15,12 @@ object AudioToneBridge {
     var bassDb: Float
         get() = processor.bassDb
         set(value) {
-            processor.bassDb = value.coerceIn(-12f, 12f)
+            processor.bassDb = value.coerceIn(-6f, 6f)
         }
 
     var trebleDb: Float
         get() = processor.trebleDb
         set(value) {
-            processor.trebleDb = value.coerceIn(-12f, 12f)
+            processor.trebleDb = value.coerceIn(-6f, 6f)
         }
 }

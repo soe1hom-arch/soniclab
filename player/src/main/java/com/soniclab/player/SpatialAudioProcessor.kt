@@ -343,14 +343,16 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
         const val MODE_3D_8D = 3
         const val MODE_SURROUND = 4
         const val MODE_CUSTOM = 5
-        const val DEFAULT_WIDTH_STRENGTH = 0.6f
-        const val DEFAULT_ROTATION_SECONDS = 8f
-        const val DEFAULT_PAN_DEPTH = 0.6f
+        // Natural defaults preserve the center image; stronger motion remains
+        // available from the user controls.
+        const val DEFAULT_WIDTH_STRENGTH = 0.35f
+        const val DEFAULT_ROTATION_SECONDS = 14f
+        const val DEFAULT_PAN_DEPTH = 0.4f
         private const val CENTER_ANCHOR = 0.45f
         private const val WIDTH_MAX = 1.8f
         private const val PRESENCE_GUARD = 0.35f
         private const val ECHO_DELAY_SECONDS = 0.38f
-        private const val ECHO_FEEDBACK = 0.2f
+        private const val ECHO_FEEDBACK = 0.1f
         private const val SOFT_CLIP_THRESHOLD = 0.98f
     }
 }

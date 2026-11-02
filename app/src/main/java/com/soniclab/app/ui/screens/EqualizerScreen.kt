@@ -308,14 +308,14 @@ fun EqualizerScreen(container: AppContainer) {
             ToneSlider(
                 label = "Treble",
                 value = vm.trebleDb,
-                valueRange = -12f..12f,
+                valueRange = -6f..6f,
                 valueText = String.format(Locale.US, "%+d dB", vm.trebleDb.toInt()),
                 onValueChange = vm::updateTreble
             )
             ToneSlider(
                 label = "Reverb (Room)",
                 value = vm.reverbWet,
-                valueRange = 0f..1f,
+                valueRange = 0f..0.4f,
                 valueText = "${(vm.reverbWet * 100).toInt()}%",
                 onValueChange = vm::updateReverbWet
             )
@@ -485,4 +485,3 @@ private fun ToneSlider(
         )
     }
 }
-

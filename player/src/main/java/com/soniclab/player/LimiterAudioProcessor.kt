@@ -21,7 +21,9 @@ import kotlin.math.max
 class LimiterAudioProcessor : PcmAudioProcessor() {
 
     @Volatile
-    var enabled: Boolean = true
+    // Keep the clean/flat default transparent. Users can enable the limiter
+    // when applying EQ, presets, or other boosts that may exceed full scale.
+    var enabled: Boolean = false
 
     /** Peak level above which gain reduction kicks in (0..1). */
     @Volatile
@@ -75,7 +77,9 @@ class LimiterAudioProcessor : PcmAudioProcessor() {
     }
 
     companion object {
-        const val DEFAULT_THRESHOLD = 0.90f
+        // A -0.18 dB ceiling protects against overs while preserving more
+        // transient headroom than the old 0.90 ceiling (~-0.9 dB).
+        const val DEFAULT_THRESHOLD = 0.98f
         private const val RELEASE_MS = 120f
         /** Lookahead in frames (~5 ms at 44.1 kHz). */
         private const val LOOKAHEAD_FRAMES = 220

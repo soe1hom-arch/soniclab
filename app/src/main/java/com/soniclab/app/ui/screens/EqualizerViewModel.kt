@@ -161,7 +161,7 @@ class EqualizerViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     fun updateTreble(value: Float) {
-        trebleDb = value.coerceIn(-12f, 12f)
+        trebleDb = value.coerceIn(-6f, 6f)
         AudioToneBridge.trebleDb = trebleDb
         viewModelScope.launch { container.settingsRepository.setTrebleDb(trebleDb) }
     }
@@ -220,7 +220,9 @@ class EqualizerViewModel(private val container: AppContainer) : ViewModel() {
         updateReverbWet(0f)
         updateReverbRoom(0.5f)
         resetPitch()
-        setLimiter(true)
+        // Reset returns to the transparent clean baseline. Enable the limiter
+        // manually when using aggressive EQ/preset boosts.
+        setLimiter(false)
     }
 
     fun reset() {

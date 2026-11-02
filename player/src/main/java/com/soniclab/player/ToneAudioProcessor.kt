@@ -88,8 +88,8 @@ class ToneAudioProcessor : PcmAudioProcessor() {
     }
 
     private fun updateCoeffs() {
-        val bass = bassDb.coerceIn(-12f, 12f)
-        val treble = trebleDb.coerceIn(-12f, 12f)
+        val bass = bassDb.coerceIn(-6f, 6f)
+        val treble = trebleDb.coerceIn(-6f, 6f)
         if (bass == cachedBassDb && treble == cachedTrebleDb) return
         cachedBassDb = bass
         cachedTrebleDb = treble
