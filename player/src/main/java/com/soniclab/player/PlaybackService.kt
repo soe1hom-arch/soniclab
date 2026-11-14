@@ -62,11 +62,10 @@ class PlaybackService : MediaSessionService() {
                     AudioLimiterBridge.processor
                 )
             ).apply {
-                // The DSP chain runs inside DspAudioSink in 32-bit float, so
-                // media3's own float path is never used (it would drop every
-                // custom processor). Hi-res float output is therefore always
-                // on in DSP mode.
-                setEnableAudioTrackPlaybackParams(hiRes)
+                // DspAudioSink outputs float PCM. Media3 disables its Sonic
+                // processor for float output, so playback speed/pitch must be
+                // applied by AudioTrack instead of relying on the PCM processor.
+                setEnableAudioTrackPlaybackParams(true)
             }
         }
         val player = ExoPlayer.Builder(this, factory).build()
@@ -76,23 +75,15 @@ class PlaybackService : MediaSessionService() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_SET_DIRECT_OUTPUT) {
-            // Always rebuild: the caller pre-sets the bridge before starting
-            // the service, so an equality check here could never trigger and
-            // the live session stayed stuck in the previous mode until some
-            // other toggle (e.g. hi-res output) forced a rebuild.
             DirectOutputBridge.enabled = intent.getBooleanExtra(EXTRA_DIRECT_OUTPUT, false)
             rebuildPlayer()
         } else if (intent?.action == ACTION_RECONFIGURE_OUTPUT) {
-            // Output flags (e.g. hi-res float) changed: rebuild preserving the queue.
             rebuildPlayer()
         }
         return super.onStartCommand(intent, flags, startId)
     }
 
-    /**
-     * Recreates the player with/without the DSP chain, preserving the queue,
-     * position, speed/pitch and repeat/shuffle state.
-     */
+    /** Recreates the player, preserving queue, position, speed/pitch and repeat/shuffle state. */
     private fun rebuildPlayer() {
         val old = mediaSession
         val oldPlayer = old?.player
@@ -118,7 +109,7 @@ class PlaybackService : MediaSessionService() {
             player.setMediaItems(items, index, position)
             player.prepare()
         }
-        player.playbackParameters = params ?: PlaybackParameters(1f)
+        player.playbackParameters = params
         player.repeatMode = repeat
         player.shuffleModeEnabled = shuffle
         if (playWhenReady) player.play()
@@ -154,8 +145,6 @@ private class EnhanceRenderersFactory(context: Context, private val processors: 
     DefaultRenderersFactory(context) {
 
     init {
-        // Fall back to software decoders (e.g. FLAC hi-res) when the
-        // hardware audio path can't handle a format on a given device.
         setEnableDecoderFallback(true)
     }
 
@@ -164,12 +153,11 @@ private class EnhanceRenderersFactory(context: Context, private val processors: 
         enableFloatOutput: Boolean,
         enableAudioTrackPlaybackParams: Boolean
     ): AudioSink {
-        // The delegate is a plain float-capable writer/position tracker with
-        // an empty processor list; DspAudioSink runs the DSP chain itself.
         val delegate = DefaultAudioSink.Builder(context)
             .setAudioProcessors(arrayOf())
             .setEnableFloatOutput(true)
-            .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+            // Playback speed/pitch for float DSP output is delegated to AudioTrack.
+            .setEnableAudioTrackPlaybackParams(true)
             .setAudioTrackBufferSizeProvider(BUFFER_SIZE_PROVIDER)
             .build()
         return DspAudioSink(delegate, processors.toList())
@@ -182,23 +170,13 @@ private class DirectRenderersFactory(context: Context) : DefaultRenderersFactory
         context: Context,
         enableFloatOutput: Boolean,
         enableAudioTrackPlaybackParams: Boolean
-    ): AudioSink {
-        return DefaultAudioSink.Builder(context)
-            .setEnableFloatOutput(enableFloatOutput)
-            .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
-            .setAudioTrackBufferSizeProvider(BUFFER_SIZE_PROVIDER)
-            .build()
-    }
+    ): AudioSink = DefaultAudioSink.Builder(context)
+        .setEnableFloatOutput(enableFloatOutput)
+        .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+        .setAudioTrackBufferSizeProvider(BUFFER_SIZE_PROVIDER)
+        .build()
 }
 
-/**
- * AudioTrack buffer sizing. Media3's default keeps 250-750 ms of PCM queued
- * (min buffer x4); on devices with a large HAL minimum this multiplies into
- * multi-second buffers that delay pause/seek response. Halving the
- * multiplication factor and lowering the floor to 150 ms trims the queued
- * audio while the 750 ms ceiling keeps enough safety margin for the software
- * DSP chain to never underrun on slower devices.
- */
 private val BUFFER_SIZE_PROVIDER: DefaultAudioSink.AudioTrackBufferSizeProvider =
     DefaultAudioTrackBufferSizeProvider.Builder()
         .setPcmBufferMultiplicationFactor(2)

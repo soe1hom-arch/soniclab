@@ -36,44 +36,23 @@ import kotlin.math.pow
 
 private const val TAG = "PlayerController"
 
-/**
- * App-facing controller that binds to [PlaybackService] through a MediaController
- * and exposes a reactive [PlayerUiState] for Compose.
- */
 class PlayerController(
     private val context: Context,
     private val settingsRepository: SettingsRepository
 ) {
-
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var controller: MediaController? = null
-
     private val _uiState = MutableStateFlow(PlayerUiState())
     val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
-
     private var tickerJob: Job? = null
-
-    /** Live pitch in semitones (-12..+12), applied like Poweramp on playback. */
     private var pitchSemitones: Float = 0f
-
-    /** Last requested speed (kept so it can be re-applied once the service connects). */
     private var requestedSpeed: Float = 1f
-
-    /** Crossfade duration in ms; 0 disables crossfading. */
     private var crossfadeMs: Long = 0L
     private var fadeJob: Job? = null
     private var sleepTimerJob: Job? = null
-
-    /** Guards end-of-queue recovery from running more than once per item. */
     private var recoveredEndedMediaId: String? = null
-
-    /** Media ids of tracks the user queued manually (Putar Berikutnya / Tambahkan ke Antrean). */
     private val manualQueueIds = mutableListOf<Long>()
 
-    /**
-     * Re-binds when the service rebuilds its session (e.g. Direct mode
-     * toggle), which disconnects the current MediaController.
-     */
     private val sessionListener = object : MediaController.Listener {
         override fun onDisconnected(controller: MediaController) {
             Log.i(TAG, "MediaSession disconnected — rebinding")
@@ -99,8 +78,6 @@ class PlayerController(
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
-            // ExoPlayer normally advances the queue itself. Recover once when
-            // a decoder/service edge case leaves it ended with a next item.
             if (playbackState == Player.STATE_ENDED) {
                 val c = controller
                 val mediaId = c?.currentMediaItem?.mediaId
@@ -172,7 +149,6 @@ class PlayerController(
                 controller = controllerFuture.get()
                 controller?.addListener(playerListener)
                 syncFromController()
-                // Re-apply persisted speed/pitch once the service is connected.
                 applyPlaybackParameters(requestedSpeed, pitchFactor())
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to connect to PlaybackService", e)
@@ -189,7 +165,6 @@ class PlayerController(
         controller?.play()
     }
 
-    /** Inserts [track] right after the currently playing item ("putar berikutnya"). */
     fun addToQueueNext(track: Track) {
         val c = controller ?: return
         if (c.mediaItemCount == 0) {
@@ -201,7 +176,6 @@ class PlayerController(
         manualQueueIds.add(track.id)
     }
 
-    /** Appends [track] at the end of the queue ("tambah ke antrean"). */
     fun addToQueueEnd(track: Track) {
         val c = controller ?: return
         if (c.mediaItemCount == 0) {
@@ -225,9 +199,8 @@ class PlayerController(
             )
             .build()
 
-    /** Plays a single generated result file (e.g. Studio output) immediately. */
     fun playSingleTrack(uri: Uri, title: String, artist: String = "SonicLab") {
-        val track = Track(
+        playQueue(listOf(Track(
             id = -System.currentTimeMillis(),
             title = title,
             artist = artist,
@@ -239,8 +212,7 @@ class PlayerController(
             sizeBytes = 0L,
             mimeType = "audio/wav",
             dateAddedMs = 0L
-        )
-        playQueue(listOf(track), 0)
+        )), 0)
     }
 
     fun togglePlayPause() {
@@ -248,53 +220,36 @@ class PlayerController(
         if (c.isPlaying) c.pause() else c.play()
     }
 
-    fun seekTo(positionMs: Long) {
-        controller?.seekTo(positionMs)
-    }
-
-    fun next() {
-        controller?.seekToNextMediaItem()
-    }
-
-    fun previous() {
-        controller?.seekToPreviousMediaItem()
-    }
-
-    fun setRepeatMode(mode: Int) {
-        controller?.repeatMode = mode
-    }
-
-    fun setShuffle(enabled: Boolean) {
-        controller?.shuffleModeEnabled = enabled
-    }
+    fun seekTo(positionMs: Long) { controller?.seekTo(positionMs) }
+    fun next() { controller?.seekToNextMediaItem() }
+    fun previous() { controller?.seekToPreviousMediaItem() }
+    fun setRepeatMode(mode: Int) { controller?.repeatMode = mode }
+    fun setShuffle(enabled: Boolean) { controller?.shuffleModeEnabled = enabled }
 
     fun setSpeed(speed: Float) {
-        requestedSpeed = speed.coerceIn(0.25f, 3f)
+        requestedSpeed = speed.coerceIn(MIN_PLAYBACK_SPEED, MAX_PLAYBACK_SPEED)
         applyPlaybackParameters(requestedSpeed, pitchFactor())
+        // Update optimistically so the speed readout/slider responds immediately;
+        // Media3's listener will replace this with the effective platform value.
+        _uiState.value = _uiState.value.copy(playbackSpeed = requestedSpeed)
     }
 
-    /** Live pitch shift in semitones (0 = normal). Keeps the current speed. */
     fun setPitchSemitones(semitones: Float) {
         pitchSemitones = semitones.coerceIn(-12f, 12f)
         applyPlaybackParameters(currentSpeed(), pitchFactor())
     }
 
     fun resetPitch() = setPitchSemitones(0f)
-
     private fun currentSpeed(): Float = controller?.playbackParameters?.speed ?: requestedSpeed
-
     private fun pitchFactor(): Float = 2f.pow(pitchSemitones / 12f)
 
     private fun applyPlaybackParameters(speed: Float, pitch: Float) {
         val effectivePitch = if (pitch <= 0f) 1f else pitch
-        if (controller != null) {
-            controller?.playbackParameters = PlaybackParameters(speed, effectivePitch)
-        }
+        controller?.playbackParameters = PlaybackParameters(speed, effectivePitch)
     }
 
     private fun semitonesFromPitch(pitch: Float): Float =
         if (pitch <= 0f) 0f else (12f * ln(pitch) / ln(2f)).roundTo2()
-
     private fun Float.roundTo2(): Float = (this * 100f).toInt() / 100f
 
     fun playTrackFromIndex(index: Int) {
@@ -322,11 +277,6 @@ class PlayerController(
         }
     }
 
-    /**
-     * Toggles Direct output: the service rebuilds the player without any DSP
-     * processors (queue/position preserved). Auto-normalization also stops
-     * contributing gain so the signal path is as clean as possible.
-     */
     fun setDirectOutput(enabled: Boolean) {
         if (enabled == DirectOutputBridge.enabled) return
         DirectOutputBridge.enabled = enabled
@@ -339,12 +289,6 @@ class PlayerController(
         }
     }
 
-    /**
-     * Rebuilds the playback service with hi-res float output enabled/disabled
-     * (queue/position preserved). Only affects Direct mode: with the DSP chain
-     * active, DspAudioSink always runs the effects in 32-bit float and outputs
-     * float PCM to the AudioTrack regardless of this flag.
-     */
     fun setHiResOutput(enabled: Boolean) {
         AudioOutputBridge.hiResEnabled = enabled
         runCatching {
@@ -355,19 +299,13 @@ class PlayerController(
         }
     }
 
-    /** Fixed pre-effect headroom in dB (-3..0); 0 = no attenuation. */
-    fun setHeadroomDb(db: Float) {
-        AudioHeadroomBridge.headroomDb = db
-    }
+    fun setHeadroomDb(db: Float) { AudioHeadroomBridge.headroomDb = db }
 
-    /** ReplayGain-style auto normalization: per-track gain toward -14 LUFS. */
     private var autoNormalize = false
 
     fun setAutoNormalize(enabled: Boolean) {
         autoNormalize = enabled
         if (enabled) {
-            // Apply to the current track immediately (per-track recompute
-            // still happens on every transition).
             val uri = controller?.currentMediaItem?.localConfiguration?.uri
             scope.launch(Dispatchers.IO) {
                 val gain = computeReplayGainDb(uri)
@@ -378,11 +316,6 @@ class PlayerController(
         }
     }
 
-    /**
-     * Enables crossfading between consecutive tracks (fade-out on the
-     * current track's tail, fade-in on the next). 0 disables it.
-     * Gapless transitions are handled natively by ExoPlayer.
-     */
     fun setCrossfadeMs(ms: Long) {
         crossfadeMs = ms.coerceAtLeast(0L)
         if (crossfadeMs == 0L) {
@@ -392,8 +325,7 @@ class PlayerController(
         }
     }
 
-    val audioSessionId: Int
-        get() = AudioSessionBridge.sessionId
+    val audioSessionId: Int get() = AudioSessionBridge.sessionId
 
     fun release() {
         controller?.removeListener(playerListener)
@@ -425,30 +357,24 @@ class PlayerController(
                 val item = c.getMediaItemAt(i)
                 val meta = item.mediaMetadata
                 item.localConfiguration?.uri?.let { uri ->
-                    add(
-                        Track(
-                            id = item.mediaId.toLongOrNull() ?: -1L,
-                            title = meta.title?.toString() ?: "Unknown",
-                            artist = meta.artist?.toString() ?: "Unknown Artist",
-                            album = meta.albumTitle?.toString() ?: "Unknown Album",
-                            albumId = -1L,
-                            durationMs = 0L,
-                            uri = uri,
-                            dataPath = "",
-                            sizeBytes = 0L,
-                            mimeType = null,
-                            dateAddedMs = 0L
-                        )
-                    )
+                    add(Track(
+                        id = item.mediaId.toLongOrNull() ?: -1L,
+                        title = meta.title?.toString() ?: "Unknown",
+                        artist = meta.artist?.toString() ?: "Unknown Artist",
+                        album = meta.albumTitle?.toString() ?: "Unknown Album",
+                        albumId = -1L,
+                        durationMs = 0L,
+                        uri = uri,
+                        dataPath = "",
+                        sizeBytes = 0L,
+                        mimeType = null,
+                        dateAddedMs = 0L
+                    ))
                 }
             }
         }
-        mediaItem?.mediaId?.toLongOrNull()?.let { currentId ->
-            manualQueueIds.removeAll { it == currentId }
-        }
-        val userQueue = queue.filterIndexed { index, t ->
-            index > c.currentMediaItemIndex && manualQueueIds.contains(t.id)
-        }
+        mediaItem?.mediaId?.toLongOrNull()?.let { currentId -> manualQueueIds.removeAll { it == currentId } }
+        val userQueue = queue.filterIndexed { index, t -> index > c.currentMediaItemIndex && manualQueueIds.contains(t.id) }
         _uiState.value = _uiState.value.copy(
             currentTrack = track,
             queue = queue,
@@ -465,7 +391,6 @@ class PlayerController(
         syncFormatFromController()
     }
 
-    /** Reads the decoded audio format (codec, sample rate, bit depth, channels). */
     private fun syncFormatFromController() {
         val c = controller ?: return
         val audioGroup = c.currentTracks.groups.firstOrNull { it.type == C.TRACK_TYPE_AUDIO }
@@ -506,10 +431,6 @@ class PlayerController(
         }
     }
 
-    /**
-     * Starts a fade-out once the current track reaches its crossfade tail,
-     * then advances to the next media item (fade-in handled on transition).
-     */
     private fun maybeStartCrossfade(c: MediaController, duration: Long, position: Long) {
         if (crossfadeMs <= 0 || fadeJob != null || !c.isPlaying) return
         if (duration <= 0 || position < duration - crossfadeMs) return
@@ -531,8 +452,7 @@ class PlayerController(
         controller?.volume = to
     }
 
-    /** Sleep timer: pauses playback after [minutes]. Calling again replaces the timer; 0 cancels it. */
-    fun startSleepTimer(minutes: Int, onFired: () -> Unit = {}): Job {
+    fun startSleepTimer(minutes: Int, onFired: () -> Unit = onFiredDefault): Job {
         sleepTimerJob?.cancel()
         sleepTimerJob = null
         if (minutes <= 0) return Job().apply { cancel() }
@@ -544,13 +464,10 @@ class PlayerController(
         return sleepTimerJob ?: Job().apply { cancel() }
     }
 
-
-
     private fun computeReplayGainDb(uri: Uri?): Float? {
         if (uri == null) return null
         val decoded = PcmReader(context).decode(uri, maxSeconds = 45) ?: return null
         if (decoded.samples.isEmpty()) return null
-        // PcmReader decodes to a mono downmix; measure it as one channel.
         val meter = R128Meter(decoded.sampleRate, channels = 1)
         val step = 8192
         var i = 0
@@ -562,5 +479,11 @@ class PlayerController(
         val lufs = meter.integratedLufs()
         if (lufs <= -60f) return null
         return (-14f - lufs).coerceIn(-12f, 12f)
+    }
+
+    private companion object {
+        const val MIN_PLAYBACK_SPEED = 0.25f
+        const val MAX_PLAYBACK_SPEED = 3f
+        val onFiredDefault: () -> Unit = {}
     }
 }

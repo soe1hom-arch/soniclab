@@ -17,7 +17,6 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 class PlayerViewModel(private val container: AppContainer) : ViewModel() {
-
     val uiState = container.playerController.uiState
     val spectrum = container.visualizerEngine.spectrum
     val activePreset = container.audioEffects.activePreset
@@ -32,10 +31,6 @@ class PlayerViewModel(private val container: AppContainer) : ViewModel() {
         viewModelScope.launch {
             container.playerController.uiState.collectLatest { state ->
                 if (state.hasTrack) {
-                    // Visualizer needs the audio session; the software EQ chain
-                    // no longer does (it runs inside the DSP pipeline).
-                    // Only (re)attach when the session actually changes: the
-                    // state flow ticks every ~250ms for the position bar.
                     val sessionId = container.playerController.audioSessionId
                     if (sessionId != 0 && sessionId != lastAttachedSession) {
                         lastAttachedSession = sessionId
@@ -53,12 +48,21 @@ class PlayerViewModel(private val container: AppContainer) : ViewModel() {
     fun previous() = container.playerController.previous()
     fun seekTo(positionMs: Long) = container.playerController.seekTo(positionMs)
     fun setShuffle(enabled: Boolean) = container.playerController.setShuffle(enabled)
+
     fun cycleRepeat() {
         val current = container.playerController.uiState.value.repeatMode
         container.playerController.setRepeatMode((current + 1) % 3)
     }
+
+    /** Applies a slider change immediately without writing DataStore on every drag frame. */
+    fun previewSpeed(speed: Float) = container.playerController.setSpeed(speed)
+
     fun setSpeed(speed: Float) {
-        container.playerController.setSpeed(speed)
+        previewSpeed(speed)
+        persistSpeed(speed)
+    }
+
+    fun persistSpeed(speed: Float) {
         viewModelScope.launch { container.settingsRepository.setPlaybackSpeed(speed) }
     }
 

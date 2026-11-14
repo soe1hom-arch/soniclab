@@ -6,6 +6,7 @@
 package com.soniclab.app.ui.screens
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,12 +30,12 @@ import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
+import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -54,6 +55,8 @@ import com.soniclab.app.ui.common.appViewModel
 import com.soniclab.core.util.TimeFormat
 import com.soniclab.player.SpatialAudioProcessor
 import com.soniclab.visualizer.SpectrumVisualizer
+import java.util.Locale
+import kotlin.math.abs
 import kotlin.math.max
 
 @Composable
@@ -69,17 +72,12 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(Modifier.height(24.dp))
-
         AlbumArt(
             albumId = state.currentTrack?.albumId ?: -1L,
             modifier = Modifier.size(240.dp).clip(RoundedCornerShape(28.dp))
         )
-
         Spacer(Modifier.height(24.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 state.currentTrack?.title ?: "Tidak Ada yang Diputar",
                 style = MaterialTheme.typography.headlineMedium,
@@ -88,24 +86,11 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit) {
                 modifier = Modifier.weight(1f)
             )
             IconButton(onClick = onOpenEqualizer) {
-                Icon(
-                    Icons.Rounded.Equalizer,
-                    contentDescription = "Equalizer",
-                    tint = MaterialTheme.colorScheme.primary
-                )
+                Icon(Icons.Rounded.Equalizer, contentDescription = "Equalizer", tint = MaterialTheme.colorScheme.primary)
             }
         }
-        Text(
-            state.currentTrack?.artist ?: "—",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            state.currentTrack?.album ?: "",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1
-        )
+        Text(state.currentTrack?.artist ?: "—", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(state.currentTrack?.album ?: "", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
         state.audioInfo?.let { info ->
             SonicCard {
                 Text(
@@ -125,7 +110,6 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit) {
 
         Spacer(Modifier.height(24.dp))
         SpectrumVisualizer(buckets = spectrum)
-
         Slider(
             value = state.positionMs.toFloat(),
             onValueChange = { vm.seekTo(it.toLong()) },
@@ -143,15 +127,10 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit) {
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             IconButton(onClick = { vm.setShuffle(!state.shuffleEnabled) }) {
-                Icon(
-                    Icons.Rounded.Shuffle,
-                    contentDescription = "Acak",
-                    tint = if (state.shuffleEnabled) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Icon(Icons.Rounded.Shuffle, contentDescription = "Acak", tint = if (state.shuffleEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
             }
             IconButton(onClick = { vm.previous() }) {
-                Icon(Icons.Rounded.SkipPrevious, contentDescription = "Previous", modifier = Modifier.size(40.dp))
+                Icon(Icons.Rounded.SkipPrevious, contentDescription = "Sebelumnya", modifier = Modifier.size(40.dp))
             }
             FilledIconButton(
                 onClick = {
@@ -160,11 +139,8 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit) {
                 },
                 modifier = Modifier.size(72.dp)
             ) {
-                Icon(
-                    if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                    contentDescription = if (state.isPlaying) "Pause" else "Play",
-                    modifier = Modifier.size(44.dp)
-                )
+                Icon(if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                    contentDescription = if (state.isPlaying) "Jeda" else "Putar", modifier = Modifier.size(44.dp))
             }
             IconButton(onClick = {
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -172,41 +148,51 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit) {
             }) {
                 Icon(Icons.Rounded.SkipNext, contentDescription = "Berikutnya", modifier = Modifier.size(40.dp))
             }
-            IconButton(onClick = {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                vm.cycleRepeat()
-            }) {
-                Icon(
-                    Icons.Rounded.Repeat,
-                    contentDescription = "Ulangi",
-                    tint = if (state.repeatMode != 0) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            IconButton(onClick = { vm.cycleRepeat() }) {
+                Icon(Icons.Rounded.Repeat, contentDescription = "Ulangi", tint = if (state.repeatMode != 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
         Spacer(Modifier.height(20.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(0.75f, 1f, 1.25f, 1.5f, 2f).forEach { speed ->
-                OutlinedButton(
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        vm.setSpeed(speed)
-                    },
-                    modifier = Modifier.height(36.dp)
+        SonicCard(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.Speed, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Column(modifier = Modifier.weight(1f).padding(start = 10.dp)) {
+                        Text("Kecepatan pemutaran", style = MaterialTheme.typography.titleSmall)
+                        Text("Atur tempo musik secara langsung", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Text(String.format(Locale.US, "%.2f×", state.playbackSpeed), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                }
+                Slider(
+                    value = state.playbackSpeed.coerceIn(0.5f, 2f),
+                    onValueChange = { vm.previewSpeed(it) },
+                    onValueChangeFinished = { vm.persistSpeed(state.playbackSpeed) },
+                    valueRange = 0.5f..2f
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        if (speed == 1f) "1x" else "${speed}x",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (state.playbackSpeed == speed) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    listOf(0.75f, 1f, 1.25f, 1.5f, 2f).forEach { speed ->
+                        FilterChip(
+                            selected = abs(state.playbackSpeed - speed) < 0.01f,
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                vm.setSpeed(speed)
+                            },
+                            label = { Text(String.format(Locale.US, "%.2gx", speed)) }
+                        )
+                    }
                 }
             }
         }
 
         Spacer(Modifier.height(16.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             listOf(
                 SpatialAudioProcessor.MODE_OFF to "Mati",
                 SpatialAudioProcessor.MODE_3D to "3D",
@@ -228,54 +214,26 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit) {
         val currentIndex = state.queue.indexOfFirst { it.id == currentTrack?.id }
         val upcoming = state.userQueue
         if (upcoming.isNotEmpty()) {
-            Text(
-                "Antrean Berikutnya (${upcoming.size})",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.align(Alignment.Start)
-            )
+            Text("Antrean Berikutnya (${upcoming.size})", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Start))
             Spacer(Modifier.height(4.dp))
-            upcoming.forEachIndexed { _, track ->
+            upcoming.forEach { track ->
                 val absoluteIndex = if (currentIndex >= 0) {
-                    (currentIndex + 1 until state.queue.size).firstOrNull {
-                        state.queue[it].id == track.id
-                    } ?: -1
+                    (currentIndex + 1 until state.queue.size).firstOrNull { state.queue[it].id == track.id } ?: -1
                 } else -1
-                if (absoluteIndex < 0) return@forEachIndexed
+                if (absoluteIndex < 0) return@forEach
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .clickable { vm.playQueueAt(absoluteIndex) }
-                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable { vm.playQueueAt(absoluteIndex) }.padding(horizontal = 8.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        Icons.Rounded.MusicNote,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Icon(Icons.Rounded.MusicNote, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
-                        Text(
-                            track.title,
-                            style = MaterialTheme.typography.bodyMedium,
-                            maxLines = 1,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            track.artist,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1
-                        )
+                        Text(track.title, style = MaterialTheme.typography.bodyMedium, maxLines = 1, color = MaterialTheme.colorScheme.onSurface)
+                        Text(track.artist, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                     }
                     IconButton(onClick = { vm.moveQueueItem(absoluteIndex, absoluteIndex - 1) }, enabled = absoluteIndex > currentIndex + 1) {
                         Icon(Icons.Rounded.KeyboardArrowUp, contentDescription = "Naik")
                     }
-                    IconButton(
-                        onClick = { vm.moveQueueItem(absoluteIndex, absoluteIndex + 1) },
-                        enabled = absoluteIndex < state.queue.lastIndex
-                    ) {
+                    IconButton(onClick = { vm.moveQueueItem(absoluteIndex, absoluteIndex + 1) }, enabled = absoluteIndex < state.queue.lastIndex) {
                         Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = "Turun")
                     }
                 }
