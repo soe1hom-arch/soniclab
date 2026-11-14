@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="176" height="48" viewBox="0 0 176 48" role="img" aria-labelledby="title">
+  <title id="title">Saweria</title>
+  <rect width="176" height="48" rx="12" fill="#fff1f0"/>
+  <circle cx="25" cy="24" r="15" fill="#ff5e5b"/>
+  <path d="M25 33s-9-5.8-9-11.2c0-4.3 5.3-6.2 9-1.6 3.7-4.6 9-2.7 9 1.6C34 27.2 25 33 25 33z" fill="#fff"/>
+  <text x="49" y="31" fill="#292929" font-family="Arial, sans-serif" font-size="20" font-weight="700">Saweria</text>
+</svg>

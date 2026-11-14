@@ -67,7 +67,9 @@ The GitHub Actions workflow runs the unit tests and builds a debug APK for pushe
 
 ## Support the project
 
-If SonicLab is useful to you, you can support its continued development or buy the developer a coffee. Donation options and editable setup notes are in [DONATE.md](DONATE.md). Payment links and QR details are intentionally left as placeholders for the maintainer to complete.
+If you enjoy SonicLab, please consider buying me a coffee to support continued development.
+
+[☕ Donate / Buy me a coffee](DONATE.md)
 
 ## Licensing and acknowledgements
 
