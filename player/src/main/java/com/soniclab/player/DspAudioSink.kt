@@ -17,13 +17,16 @@ import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.util.Clock
 import androidx.media3.exoplayer.analytics.PlayerId
 import androidx.media3.exoplayer.audio.AudioSink
-import androidx.media3.exoplayer.audio.DefaultAudioSink
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /**
- * Float-domain DSP wrapper for Media3's AudioSink. Encoder delay and padding
- * are handled here because Media3 only trims them on its 16-bit path.
+ * Media3 AudioSink wrapper that keeps the DSP chain in float domain.
+ *
+ * Critical invariant: every byte buffer handed to the delegate must be an
+ * exact multiple of the output frame size. DefaultAudioSink rejects any chunk
+ * that is not aligned to the channel/sample layout, which causes the runtime
+ * IllegalArgumentException seen in logs.
  */
 class DspAudioSink(
     private val delegate: AudioSink,
@@ -87,7 +90,6 @@ class DspAudioSink(
     }
 
     override fun play() = delegate.play()
-
     override fun handleDiscontinuity() = delegate.handleDiscontinuity()
 
     override fun handleBuffer(buffer: ByteBuffer, presentationTimeUs: Long, encodedAccessUnitCount: Int): Boolean {
@@ -113,8 +115,6 @@ class DspAudioSink(
             return
         }
 
-        // Make at most one bounded input-processing attempt per invocation.
-        // AudioTrack may apply backpressure; Media3 calls this again to drain.
         drainToDelegate()
         if (pendingOut != null) return
 
@@ -132,11 +132,8 @@ class DspAudioSink(
             appendOutput(pipeline.endOfStream())
         }
         drainToDelegate()
-        // Do not spin while the delegate is applying backpressure. Leave its
-        // buffer and our queued bytes intact for the next Media3 drain call.
         if (pendingOut != null) return
 
-        // At EOS, the only bytes that can remain unfeedable are encoder padding.
         outputBytes = ByteArray(0)
         outputStart = 0
         outputEnd = 0
@@ -165,8 +162,7 @@ class DspAudioSink(
     override fun enableTunnelingV21() = delegate.enableTunnelingV21()
     override fun disableTunneling() = delegate.disableTunneling()
     override fun setOffloadMode(offloadMode: Int) = delegate.setOffloadMode(offloadMode)
-    override fun setOffloadDelayPadding(delayInFrames: Int, paddingInFrames: Int) =
-        delegate.setOffloadDelayPadding(delayInFrames, paddingInFrames)
+    override fun setOffloadDelayPadding(delayInFrames: Int, paddingInFrames: Int) = delegate.setOffloadDelayPadding(delayInFrames, paddingInFrames)
     override fun setVolume(volume: Float) = delegate.setVolume(volume)
     override fun pause() = delegate.pause()
 
@@ -245,12 +241,18 @@ class DspAudioSink(
     private fun drainToDelegate() {
         while (true) {
             if (pendingOut == null) {
-                val retain = paddingFrames * outFrameSize
-                val feedable = outputEnd - outputStart - retain
-                if (feedable <= 0 || firstPtsUs == C.TIME_UNSET) return
+                val totalBufferedBytes = outputEnd - outputStart
+                if (totalBufferedBytes <= 0 || firstPtsUs == C.TIME_UNSET) return
+
+                val retainBytes = paddingFrames * outFrameSize
+                val safeBytes = (totalBufferedBytes - retainBytes).coerceAtLeast(0)
+                val feedableFrames = safeBytes / outFrameSize
+                val feedableBytes = feedableFrames * outFrameSize
+                if (feedableBytes <= 0) return
+
                 pendingOutPtsUs = firstPtsUs + submittedFrames * 1_000_000L / sampleRate
-                submittedFrames += feedable / outFrameSize
-                pendingOut = ByteBuffer.wrap(outputBytes, outputStart, feedable).order(ByteOrder.LITTLE_ENDIAN)
+                submittedFrames += feedableFrames.toLong()
+                pendingOut = ByteBuffer.wrap(outputBytes, outputStart, feedableBytes).order(ByteOrder.LITTLE_ENDIAN)
             }
             val out = pendingOut!!
             val before = out.position()
@@ -265,7 +267,8 @@ class DspAudioSink(
     private fun bytesPerSample(encoding: Int): Int = when (encoding) {
         C.ENCODING_PCM_16BIT -> 2
         C.ENCODING_PCM_24BIT -> 3
-        C.ENCODING_PCM_32BIT, C.ENCODING_PCM_FLOAT -> 4
+        C.ENCODING_PCM_32BIT -> 4
+        C.ENCODING_PCM_FLOAT -> 4
         else -> throw IllegalArgumentException("Unsupported PCM encoding $encoding")
     }
 
@@ -273,8 +276,10 @@ class DspAudioSink(
         MimeTypes.AUDIO_RAW != format.sampleMimeType || isSupportedEncoding(format.pcmEncoding)
 
     private fun isSupportedEncoding(encoding: Int): Boolean =
-        encoding == C.ENCODING_PCM_16BIT || encoding == C.ENCODING_PCM_24BIT ||
-            encoding == C.ENCODING_PCM_32BIT || encoding == C.ENCODING_PCM_FLOAT
+        encoding == C.ENCODING_PCM_16BIT ||
+            encoding == C.ENCODING_PCM_24BIT ||
+            encoding == C.ENCODING_PCM_32BIT ||
+            encoding == C.ENCODING_PCM_FLOAT
 
     private companion object {
         const val INPUT_SLICE_FRAMES = 4096
