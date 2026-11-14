@@ -60,7 +60,7 @@ class DspAudioSinkTest {
         return b
     }
 
-    private class FakeAudioSink : AudioSink {
+    private open class FakeAudioSink : AudioSink {
         val fed = mutableListOf<FloatArray>()
         val pts = mutableListOf<Long>()
         var configuredFormat: Format? = null
@@ -78,7 +78,7 @@ class DspAudioSinkTest {
         }
         override fun play() {}
         override fun handleDiscontinuity() {}
-        override fun handleBuffer(buffer: ByteBuffer, presentationTimeUs: Long, encodedAccessUnitCount: Int): Boolean {
+        open override fun handleBuffer(buffer: ByteBuffer, presentationTimeUs: Long, encodedAccessUnitCount: Int): Boolean {
             buffer.order(ByteOrder.LITTLE_ENDIAN)
             val floats = FloatArray(buffer.remaining() / 4)
             var i = 0
