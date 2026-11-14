@@ -216,7 +216,6 @@ class DspAudioSinkTest {
         sink.configure(rawFormat(C.ENCODING_PCM_16BIT, 2, 44100, delay = 2), 0, null)
         assertTrue(sink.handleBuffer(pcm16(1, 2, 3, 4, 5, 6, 7, 8), 0L, 1))
         val floats = fake.fed[0]
-        // First 2 stereo frames (4 samples) are the encoder delay and must be dropped.
         assertEquals(4, floats.size)
         assertArrayEquals(floatArrayOf(5f / 32768f, 6f / 32768f, 7f / 32768f, 8f / 32768f), floats, 1e-7f)
     }
@@ -227,11 +226,35 @@ class DspAudioSinkTest {
         val sink = DspAudioSink(fake, listOf(GainAudioProcessor()))
         sink.configure(rawFormat(C.ENCODING_PCM_16BIT, 2, 44100, padding = 2), 0, null)
         assertTrue(sink.handleBuffer(pcm16(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), 0L, 1))
-        // 6 frames fed, last 2 retained as padding -> 4 frames = 8 floats.
         assertEquals(8, fake.fed[0].size)
         sink.playToEndOfStream()
         assertTrue("delegate must be ended", fake.ended)
         assertEquals(8, fake.fed[0].size)
+    }
+
+    @Test
+    fun delegateReceivesOnlyFrameAlignedChunks() {
+        val fake = object : FakeAudioSink() {
+            override fun handleBuffer(buffer: ByteBuffer, presentationTimeUs: Long, encodedAccessUnitCount: Int): Boolean {
+                assertTrue(
+                    "audio chunk must be aligned to stereo float frames",
+                    buffer.remaining() % (2 * 4) == 0
+                )
+                return super.handleBuffer(buffer, presentationTimeUs, encodedAccessUnitCount)
+            }
+        }
+        val sink = DspAudioSink(fake, listOf(GainAudioProcessor()))
+        sink.configure(rawFormat(C.ENCODING_PCM_16BIT, 2, 44100, padding = 1), 0, null)
+
+        // 6 stereo frames (12 shorts) produce 48 bytes / 12 float samples, but
+        // encoder padding of 1 frame must be retained and only the aligned tail is
+        // sent to the delegate.
+        val handled = sink.handleBuffer(pcm16(
+            1, 2, 3, 4, 5, 6,
+            7, 8, 9, 10, 11, 12
+        ), 0L, 1)
+        assertTrue(handled)
+        assertTrue(fake.fed.isNotEmpty())
     }
 
     @Test
@@ -248,12 +271,12 @@ class DspAudioSinkTest {
         val sink = DspAudioSink(fake, listOf(enh))
         sink.configure(rawFormat(C.ENCODING_PCM_16BIT, 1, 44100), 0, null)
 
-        val framesA = 100 // below the 512-frame chunk
+        val framesA = 100
         val shortsA = ShortArray(framesA) { (0.1f * sin(2.0 * PI * 440.0 * it / 44100.0).toFloat() * 32767f).roundToInt().toShort() }
         assertTrue(sink.handleBuffer(pcm16(*shortsA), 0L, 1))
         assertTrue("chunk not full -> nothing fed yet", fake.fed.isEmpty())
 
-        val framesB = 500 // 600 total -> one 441-frame chunk emitted (~10ms @44.1k)
+        val framesB = 500
         val shortsB = ShortArray(framesB) { (0.1f * sin(2.0 * PI * 440.0 * (it + framesA) / 44100.0).toFloat() * 32767f).roundToInt().toShort() }
         assertTrue(sink.handleBuffer(pcm16(*shortsB), 10_000L, 1))
         assertEquals(441, fake.fed[0].size)
@@ -277,7 +300,6 @@ class DspAudioSinkTest {
         val sink = DspAudioSink(fake, listOf(enh))
         sink.configure(rawFormat(C.ENCODING_PCM_16BIT, 1, 44100), 0, null)
 
-        // First buffer produces no output (chunk not full), second one does.
         val framesA = 100
         val shortsA = ShortArray(framesA) { (0.1f * sin(2.0 * PI * 440.0 * it / 44100.0).toFloat() * 32767f).roundToInt().toShort() }
         assertTrue(sink.handleBuffer(pcm16(*shortsA), 0L, 1))
@@ -287,8 +309,6 @@ class DspAudioSinkTest {
         val shortsB = ShortArray(framesB) { (0.1f * sin(2.0 * PI * 440.0 * (it + framesA) / 44100.0).toFloat() * 32767f).roundToInt().toShort() }
         assertTrue(sink.handleBuffer(pcm16(*shortsB), 10_000L, 1))
         assertEquals(441, fake.fed[0].size)
-        // The chunk contains frames from the FIRST input buffer, so its PTS
-        // must be the first buffer's PTS, not the second buffer's.
         assertEquals(0L, fake.pts[0])
     }
 
@@ -298,7 +318,7 @@ class DspAudioSinkTest {
         val sink = DspAudioSink(fake, listOf(GainAudioProcessor()))
         sink.configure(rawFormat(C.ENCODING_PCM_16BIT, 2, 44100), 0, null)
 
-        val framesPerBuffer = 120_000 // ~2.7 s of audio -> forces backpressure
+        val framesPerBuffer = 120_000
         val frameDurationUs = 1_000_000L / 44100
         for (i in 0 until 20) {
             val bytes = ByteBuffer.allocate(framesPerBuffer * 2 * 2).order(ByteOrder.LITTLE_ENDIAN)
@@ -307,13 +327,10 @@ class DspAudioSinkTest {
             val pts = i * framesPerBuffer * frameDurationUs
             var ok = sink.handleBuffer(bytes, pts, 1)
             while (!ok) {
-                // Renderer contract: retry with the same buffer until consumed.
                 ok = sink.handleBuffer(bytes, pts, 1)
             }
         }
 
-        // handleBuffer may return true with a small output tail still queued
-        // (same as DefaultAudioSink); drain it via playToEndOfStream.
         while (!fake.ended) sink.playToEndOfStream()
 
         assertEquals("no PTS discontinuity may be reported to the delegate", 0, fake.discontinuityCount)
@@ -332,7 +349,7 @@ class DspAudioSinkTest {
         val sink = DspAudioSink(fake, listOf(GainAudioProcessor()))
         sink.configure(rawFormat(C.ENCODING_PCM_16BIT, 2, 44100), 0, null)
 
-        val frames = 200_000 // ~4.5 s burst > 1 s internal queue -> backpressure
+        val frames = 200_000
         val bytes = ByteBuffer.allocate(frames * 2 * 2).order(ByteOrder.LITTLE_ENDIAN)
         repeat(frames * 2) { bytes.putShort(0) }
         bytes.flip()
