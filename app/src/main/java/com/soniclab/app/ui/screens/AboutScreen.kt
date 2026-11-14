@@ -26,16 +26,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.ChevronRight
-import androidx.compose.material.icons.rounded.Copyright
 import androidx.compose.material.icons.rounded.Code
-import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Coffee
+import androidx.compose.material.icons.rounded.Copyright
 import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.OfflineBolt
 import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material.icons.rounded.Public
+import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -58,7 +59,9 @@ import com.soniclab.app.R
 import com.soniclab.app.ui.common.SonicCard
 import com.soniclab.app.ui.theme.PurpleAccent
 
-private const val GITHUB_URL = "https://github.com/soe1hom-arch/soniclab"
+private const val REPOSITORY_URL = "https://github.com/soe1hom-arch/soniclab"
+private const val DEVELOPER_URL = "https://github.com/soe1hom-arch"
+private const val DONATE_URL = "https://github.com/soe1hom-arch/soniclab/blob/main/DONATE.md"
 
 @Composable
 fun AboutScreen(onBack: () -> Unit, onOpenLicenses: () -> Unit = {}) {
@@ -85,40 +88,41 @@ fun AboutScreen(onBack: () -> Unit, onOpenLicenses: () -> Unit = {}) {
 
         HeroSection()
 
-        Spacer(Modifier.height(16.dp))
-
         AboutSection("Fitur Unggulan") {
             AboutRow(
                 Icons.Rounded.GraphicEq,
-                "DSP real-time",
-                "Equalizer, 3D/8D, reverb, pitch & balance"
+                "Pemutar & DSP real-time",
+                "Pemutaran lokal, equalizer, tone, reverb, dan efek spasial"
             )
             AboutRow(
-                Icons.Rounded.AutoAwesome,
-                "AI on-device",
-                "Enhancer & pemisah vokal tanpa internet"
+                Icons.Rounded.Info,
+                "Toolkit audio",
+                "Analisis, normalisasi, pengaturan pitch/tempo, dan vocal remover stereo"
             )
             AboutRow(
                 Icons.Rounded.OfflineBolt,
-                "Fokus privasi",
-                "Semua proses di perangkat, tanpa data dikirim"
+                "Privasi & pemrosesan lokal",
+                "Aplikasi tidak meminta izin internet; audio diproses di perangkat"
             )
         }
 
         AboutSection("Informasi Aplikasi") {
-            AboutRow(Icons.Rounded.Info, "Versi", "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
-            AboutRow(Icons.Rounded.Description, "Lisensi", "Apache-2.0 — open source")
+            AboutRow(
+                Icons.Rounded.Description,
+                "Lisensi aplikasi",
+                "Apache License 2.0 — kode sumber terbuka"
+            )
             AboutRow(
                 Icons.Rounded.Copyright,
-                "Kredit pihak ketiga",
-                "Media3, Oboe, TensorFlow Lite, AndroidX, Kotlin — Apache-2.0",
+                "Lisensi pihak ketiga",
+                "Lihat lisensi dan atribusi tiap komponen",
                 onClick = onOpenLicenses
             )
             AboutRow(
                 Icons.Rounded.Code,
                 "Kode sumber",
                 "github.com/soe1hom-arch/soniclab",
-                onClick = { openUrl(context, GITHUB_URL) }
+                onClick = { openUrl(context, REPOSITORY_URL) }
             )
         }
 
@@ -126,21 +130,40 @@ fun AboutScreen(onBack: () -> Unit, onOpenLicenses: () -> Unit = {}) {
             AboutRow(
                 Icons.Rounded.Person,
                 "soe1hom-arch",
-                "Developer Android — Kotlin, Compose, Media3"
+                "Pengembang SonicLab",
+                onClick = { openUrl(context, DEVELOPER_URL) }
             )
             Text(
-                "Proyek pribadi yang dibuat dengan fokus pada kualitas suara, privasi, " +
-                    "dan pengalaman penggunaan yang baik. Umpan balik sangat dihargai — silakan buka " +
-                    "issue di repositori GitHub.",
+                "SonicLab adalah proyek independen untuk menghadirkan pemutar musik dan alat audio " +
+                    "yang praktis, dengan fokus pada pemrosesan lokal. Masukan dan laporan masalah " +
+                    "dapat disampaikan melalui repositori GitHub.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
         }
 
-        Spacer(Modifier.height(24.dp))
+        Button(
+            onClick = { openUrl(context, DONATE_URL) },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)
+        ) {
+            Icon(Icons.Rounded.Coffee, contentDescription = null)
+            Spacer(Modifier.size(8.dp))
+            Text("Traktir developer secangkir kopi")
+            Spacer(Modifier.size(4.dp))
+            Icon(Icons.Rounded.Favorite, contentDescription = null, modifier = Modifier.size(18.dp))
+        }
         Text(
-            "SonicLab v${BuildConfig.VERSION_NAME} · Apache-2.0",
+            "Dukungan bersifat sukarela dan tidak membuka fitur berbayar.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(Modifier.height(20.dp))
+        Text(
+            "Versi ${BuildConfig.VERSION_NAME} · Build ${BuildConfig.VERSION_CODE}",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.fillMaxWidth(),
@@ -153,7 +176,7 @@ fun AboutScreen(onBack: () -> Unit, onOpenLicenses: () -> Unit = {}) {
 @Composable
 private fun HeroSection() {
     Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
@@ -165,21 +188,20 @@ private fun HeroSection() {
         ) {
             Icon(
                 painterResource(R.drawable.ic_launcher_foreground),
-                contentDescription = null,
+                contentDescription = "Logo SonicLab",
                 modifier = Modifier.size(76.dp)
             )
         }
         Spacer(Modifier.height(12.dp))
         Text("SonicLab", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
         Text(
-            "Versi ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+            "Versi ${BuildConfig.VERSION_NAME} · Build ${BuildConfig.VERSION_CODE}",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            "Pemutar musik & toolkit audio yang berjalan sepenuhnya offline.\n" +
-                "Tanpa iklan, tanpa akun, tanpa internet.",
+            "Pemutar musik dan toolkit audio untuk koleksi lokal Anda.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
@@ -229,7 +251,7 @@ private fun AboutRow(
         if (onClick != null) {
             Icon(
                 Icons.Rounded.ChevronRight,
-                contentDescription = null,
+                contentDescription = "Buka $title",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
