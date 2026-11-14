@@ -14,7 +14,9 @@
 
 ## Mockup
 
-[`landing-page-mockup.svg`](landing-page-mockup.svg) is a vector concept board for a 1440 × 1040 desktop landing page. It contains an illustrative player screen and conceptual track/artwork. It is an art-direction mockup, **not an actual application screenshot**. Replace the illustrative screen and track details with captures from the real app before presenting the page as a product screenshot.
+![SonicLab public landing-page mockup](landing-page-mockup.png)
+
+The PNG above is the visual reference uploaded for this concept. It is a landing-page mockup, not an actual application screenshot. Replace the illustrative player screen and conceptual track/artwork with captures from the real app before presenting the page as a product screenshot.
 
 ## Layout and content hierarchy
 
