@@ -69,7 +69,7 @@ The GitHub Actions workflow runs the unit tests and builds a debug APK for pushe
 
 If you enjoy SonicLab, please consider buying me a coffee to support continued development.
 
-[☕ Donate / Buy me a coffee](DONATE.md)
+[![Donate](https://img.shields.io/badge/Donate-%E2%98%95%20Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black)](DONATE.md)
 
 ## Licensing and acknowledgements
 
