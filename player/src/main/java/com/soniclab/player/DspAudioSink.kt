@@ -178,27 +178,45 @@ class DspAudioSink(
             delegate.playToEndOfStream()
             return
         }
-        // Consume any input still retained by backpressure.
-        while (pendingInput?.hasRemaining() == true) {
-            processNextInputSlice()
-            drainToDelegate()
+
+        // Keep draining retained input and any queued DSP output until the
+        // delegate has no more data left to accept. In the default AudioSink
+        // path, a final EOS must be allowed to flush backpressured output; if we
+        // return early while `pendingOut` still exists, ExoPlayer never sees the
+        // stream as finished and the queue stalls on the last track.
+        var progress = true
+        while (progress) {
+            progress = false
+
+            while (pendingInput?.hasRemaining() == true) {
+                processNextInputSlice()
+                drainToDelegate()
+                progress = true
+            }
+
+            if (!eosQueued) {
+                eosQueued = true
+                appendOutput(pipeline.endOfStream())
+                progress = true
+            }
+
+            if (pendingOut != null || outputStart < outputEnd) {
+                val hadPendingOutput = pendingOut != null || outputStart < outputEnd
+                drainToDelegate()
+                progress = progress || hadPendingOutput
+            }
+
+            if (pendingInput == null && pendingOut == null && outputStart >= outputEnd) {
+                break
+            }
         }
-        pendingInput = null
-        if (!eosQueued) {
-            eosQueued = true
-            appendOutput(pipeline.endOfStream())
+
+        if (pendingInput == null && pendingOut == null && outputStart >= outputEnd) {
+            outputBytes = ByteArray(0)
+            outputStart = 0
+            outputEnd = 0
+            delegate.playToEndOfStream()
         }
-        drainToDelegate()
-        if (pendingOut != null) {
-            // Delegate is applying backpressure; retry on the next call.
-            return
-        }
-        // Everything feedable was consumed; drop the retained encoder-padding
-        // tail and let the delegate finish.
-        outputBytes = ByteArray(0)
-        outputStart = 0
-        outputEnd = 0
-        delegate.playToEndOfStream()
     }
 
     override fun isEnded(): Boolean =
