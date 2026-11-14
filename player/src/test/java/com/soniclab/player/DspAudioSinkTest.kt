@@ -14,7 +14,7 @@ import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.util.Clock
 import androidx.media3.exoplayer.analytics.PlayerId
 import androidx.media3.exoplayer.audio.AudioSink
-import com.soniclab.ai.AiEnhancer
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -366,4 +366,22 @@ class DspAudioSinkTest {
         assertEquals("all frames must reach the delegate", frames.toLong(), fake.submittedFrames)
         assertEquals(0, fake.discontinuityCount)
     }
+
+    @Test
+    fun rejectsNewInputWhilePreviousBufferIsStillPending() {
+        val fake = object : FakeAudioSink() {
+            override fun handleBuffer(buffer: ByteBuffer, presentationTimeUs: Long, encodedAccessUnitCount: Int): Boolean {
+                return false
+            }
+        }
+        val sink = DspAudioSink(fake, listOf(GainAudioProcessor()))
+        sink.configure(rawFormat(C.ENCODING_PCM_16BIT, 2, 44100), 0, null)
+
+        val first = pcm16(1, 2, 3, 4)
+        val second = pcm16(5, 6, 7, 8)
+
+        assertFalse(sink.handleBuffer(first, 0L, 1))
+        assertFalse(sink.handleBuffer(second, 1_000_000L, 1))
+    }
 }
+

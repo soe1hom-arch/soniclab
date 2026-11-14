@@ -94,19 +94,39 @@ class DspAudioSink(
 
     override fun handleBuffer(buffer: ByteBuffer, presentationTimeUs: Long, encodedAccessUnitCount: Int): Boolean {
         if (!rawMode) return delegate.handleBuffer(buffer, presentationTimeUs, encodedAccessUnitCount)
-        check(pendingInput == null || buffer === pendingInput)
+
+        // Media3's DefaultAudioSink requires the same input buffer instance to be
+        // reused until the previous one is fully drained. If we accept a different
+        // buffer while a previous input is still pending, the delegate will throw
+        // IllegalArgumentException on the next handleBuffer() call.
+        if (pendingInput != null && buffer !== pendingInput) {
+            return false
+        }
+
         if (pendingInput == null) {
             pendingInput = buffer
             if (firstPtsUs == C.TIME_UNSET) firstPtsUs = presentationTimeUs
         }
+
         drainToDelegate()
         while (pendingInput?.hasRemaining() == true) {
+            if (pendingOut != null || outputStart < outputEnd) {
+                return false
+            }
             if ((outputEnd - outputStart) / outFrameSize >= sampleRate) break
             processNextInputSlice()
             drainToDelegate()
+            if (pendingOut != null || outputStart < outputEnd) {
+                return false
+            }
         }
+
         if (pendingInput?.hasRemaining() == false) pendingInput = null
-        return pendingInput == null
+
+        // Respect backpressure from the delegate: if a previous output chunk is still
+        // waiting to be written, the wrapper must not claim the current input was drained.
+        val stillBackpressured = pendingOut != null || outputStart < outputEnd
+        return pendingInput == null && !stillBackpressured
     }
 
     override fun playToEndOfStream() {
@@ -285,3 +305,4 @@ class DspAudioSink(
         const val INPUT_SLICE_FRAMES = 4096
     }
 }
+
