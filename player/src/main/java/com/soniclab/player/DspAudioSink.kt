@@ -22,30 +22,8 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /**
- * Custom [AudioSink] that keeps the whole DSP chain in 32-bit float and still
- * reaches hi-res AudioTrack output.
- *
- * media3's [DefaultAudioSink] only inserts custom [AudioProcessor]s on its
- * 16-bit path; with float output enabled it drops them entirely (so effects
- * silently stopped on hi-res PCM). This sink wraps a float-capable
- * [DefaultAudioSink] used as the AudioTrack writer / position tracker, and
- * runs the chain itself: every renderer buffer is normalized to float,
- * processed by [DspFramePipeline], and re-fed to the delegate as float PCM.
- *
- * Encoder delay/padding (gapless trimming) is handled here since media3 only
- * trims on its 16-bit path.
- *
- * Timing contract (mirrors [DefaultAudioSink]): the delegate's internal
- * position timeline advances per *first-seen* buffer (its submitted-frame
- * count), not per consumed byte, and it forces a re-sync (with an
- * `onPositionDiscontinuity`) when the PTS we pass disagrees by more than
- * 200ms. We therefore stamp every chunk handed to the delegate with
- * `firstPtsUs + submittedFrames * frameDuration`, computed up front when the
- * chunk is created, and never re-stamp a partially written chunk. The renderer
- * input is consumed in bounded slices so that when the AudioTrack applies
- * backpressure the sink stops feeding (returns `false`, retaining the buffer)
- * instead of building a multi-second internal queue that would desync the
- * position.
+ * Float-domain DSP wrapper for Media3's AudioSink. Encoder delay and padding
+ * are handled here because Media3 only trims them on its 16-bit path.
  */
 class DspAudioSink(
     private val delegate: AudioSink,
@@ -53,15 +31,12 @@ class DspAudioSink(
 ) : AudioSink {
 
     private val pipeline = DspFramePipeline(processors)
-
     private var rawMode = false
     private var inputEncoding = C.ENCODING_PCM_16BIT
     private var sampleRate = 0
     private var outFrameSize = 0
-
     private var inputChannels = 0
     private var inputFrameSize = 0
-
     private var pendingInput: ByteBuffer? = null
     private var pendingOut: ByteBuffer? = null
     private var outputBytes = ByteArray(0)
@@ -71,61 +46,37 @@ class DspAudioSink(
     private var firstPtsUs = C.TIME_UNSET
     private var submittedFrames = 0L
     private var eosQueued = false
-
     private var delayFramesRemaining = 0
     private var paddingFrames = 0
 
-    override fun setListener(listener: AudioSink.Listener) {
-        delegate.setListener(listener)
-    }
-
-    override fun setPlayerId(playerId: PlayerId?) {
-        delegate.setPlayerId(playerId)
-    }
-
-    override fun setClock(clock: Clock) {
-        delegate.setClock(clock)
-    }
-
-    override fun supportsFormat(format: Format): Boolean =
-        supportsEncoding(format) && delegate.supportsFormat(format)
-
+    override fun setListener(listener: AudioSink.Listener) = delegate.setListener(listener)
+    override fun setPlayerId(playerId: PlayerId?) = delegate.setPlayerId(playerId)
+    override fun setClock(clock: Clock) = delegate.setClock(clock)
+    override fun supportsFormat(format: Format): Boolean = supportsEncoding(format) && delegate.supportsFormat(format)
     override fun getFormatSupport(format: Format): Int =
         if (supportsEncoding(format)) delegate.getFormatSupport(format) else AudioSink.SINK_FORMAT_UNSUPPORTED
-
     override fun getCurrentPositionUs(sourceEnded: Boolean): Long = delegate.getCurrentPositionUs(sourceEnded)
 
     override fun configure(inputFormat: Format, specifiedBufferSize: Int, outputChannels: IntArray?) {
         if (MimeTypes.AUDIO_RAW != inputFormat.sampleMimeType) {
-            // Passthrough/offload (not used by SonicLab today): hand over untouched.
             rawMode = false
             resetPending()
             delegate.configure(inputFormat, specifiedBufferSize, outputChannels)
             return
         }
         if (!isSupportedEncoding(inputFormat.pcmEncoding)) {
-            throw AudioSink.ConfigurationException(
-                "Unsupported PCM encoding ${inputFormat.pcmEncoding}",
-                inputFormat
-            )
+            throw AudioSink.ConfigurationException("Unsupported PCM encoding ${inputFormat.pcmEncoding}", inputFormat)
         }
         rawMode = true
         inputEncoding = inputFormat.pcmEncoding
         sampleRate = inputFormat.sampleRate
         inputChannels = inputFormat.channelCount
         inputFrameSize = inputChannels * bytesPerSample(inputEncoding)
-
-        // Configure the chain in the float domain.
-        pipeline.configure(
-            AudioProcessor.AudioFormat(inputFormat.sampleRate, inputFormat.channelCount, C.ENCODING_PCM_FLOAT)
-        )
+        pipeline.configure(AudioProcessor.AudioFormat(inputFormat.sampleRate, inputFormat.channelCount, C.ENCODING_PCM_FLOAT))
         outFrameSize = pipeline.outputChannels * 4
-
         delayFramesRemaining = inputFormat.encoderDelay.coerceAtLeast(0)
         paddingFrames = inputFormat.encoderPadding.coerceAtLeast(0)
         resetPending()
-
-        // The delegate is configured for the chain's output format (float).
         val delegateFormat = Format.Builder()
             .setSampleMimeType(MimeTypes.AUDIO_RAW)
             .setPcmEncoding(C.ENCODING_PCM_FLOAT)
@@ -135,35 +86,18 @@ class DspAudioSink(
         delegate.configure(delegateFormat, specifiedBufferSize, null)
     }
 
-    override fun play() {
-        delegate.play()
-    }
+    override fun play() = delegate.play()
 
-    override fun handleDiscontinuity() {
-        delegate.handleDiscontinuity()
-    }
+    override fun handleDiscontinuity() = delegate.handleDiscontinuity()
 
-    override fun handleBuffer(
-        buffer: ByteBuffer,
-        presentationTimeUs: Long,
-        encodedAccessUnitCount: Int
-    ): Boolean {
-        if (!rawMode) {
-            return delegate.handleBuffer(buffer, presentationTimeUs, encodedAccessUnitCount)
-        }
+    override fun handleBuffer(buffer: ByteBuffer, presentationTimeUs: Long, encodedAccessUnitCount: Int): Boolean {
+        if (!rawMode) return delegate.handleBuffer(buffer, presentationTimeUs, encodedAccessUnitCount)
         check(pendingInput == null || buffer === pendingInput)
-
         if (pendingInput == null) {
             pendingInput = buffer
             if (firstPtsUs == C.TIME_UNSET) firstPtsUs = presentationTimeUs
         }
-
-        // Feed the delegate anything already waiting first (backpressure).
         drainToDelegate()
-
-        // Consume input only as fast as the delegate absorbs output, so the
-        // internal queue stays bounded. Return false (retain the buffer) once
-        // the queue limit is hit; the renderer retries with the same buffer.
         while (pendingInput?.hasRemaining() == true) {
             if ((outputEnd - outputStart) / outFrameSize >= sampleRate) break
             processNextInputSlice()
@@ -179,44 +113,34 @@ class DspAudioSink(
             return
         }
 
-        // Keep draining retained input and any queued DSP output until the
-        // delegate has no more data left to accept. In the default AudioSink
-        // path, a final EOS must be allowed to flush backpressured output; if we
-        // return early while `pendingOut` still exists, ExoPlayer never sees the
-        // stream as finished and the queue stalls on the last track.
-        var progress = true
-        while (progress) {
-            progress = false
+        // Make at most one bounded input-processing attempt per invocation.
+        // AudioTrack may apply backpressure; Media3 calls this again to drain.
+        drainToDelegate()
+        if (pendingOut != null) return
 
-            while (pendingInput?.hasRemaining() == true) {
-                processNextInputSlice()
-                drainToDelegate()
-                progress = true
-            }
-
-            if (!eosQueued) {
-                eosQueued = true
-                appendOutput(pipeline.endOfStream())
-                progress = true
-            }
-
-            if (pendingOut != null || outputStart < outputEnd) {
-                val hadPendingOutput = pendingOut != null || outputStart < outputEnd
-                drainToDelegate()
-                progress = progress || hadPendingOutput
-            }
-
-            if (pendingInput == null && pendingOut == null && outputStart >= outputEnd) {
-                break
-            }
+        if (pendingInput?.hasRemaining() == true) {
+            if ((outputEnd - outputStart) / outFrameSize >= sampleRate) return
+            processNextInputSlice()
+            drainToDelegate()
+            if (pendingInput?.hasRemaining() == true || pendingOut != null) return
+        } else {
+            pendingInput = null
         }
 
-        if (pendingInput == null && pendingOut == null && outputStart >= outputEnd) {
-            outputBytes = ByteArray(0)
-            outputStart = 0
-            outputEnd = 0
-            delegate.playToEndOfStream()
+        if (!eosQueued) {
+            eosQueued = true
+            appendOutput(pipeline.endOfStream())
         }
+        drainToDelegate()
+        // Do not spin while the delegate is applying backpressure. Leave its
+        // buffer and our queued bytes intact for the next Media3 drain call.
+        if (pendingOut != null) return
+
+        // At EOS, the only bytes that can remain unfeedable are encoder padding.
+        outputBytes = ByteArray(0)
+        outputStart = 0
+        outputEnd = 0
+        delegate.playToEndOfStream()
     }
 
     override fun isEnded(): Boolean =
@@ -225,64 +149,26 @@ class DspAudioSink(
     override fun hasPendingData(): Boolean =
         pendingOut != null || outputStart < outputEnd || pendingInput != null || delegate.hasPendingData()
 
-    override fun setPlaybackParameters(playbackParameters: PlaybackParameters) {
-        delegate.setPlaybackParameters(playbackParameters)
-    }
-
+    override fun setPlaybackParameters(playbackParameters: PlaybackParameters) = delegate.setPlaybackParameters(playbackParameters)
     override fun getPlaybackParameters(): PlaybackParameters = delegate.playbackParameters
-
-    override fun setSkipSilenceEnabled(skipSilenceEnabled: Boolean) {
-        delegate.setSkipSilenceEnabled(skipSilenceEnabled)
-    }
-
+    override fun setSkipSilenceEnabled(skipSilenceEnabled: Boolean) = delegate.setSkipSilenceEnabled(skipSilenceEnabled)
     override fun getSkipSilenceEnabled(): Boolean = delegate.skipSilenceEnabled
-
-    override fun setAudioAttributes(audioAttributes: AudioAttributes) {
-        delegate.setAudioAttributes(audioAttributes)
-    }
-
+    override fun setAudioAttributes(audioAttributes: AudioAttributes) = delegate.setAudioAttributes(audioAttributes)
     override fun getAudioAttributes(): AudioAttributes? = delegate.audioAttributes
-
-    override fun setAudioSessionId(audioSessionId: Int) {
-        delegate.setAudioSessionId(audioSessionId)
-    }
-
-    override fun setAuxEffectInfo(auxEffectInfo: AuxEffectInfo) {
-        delegate.setAuxEffectInfo(auxEffectInfo)
-    }
+    override fun setAudioSessionId(audioSessionId: Int) = delegate.setAudioSessionId(audioSessionId)
+    override fun setAuxEffectInfo(auxEffectInfo: AuxEffectInfo) = delegate.setAuxEffectInfo(auxEffectInfo)
 
     @RequiresApi(23)
-    override fun setPreferredDevice(audioDeviceInfo: AudioDeviceInfo?) {
-        delegate.setPreferredDevice(audioDeviceInfo)
-    }
+    override fun setPreferredDevice(audioDeviceInfo: AudioDeviceInfo?) = delegate.setPreferredDevice(audioDeviceInfo)
 
-    override fun setOutputStreamOffsetUs(outputStreamOffsetUs: Long) {
-        delegate.setOutputStreamOffsetUs(outputStreamOffsetUs)
-    }
-
-    override fun enableTunnelingV21() {
-        delegate.enableTunnelingV21()
-    }
-
-    override fun disableTunneling() {
-        delegate.disableTunneling()
-    }
-
-    override fun setOffloadMode(offloadMode: Int) {
-        delegate.setOffloadMode(offloadMode)
-    }
-
-    override fun setOffloadDelayPadding(delayInFrames: Int, paddingInFrames: Int) {
+    override fun setOutputStreamOffsetUs(outputStreamOffsetUs: Long) = delegate.setOutputStreamOffsetUs(outputStreamOffsetUs)
+    override fun enableTunnelingV21() = delegate.enableTunnelingV21()
+    override fun disableTunneling() = delegate.disableTunneling()
+    override fun setOffloadMode(offloadMode: Int) = delegate.setOffloadMode(offloadMode)
+    override fun setOffloadDelayPadding(delayInFrames: Int, paddingInFrames: Int) =
         delegate.setOffloadDelayPadding(delayInFrames, paddingInFrames)
-    }
-
-    override fun setVolume(volume: Float) {
-        delegate.setVolume(volume)
-    }
-
-    override fun pause() {
-        delegate.pause()
-    }
+    override fun setVolume(volume: Float) = delegate.setVolume(volume)
+    override fun pause() = delegate.pause()
 
     override fun flush() {
         pipeline.flush()
@@ -304,9 +190,7 @@ class DspAudioSink(
         delegate.reset()
     }
 
-    override fun release() {
-        delegate.release()
-    }
+    override fun release() = delegate.release()
 
     private fun resetPending() {
         pendingInput = null
@@ -320,15 +204,11 @@ class DspAudioSink(
         eosQueued = false
     }
 
-    /** Processes at most [INPUT_SLICE_FRAMES] frames of the retained input. */
     private fun processNextInputSlice() {
         val input = pendingInput ?: return
         var sliceBytes = minOf(INPUT_SLICE_FRAMES * inputFrameSize, input.remaining())
         sliceBytes -= sliceBytes % inputFrameSize
-        if (sliceBytes <= 0) {
-            // Trailing partial frame: consume it; decodeToFloat drops it.
-            sliceBytes = input.remaining()
-        }
+        if (sliceBytes <= 0) sliceBytes = input.remaining()
         val slice = input.duplicate().order(ByteOrder.LITTLE_ENDIAN)
         slice.limit(slice.position() + sliceBytes)
         val floatOut = pipeline.process(slice, inputEncoding)
@@ -336,7 +216,6 @@ class DspAudioSink(
         appendOutput(floatOut)
     }
 
-    /** Appends float PCM [bytes], dropping any remaining encoder-delay frames first. */
     private fun appendOutput(bytes: ByteBuffer) {
         if (!bytes.hasRemaining()) return
         if (delayFramesRemaining > 0) {
@@ -363,20 +242,15 @@ class DspAudioSink(
         }
     }
 
-    /** Feeds buffered chain output into the delegate until it applies backpressure. */
     private fun drainToDelegate() {
         while (true) {
             if (pendingOut == null) {
                 val retain = paddingFrames * outFrameSize
                 val feedable = outputEnd - outputStart - retain
                 if (feedable <= 0 || firstPtsUs == C.TIME_UNSET) return
-                // Stamp this chunk once, from the submitted-frame count, so the
-                // delegate's expected timeline always matches (no re-sync).
                 pendingOutPtsUs = firstPtsUs + submittedFrames * 1_000_000L / sampleRate
                 submittedFrames += feedable / outFrameSize
-                pendingOut = ByteBuffer
-                    .wrap(outputBytes, outputStart, feedable)
-                    .order(ByteOrder.LITTLE_ENDIAN)
+                pendingOut = ByteBuffer.wrap(outputBytes, outputStart, feedable).order(ByteOrder.LITTLE_ENDIAN)
             }
             val out = pendingOut!!
             val before = out.position()
@@ -391,24 +265,18 @@ class DspAudioSink(
     private fun bytesPerSample(encoding: Int): Int = when (encoding) {
         C.ENCODING_PCM_16BIT -> 2
         C.ENCODING_PCM_24BIT -> 3
-        C.ENCODING_PCM_32BIT -> 4
-        C.ENCODING_PCM_FLOAT -> 4
+        C.ENCODING_PCM_32BIT, C.ENCODING_PCM_FLOAT -> 4
         else -> throw IllegalArgumentException("Unsupported PCM encoding $encoding")
     }
 
-    private fun supportsEncoding(format: Format): Boolean {
-        if (MimeTypes.AUDIO_RAW != format.sampleMimeType) return true
-        return isSupportedEncoding(format.pcmEncoding)
-    }
+    private fun supportsEncoding(format: Format): Boolean =
+        MimeTypes.AUDIO_RAW != format.sampleMimeType || isSupportedEncoding(format.pcmEncoding)
 
     private fun isSupportedEncoding(encoding: Int): Boolean =
-        encoding == C.ENCODING_PCM_16BIT ||
-            encoding == C.ENCODING_PCM_24BIT ||
-            encoding == C.ENCODING_PCM_32BIT ||
-            encoding == C.ENCODING_PCM_FLOAT
+        encoding == C.ENCODING_PCM_16BIT || encoding == C.ENCODING_PCM_24BIT ||
+            encoding == C.ENCODING_PCM_32BIT || encoding == C.ENCODING_PCM_FLOAT
 
     private companion object {
-        /** Frames of renderer input consumed per processing step. */
-        private const val INPUT_SLICE_FRAMES = 4096
+        const val INPUT_SLICE_FRAMES = 4096
     }
 }
