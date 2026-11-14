@@ -8,7 +8,7 @@ Thank you for using SonicLab. If SonicLab is useful to you, you may support its 
 
 | Method | Link |
 |---|---|
-| <img src="docs/donations/qris.svg" alt="QRIS" width="64" height="32" /> QRIS | Add your QRIS payment image at `docs/donations/qris.png`; instructions below. |
+| <img src="docs/donations/qris.svg" alt="QRIS" width="64" height="32" /> QRIS | ![SonicLab QRIS donation code](docs/donations/qris.png) |
 | <img src="https://cdn.simpleicons.org/paypal/00457C" alt="PayPal" width="24" height="24" /> PayPal | [Donate via PayPal](https://paypal.me/YOUR_PAYPAL_USERNAME) |
 | <img src="docs/donations/dana.svg" alt="DANA" width="64" height="24" /> DANA | [Donate via DANA](https://link.dana.id/YOUR_DANA_LINK) |
 | <img src="docs/donations/saweria.svg" alt="Saweria" width="64" height="24" /> Saweria | [Support on Saweria](https://saweria.co/YOUR_SAWERIA_USERNAME) |
