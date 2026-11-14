@@ -35,28 +35,31 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.soniclab.app.di.AppContainer
 import com.soniclab.app.ui.theme.PurpleAccent
 
-/**
- * Compact now-playing bar shown above the bottom navigation on every screen.
- * Tap opens the full player; play/pause and next work inline.
- */
+/** Compact now-playing bar shown above the bottom navigation on every screen. */
 @Composable
 fun MiniPlayerBar(container: AppContainer, onClick: () -> Unit) {
     val state by container.playerController.uiState.collectAsStateWithLifecycle()
     val haptic = LocalHapticFeedback.current
     if (!state.hasTrack) return
 
-    Surface(tonalElevation = 3.dp, modifier = Modifier.fillMaxWidth()) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        tonalElevation = 0.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
         Column {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable(onClick = onClick)
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 AlbumArt(
                     albumId = state.currentTrack?.albumId ?: -1L,
-                    modifier = Modifier.size(44.dp).clip(RoundedCornerShape(8.dp))
+                    modifier = Modifier.size(44.dp).clip(RoundedCornerShape(12.dp))
                 )
                 Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                     Text(
@@ -92,7 +95,7 @@ fun MiniPlayerBar(container: AppContainer, onClick: () -> Unit) {
                 progress = { state.progress },
                 modifier = Modifier.fillMaxWidth().height(2.dp),
                 color = PurpleAccent,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant
+                trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
             )
         }
     }

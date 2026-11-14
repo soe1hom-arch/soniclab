@@ -2,35 +2,42 @@
 
 [![Android Build](https://github.com/soe1hom-arch/soniclab/actions/workflows/android-build.yml/badge.svg)](https://github.com/soe1hom-arch/soniclab/actions/workflows/android-build.yml)
 
-**An offline-first music player and audio toolkit for Android.** SonicLab brings local music playback, real-time sound controls, and practical audio utilities together in one app. It is built with Kotlin, Jetpack Compose, and AndroidX Media3, with audio processing performed on the device.
+**A thoughtful, offline-first music player and audio toolkit for Android.** SonicLab brings your local music library, expressive playback controls, and practical audio tools into one focused experience—without an account or network access.
 
-## Highlights
+> **Project status:** SonicLab is an early-stage project. Builds are available for evaluation through GitHub Actions; a signed public release is not currently published. Audio behavior and feature support can vary by device and source file.
 
-- **Local music library** — browse songs, albums, and artists; search tracks and manage favorites.
-- **Playback** — queue controls, shuffle and repeat, playback speed and pitch, sleep timer, crossfade, lock-screen controls, and Android Auto support.
-- **Sound controls** — software 10-band equalizer, tone controls, room reverb, stereo/spatial modes, headroom, limiter, and optional loudness normalization.
-- **Audio tools** — inspect, convert, trim, join, reverse, adjust pitch or tempo, normalize loudness, and create an instrumental-style output from supported stereo audio.
-- **Analysis** — waveform preview, audio format information, and EBU R128 loudness measurement.
-- **Offline by design** — no network permission is declared in the app manifest. Music playback and audio processing run locally.
+## Designed for your music
+
+- **Your local library** — browse songs, albums, and artists; search tracks and save favorites.
+- **A considered playback experience** — manage the queue, shuffle and repeat, adjust playback speed and pitch, set a sleep timer, use crossfade, and control playback from notifications, the lock screen, or Android Auto.
+- **Shape the sound** — adjust the software 10-band equalizer, tone, bass, balance, reverb, spatial effects, headroom, and limiter. Optional loudness normalization helps keep levels more consistent.
+- **Useful audio tools** — inspect and convert files, trim, join, reverse, adjust pitch or tempo, normalize loudness, and create an instrumental-style output from supported stereo audio.
+- **Understand what you hear** — view waveform previews and audio format information, and measure loudness using EBU R128.
+- **Local by design** — the app does not request the Android Internet permission. Playback and audio processing run on-device.
+
+### A note on enhancement
+
+AI Enhance currently uses a transparent DSP fallback when a suitable neural model is not bundled. The Studio vocal remover uses spectral center-channel processing, not a neural source-separation model. Results depend on the material; the vocal remover requires stereo audio and may not cleanly separate every mix.
 
 ## Audio processing
 
-When DSP effects are enabled, decoded PCM is processed through the app's float-domain chain:
+With DSP effects enabled, decoded PCM passes through this processing chain:
 
 ```text
 balance → headroom → gain → 10-band EQ → tone → reverb → enhancement → spatial processing → limiter
 ```
 
-Direct Output bypasses the custom DSP chain and uses Media3's standard audio sink. Output capabilities can vary with Android versions, device audio hardware, and source format.
+Direct Output bypasses the custom DSP chain and uses Media3's standard audio sink. Output capabilities depend on Android, the device's audio hardware, and the source format.
 
-## Requirements
+## Compatibility
 
 - Android 8.0 (API 26) or later
-- For development: JDK 17+ and Android SDK Platform 36 with Build Tools 36.0.0
+- Android Studio or a compatible Gradle environment for building from source
+- JDK 17 and Android SDK Platform 36 with Build Tools 36.0.0 for development
 
-## Build
+## Build from source
 
-Build a debug APK locally:
+Build a debug APK:
 
 ```bash
 ./gradlew :app:assembleDebug
@@ -38,15 +45,13 @@ Build a debug APK locally:
 
 The APK is written to `app/build/outputs/apk/debug/app-debug.apk`.
 
-## Tests and checks
-
 Run the JVM unit tests:
 
 ```bash
 ./gradlew test
 ```
 
-Run module-specific tests or Android lint:
+Optional focused checks:
 
 ```bash
 ./gradlew :dsp:testDebugUnitTest
@@ -54,7 +59,7 @@ Run module-specific tests or Android lint:
 ./gradlew :app:lintDebug
 ```
 
-The GitHub Actions workflow runs the unit tests and builds a debug APK for pushes to `main` and pull requests. Open [Actions](https://github.com/soe1hom-arch/soniclab/actions) and select a successful **Android Build** run to download its `soniclab-debug-apk` artifact. This is a debug build, not a signed production release.
+The Android Build workflow runs tests and builds a debug APK for pushes to `main` and pull requests. Successful workflow runs may provide a downloadable debug artifact in [GitHub Actions](https://github.com/soe1hom-arch/soniclab/actions). Debug artifacts are for evaluation and are not signed public releases.
 
 ## Project structure
 
@@ -65,18 +70,20 @@ The GitHub Actions workflow runs the unit tests and builds a debug APK for pushe
 | `:player` | Media3 playback service, queue and session control, and real-time DSP integration |
 | `:dsp` | Audio processing, file tools, analysis, and optional on-device enhancement support |
 
-## Support the project
+## Support SonicLab
 
-If you enjoy SonicLab, please consider buying me a coffee to support continued development.
+If SonicLab is useful to you, you can support its continued development. Contributions are optional and do not unlock paid features.
 
-[![Donate](https://img.shields.io/badge/Donate-%E2%98%95%20Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black)](DONATE.md)
+[![Buy me a coffee](https://img.shields.io/badge/Support-%E2%98%95%20Buy%20me%20a%20coffee-C5A6FF?style=for-the-badge&logo=buymeacoffee&logoColor=241637)](DONATE.md)
+
+**Before sharing the donation page, the maintainer should replace its example payment links with verified public donation links.** Never publish private payment credentials.
 
 ## Licensing and acknowledgements
 
-SonicLab's original source code is provided under the [Apache License, Version 2.0](LICENSE). Third-party libraries and components remain subject to their respective licenses; see [Third-Party Notices](THIRD_PARTY_NOTICES.md) and the bundled in-app notices for attribution and component details.
+SonicLab's original source code is provided under the [Apache License, Version 2.0](LICENSE). Third-party libraries and components remain subject to their own licenses; review the in-app license screen and [third-party notices](THIRD_PARTY_NOTICES.md) for attribution and details.
 
-The project implements audio techniques based on published standards and literature. Their use does not imply endorsement by the standards bodies or authors. See the notices file for algorithm references and additional acknowledgements.
+The project implements audio techniques based on published standards and literature. Their use does not imply endorsement by the standards bodies or authors; see the notices file for references.
 
-## Contributions
+## Contributing
 
-Bug reports, suggestions, and code contributions are welcome. Please open an issue to discuss substantial changes before submitting a pull request. By submitting a contribution, you agree that it is provided under the repository's Apache-2.0 license, subject to any separate written agreement.
+Bug reports, suggestions, and code contributions are welcome. Please open an issue to discuss substantial changes before submitting a pull request. By submitting a contribution, you agree that it may be distributed under this project's Apache-2.0 license.

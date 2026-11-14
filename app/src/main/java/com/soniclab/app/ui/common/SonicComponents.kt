@@ -5,6 +5,7 @@
 
 package com.soniclab.app.ui.common
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
@@ -17,7 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-/** Shared container for settings and content sections. */
+/** Shared, low-emphasis surface for app sections. */
 @Composable
 fun SonicCard(
     modifier: Modifier = Modifier,
@@ -25,9 +26,10 @@ fun SonicCard(
 ) {
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.76f)
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         content = { content() }

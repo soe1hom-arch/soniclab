@@ -20,6 +20,7 @@ import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -158,6 +159,7 @@ fun SonicLabAppRoot(container: AppContainer) {
     val currentRoute = backStackEntry?.destination?.route
 
     Scaffold(
+        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.background,
         bottomBar = {
             Column {
                 if (currentRoute != "player") {
@@ -241,7 +243,12 @@ fun SonicLabAppRoot(container: AppContainer) {
 private fun BottomBar(navController: NavHostController) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
-    NavigationBar {
+    val colors = androidx.compose.material3.MaterialTheme.colorScheme
+    NavigationBar(
+        containerColor = colors.surface,
+        contentColor = colors.onSurface,
+        tonalElevation = 0.dp
+    ) {
         bottomItems.forEach { item ->
             NavigationBarItem(
                 selected = currentRoute == item.route,
@@ -255,7 +262,14 @@ private fun BottomBar(navController: NavHostController) {
                     }
                 },
                 icon = { Icon(item.icon, contentDescription = item.label) },
-                label = { Text(item.label) }
+                label = { Text(item.label) },
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = colors.primary,
+                    selectedTextColor = colors.primary,
+                    indicatorColor = colors.secondaryContainer,
+                    unselectedIconColor = colors.onSurfaceVariant,
+                    unselectedTextColor = colors.onSurfaceVariant
+                )
             )
         }
     }
