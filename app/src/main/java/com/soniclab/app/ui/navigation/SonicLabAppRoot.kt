@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -80,6 +81,7 @@ fun SonicLabAppRoot(container: AppContainer) {
         }
     }
 
+    // Request permissions once on first composition.
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { refreshIfGranted() }
@@ -253,9 +255,6 @@ private fun BottomBar(navController: NavHostController) {
             NavigationBarItem(
                 selected = currentRoute == item.route,
                 onClick = {
-                    // Deterministic tab switch: pop auxiliary screens (player,
-                    // equalizer, studio, about) and show the tab fresh, so a
-                    // stale screen can never stay on top.
                     navController.navigate(item.route) {
                         popUpTo(navController.graph.findStartDestination().id)
                         launchSingleTop = true
