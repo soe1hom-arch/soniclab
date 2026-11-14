@@ -4,7 +4,7 @@
 
 **Positioning:** a considered, offline-first music player and audio toolkit for people who want practical playback controls without handing their local library to a cloud service.
 
-**Visual theme:** minimal premium / luxury tech. Use deep graphite backgrounds, restrained violet highlights, generous negative space, precise typography, thin borders, and a single confident accent CTA. Let actual album art and real application screens carry the visual interest; avoid stock headphones, fake audio claims, and exaggerated neon waveforms.
+**Visual theme:** bold luxury black + violet. Use a near-black foundation, layered aubergine surfaces, luminous lavender for the main action, controlled violet atmosphere behind the product visual, fine borders, generous negative space, and confident typographic scale. Keep the treatment elegant: use glow as a single focal halo, not a decoration on every component. Real album art and real application captures should provide the texture.
 
 **Primary message:** “Dengarkan musik. Dengan cara Anda.”
 
@@ -19,7 +19,7 @@
 ## Layout and content hierarchy
 
 1. **Header:** compact SonicLab wordmark; links to Features, Privacy, and Open Source; one GitHub CTA.
-2. **Hero:** concise Indonesian headline, one-line explanation, two actions, and three factual trust points: offline by design, no account, open source.
+2. **Hero:** concise Indonesian headline, short explanation, two actions, and three factual trust points: offline by design, no account, open source.
 3. **Product visual:** device frame with a real player capture, ideally showing album art, track info, timeline, and transport controls. Keep the visual large enough to read but subordinate to the headline.
 4. **Three feature cards:** sound controls; local audio tools; privacy. Make each card about a user benefit, not a feature dump.
 5. **Status and trust:** clearly distinguish debug evaluation builds from a signed release. State Android minimum version and link to source, licenses, and third-party notices.
@@ -29,17 +29,19 @@
 
 | Token | Value | Use |
 |---|---|---|
-| Background | `#0B0B10` to `#15121D` | Page background; subtle vertical gradient only |
-| Surface | `#191720` | Cards and restrained raised surfaces |
-| Primary text | `#F4F1F8` | Headline and key labels |
-| Secondary text | `#AAA5B5` | Supporting copy; preserve contrast |
-| Violet accent | `#C5A6FF` | Primary CTA and select highlights |
-| Cyan accent | `#82DFF3` | Rare secondary data/utility highlight |
-| Positive status | `#9DDFCA` | Offline / privacy indicators |
-| Corners | 16–24 px | Buttons, cards, device visual |
+| Background | `#07060B` to `#120B1B` | Near-black base with an aubergine depth; avoid flat pure black across every surface |
+| Surface | `#191322` | Raised content cards with subtle violet edge |
+| Primary text | `#FBF9FF` | Headlines and key labels |
+| Secondary text | `#B9B0C2` | Supporting copy; preserve readable contrast |
+| Violet accent | `#C19AFF` | Primary action, selected state, and restrained glow |
+| Bright accent | `#E0CEFF` | Small highlights and high-contrast accent details |
+| Cyan accent | `#91DFF1` | Rare utility/data accent only |
+| Positive status | `#A8E5CE` | Offline/privacy indicators; do not imply certification |
+| Borders | `#49365E` | Subtle card and device edges |
+| Corners | 16–24 px | Buttons, cards, and device frame |
 | Spacing | 8 px base rhythm | Use 24–32 px between major content groups |
 
-**Typography:** use a clean sans-serif (Inter where available; system UI fallback otherwise). Desktop hero 56–64 px, section headings 28–36 px, body 16–18 px, metadata no smaller than 12–13 px. Keep line lengths near 55–70 characters and avoid all-caps except tiny eyebrow labels.
+**Typography:** use a clean sans-serif (Inter where available; system UI fallback otherwise). Desktop hero 58–66 px, section headings 28–36 px, body 16–18 px, metadata no smaller than 12–13 px. Keep line lengths near 55–70 characters and avoid all-caps except tiny eyebrow labels.
 
 ## Asset and screenshot plan
 
