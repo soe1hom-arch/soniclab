@@ -8,6 +8,7 @@ package com.soniclab.app.ui.screens
 import android.content.Intent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -28,6 +29,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -41,6 +43,7 @@ import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Repeat
+import androidx.compose.material.icons.rounded.RepeatOne
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.SkipNext
@@ -66,6 +69,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -131,7 +135,12 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit, onClose: 
                 Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = "Tutup pemutar")
             }
             Text(
-                "SEDANG DIPUTAR",
+                when {
+                    track == null -> "PEMUTAR"
+                    state.isBuffering -> "MEMUAT"
+                    state.isPlaying -> "SEDANG DIPUTAR"
+                    else -> "TIDAK DIPUTAR"
+                },
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -211,7 +220,7 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit, onClose: 
             ) {
                 Icon(
                     if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                    contentDescription = "Favorit",
+                    contentDescription = if (isFavorite) "Hapus dari favorit" else "Tambahkan ke favorit",
                     tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -254,8 +263,18 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit, onClose: 
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            IconButton(onClick = { vm.setShuffle(!state.shuffleEnabled) }) {
-                Icon(Icons.Rounded.Shuffle, contentDescription = "Acak", tint = if (state.shuffleEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+            IconButton(
+                onClick = { vm.setShuffle(!state.shuffleEnabled) },
+                modifier = Modifier.background(
+                    if (state.shuffleEnabled) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
+                    CircleShape
+                )
+            ) {
+                Icon(
+                    Icons.Rounded.Shuffle,
+                    contentDescription = if (state.shuffleEnabled) "Acak aktif" else "Acak mati",
+                    tint = if (state.shuffleEnabled) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             IconButton(onClick = { vm.previous() }) {
                 Icon(Icons.Rounded.SkipPrevious, contentDescription = "Sebelumnya", modifier = Modifier.size(40.dp))
@@ -279,8 +298,22 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit, onClose: 
             }) {
                 Icon(Icons.Rounded.SkipNext, contentDescription = "Berikutnya", modifier = Modifier.size(40.dp))
             }
-            IconButton(onClick = { vm.cycleRepeat() }) {
-                Icon(Icons.Rounded.Repeat, contentDescription = "Ulangi", tint = if (state.repeatMode != 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+            IconButton(
+                onClick = { vm.cycleRepeat() },
+                modifier = Modifier.background(
+                    if (state.repeatEnabled) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
+                    CircleShape
+                )
+            ) {
+                Icon(
+                    if (state.repeatOne) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
+                    contentDescription = when {
+                        state.repeatOne -> "Ulangi satu lagu"
+                        state.repeatAll -> "Ulangi semua lagu"
+                        else -> "Ulangi mati"
+                    },
+                    tint = if (state.repeatEnabled) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
 

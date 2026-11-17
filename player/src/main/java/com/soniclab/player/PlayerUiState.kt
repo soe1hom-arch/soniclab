@@ -35,6 +35,9 @@ data class PlayerUiState(
     val isBuffering: Boolean = false
 ) {
     val hasTrack: Boolean get() = currentTrack != null
+    val repeatOne: Boolean get() = repeatMode == Player.REPEAT_MODE_ONE
+    val repeatAll: Boolean get() = repeatMode == Player.REPEAT_MODE_ALL
+    val repeatEnabled: Boolean get() = repeatMode != Player.REPEAT_MODE_OFF
     val progress: Float
         get() = if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
 }

@@ -558,7 +558,7 @@ private fun TrackRow(
         }) {
             Icon(
                 imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                contentDescription = "Favorit",
+                contentDescription = if (isFavorite) "Hapus dari favorit" else "Tambahkan ke favorit",
                 tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
