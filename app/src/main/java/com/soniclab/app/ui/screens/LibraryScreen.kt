@@ -606,6 +606,7 @@ private fun TrackRow(
             }
         }
     }
+}
 
 @Composable
 private fun TrackAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
