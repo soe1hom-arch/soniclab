@@ -55,6 +55,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import android.net.Uri
 import android.os.Build
@@ -121,7 +122,7 @@ fun StudioScreen(container: AppContainer, uri: String? = null, title: String? = 
         ) {
         Text("Studio", style = MaterialTheme.typography.headlineLarge)
         Text(
-            "Analisis, konversi & DSP — langsung ke lagu yang sedang diputar.",
+            "Analisis dan olah audio dari lagu atau file pilihan Anda.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -176,7 +177,8 @@ fun StudioScreen(container: AppContainer, uri: String? = null, title: String? = 
                                 result.title,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -241,6 +243,7 @@ fun StudioScreen(container: AppContainer, uri: String? = null, title: String? = 
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.primary,
                             maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
                     }
@@ -371,7 +374,8 @@ private fun NowPlayingRow(currentTitle: String?, onUse: () -> Unit) {
                 currentTitle ?: "Tidak ada lagu diputar",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
         FilledTonalButton(onClick = onUse, enabled = currentTitle != null) { Text("Pakai") }
@@ -388,7 +392,8 @@ private fun FilePickRow(icon: ImageVector, label: String, fileName: String?, onC
                 fileName ?: "Belum dipilih",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
         FilledTonalButton(onClick = onClick) { Text("Pilih") }

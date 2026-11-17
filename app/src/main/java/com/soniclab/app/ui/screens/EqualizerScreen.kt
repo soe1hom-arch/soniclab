@@ -55,6 +55,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -118,6 +119,12 @@ fun EqualizerScreen(container: AppContainer) {
                 )
             }) { Text("Atur Ulang") }
         }
+        Text(
+            "Atur karakter suara sesuai selera Anda",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 4.dp)
+        )
 
         Surface(
             color = MaterialTheme.colorScheme.surfaceVariant,
@@ -537,7 +544,14 @@ private fun SettingSection(
 ) {
     var expanded by rememberSaveable { mutableStateOf(initiallyExpanded) }
     var helpExpanded by rememberSaveable { mutableStateOf(false) }
-    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -554,22 +568,27 @@ private fun SettingSection(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            if (onReset != null) {
-                TextButton(onClick = onReset) { Text("Atur Ulang") }
-            }
-            Icon(
-                Icons.Rounded.Info,
-                contentDescription = if (helpExpanded) "Sembunyikan penjelasan" else "Tampilkan penjelasan",
-                tint = if (helpExpanded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier
-                    .clickable { helpExpanded = !helpExpanded }
-                    .padding(8.dp)
-            )
             Icon(
                 if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
                 contentDescription = if (expanded) "Tutup" else "Buka",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (onReset != null) {
+                TextButton(onClick = onReset) { Text("Atur Ulang") }
+            }
+            IconButton(onClick = { helpExpanded = !helpExpanded }) {
+                Icon(
+                    Icons.Rounded.Info,
+                    contentDescription = if (helpExpanded) "Sembunyikan penjelasan" else "Tampilkan penjelasan",
+                    tint = if (helpExpanded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
         AnimatedVisibility(visible = helpExpanded) {
             Surface(

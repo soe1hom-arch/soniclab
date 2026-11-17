@@ -7,6 +7,7 @@ package com.soniclab.app.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -71,8 +72,15 @@ fun SettingsScreen(container: AppContainer, onOpenAbout: () -> Unit, onOpenEqual
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
-        Text("Pengaturan", style = MaterialTheme.typography.headlineLarge, modifier = Modifier.padding(bottom = 16.dp))
+        Text("Pengaturan", style = MaterialTheme.typography.headlineLarge)
+        Text(
+            "Sesuaikan tampilan dan pengalaman mendengarkan",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
+        )
 
+        SettingsSectionTitle("Tampilan")
         ToggleRow(
             icon = { Icon(Icons.Rounded.DarkMode, contentDescription = null) },
             title = "Tema AMOLED",
@@ -81,6 +89,7 @@ fun SettingsScreen(container: AppContainer, onOpenAbout: () -> Unit, onOpenEqual
             onCheckedChange = vm::setAmoled
         )
 
+        SettingsSectionTitle("Suara")
         ToggleRow(
             icon = { Icon(Icons.Rounded.AutoAwesome, contentDescription = null) },
             title = "AI Enhance",
@@ -190,8 +199,7 @@ fun SettingsScreen(container: AppContainer, onOpenAbout: () -> Unit, onOpenEqual
             modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
         )
 
-        Spacer(Modifier.height(16.dp))
-
+        SettingsSectionTitle("Pemutaran")
         Text("Crossfade", style = MaterialTheme.typography.titleMedium)
         Slider(
             value = crossfade.toFloat(),
@@ -207,7 +215,10 @@ fun SettingsScreen(container: AppContainer, onOpenAbout: () -> Unit, onOpenEqual
         Spacer(Modifier.height(16.dp))
 
         Text("Sleep Timer", style = MaterialTheme.typography.titleMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             listOf(0 to "Mati", 15 to "15m", 30 to "30m", 60 to "60m").forEach { (minutes, label) ->
                 FilterChip(
                     selected = sleepTimer == minutes,
@@ -223,7 +234,7 @@ fun SettingsScreen(container: AppContainer, onOpenAbout: () -> Unit, onOpenEqual
             }
         }
 
-        Spacer(Modifier.height(24.dp))
+        SettingsSectionTitle("Aplikasi")
 
         Row(
             modifier = Modifier
@@ -253,6 +264,16 @@ fun SettingsScreen(container: AppContainer, onOpenAbout: () -> Unit, onOpenEqual
         )
     }
 
+}
+
+@Composable
+private fun SettingsSectionTitle(title: String) {
+    Text(
+        title,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)
+    )
 }
 
 @Composable
