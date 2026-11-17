@@ -55,7 +55,7 @@ fun MiniPlayerBar(container: AppContainer, onClick: () -> Unit) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable(onClick = onClick)
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 AlbumArt(

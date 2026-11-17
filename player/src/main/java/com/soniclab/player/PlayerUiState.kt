@@ -19,6 +19,8 @@ data class TrackAudioInfo(
     val channels: Int
 )
 
+data class QueueEntry(val index: Int, val track: Track)
+
 data class PlayerUiState(
     val currentTrack: Track? = null,
     val audioInfo: TrackAudioInfo? = null,
@@ -29,8 +31,7 @@ data class PlayerUiState(
     val shuffleEnabled: Boolean = false,
     val playbackSpeed: Float = 1f,
     val playbackPitch: Float = 0f,
-    val queue: List<Track> = emptyList(),
-    val userQueue: List<Track> = emptyList(),
+    val upcomingQueue: List<QueueEntry> = emptyList(),
     val isBuffering: Boolean = false
 ) {
     val hasTrack: Boolean get() = currentTrack != null

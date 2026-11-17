@@ -21,9 +21,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -77,6 +80,7 @@ import com.soniclab.app.ui.common.AlbumArt
 import com.soniclab.app.ui.common.appViewModel
 import com.soniclab.core.model.Track
 import com.soniclab.core.util.TimeFormat
+import com.soniclab.player.QueueEntry
 import com.soniclab.player.SpatialAudioProcessor
 import com.soniclab.visualizer.SpectrumVisualizer
 import java.util.Locale
@@ -288,25 +292,29 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit, onClose: 
             ShortcutButton(Icons.Rounded.Speed, "Kecepatan", abs(state.playbackSpeed - 1f) > 0.01f) { sheet = PlayerSheet.Speed }
             ShortcutButton(Icons.Rounded.SurroundSound, "Spasial", vm.spatialMode != SpatialAudioProcessor.MODE_OFF) { sheet = PlayerSheet.Spatial }
             ShortcutButton(Icons.Rounded.Timer, "Timer", sleepTimer > 0) { sheet = PlayerSheet.Timer }
-            ShortcutButton(Icons.Rounded.QueueMusic, "Antrean", state.userQueue.isNotEmpty()) { sheet = PlayerSheet.Queue }
+            ShortcutButton(Icons.Rounded.QueueMusic, "Antrean", state.upcomingQueue.isNotEmpty()) { sheet = PlayerSheet.Queue }
         }
     }
 
     sheet?.let { current ->
         ModalBottomSheet(onDismissRequest = { sheet = null }) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 24.dp)
-                    .navigationBarsPadding()
-                    .padding(bottom = 16.dp)
-            ) {
-                when (current) {
-                    PlayerSheet.Speed -> SpeedSheet(state.playbackSpeed, vm, haptic::performHapticFeedback)
-                    PlayerSheet.Spatial -> SpatialSheet(vm, haptic::performHapticFeedback)
-                    PlayerSheet.Timer -> TimerSheet(sleepTimer) { vm.setSleepTimer(it) }
-                    PlayerSheet.Queue -> QueueSheet(state.queue, state.userQueue, track, vm)
+            if (current == PlayerSheet.Queue) {
+                QueueSheet(state.upcomingQueue, state.shuffleEnabled, vm)
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 24.dp)
+                        .navigationBarsPadding()
+                        .padding(bottom = 16.dp)
+                ) {
+                    when (current) {
+                        PlayerSheet.Speed -> SpeedSheet(state.playbackSpeed, vm, haptic::performHapticFeedback)
+                        PlayerSheet.Spatial -> SpatialSheet(vm, haptic::performHapticFeedback)
+                        PlayerSheet.Timer -> TimerSheet(sleepTimer) { vm.setSleepTimer(it) }
+                        PlayerSheet.Queue -> Unit
+                    }
                 }
             }
         }
@@ -397,38 +405,45 @@ private fun TimerSheet(current: Int, onSelect: (Int) -> Unit) {
 }
 
 @Composable
-private fun QueueSheet(queue: List<Track>, upcoming: List<Track>, current: Track?, vm: PlayerViewModel) {
-    Text("Antrean berikutnya", style = MaterialTheme.typography.titleMedium)
-    if (upcoming.isEmpty()) {
-        Text(
-            "Belum ada lagu yang ditambahkan ke antrean.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(vertical = 12.dp)
-        )
-        return
-    }
-    val currentIndex = queue.indexOfFirst { it.id == current?.id }
-    Spacer(Modifier.height(4.dp))
-    upcoming.forEach { item ->
-        val absoluteIndex = if (currentIndex >= 0) {
-            (currentIndex + 1 until queue.size).firstOrNull { queue[it].id == item.id } ?: -1
-        } else -1
-        if (absoluteIndex < 0) return@forEach
-        Row(
-            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable { vm.playQueueAt(absoluteIndex) }.padding(horizontal = 8.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(Icons.Rounded.MusicNote, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
-                Text(item.title, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(item.artist, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+private fun QueueSheet(upcoming: List<QueueEntry>, shuffleEnabled: Boolean, vm: PlayerViewModel) {
+    LazyColumn(
+        modifier = Modifier.fillMaxWidth().heightIn(max = 480.dp)
+            .padding(horizontal = 24.dp).navigationBarsPadding().padding(bottom = 16.dp)
+    ) {
+        item {
+            Text("Antrean berikutnya", style = MaterialTheme.typography.titleMedium)
+            if (shuffleEnabled) {
+                Text("Urutan acak aktif", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            IconButton(onClick = { vm.moveQueueItem(absoluteIndex, absoluteIndex - 1) }, enabled = absoluteIndex > currentIndex + 1) {
-                Icon(Icons.Rounded.KeyboardArrowUp, contentDescription = "Naik")
+            if (upcoming.isEmpty()) {
+                Text(
+                    "Tidak ada lagu berikutnya dalam urutan saat ini.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 12.dp)
+                )
             }
-            IconButton(onClick = { vm.moveQueueItem(absoluteIndex, absoluteIndex + 1) }, enabled = absoluteIndex < queue.lastIndex) {
-                Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = "Turun")
+        }
+        itemsIndexed(upcoming, key = { _, entry -> entry.index }) { position, entry ->
+            val item = entry.track
+            val absoluteIndex = entry.index
+            Row(
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable { vm.playQueueAt(absoluteIndex) }.padding(horizontal = 8.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Rounded.MusicNote, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
+                    Text(item.title, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(item.artist, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                if (!shuffleEnabled) {
+                    IconButton(onClick = { vm.moveQueueItem(absoluteIndex, absoluteIndex - 1) }, enabled = position > 0) {
+                        Icon(Icons.Rounded.KeyboardArrowUp, contentDescription = "Naik")
+                    }
+                    IconButton(onClick = { vm.moveQueueItem(absoluteIndex, absoluteIndex + 1) }, enabled = position < upcoming.lastIndex) {
+                        Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = "Turun")
+                    }
+                }
             }
         }
     }

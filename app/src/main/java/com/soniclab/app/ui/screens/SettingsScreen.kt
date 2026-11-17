@@ -70,15 +70,9 @@ fun SettingsScreen(container: AppContainer, onOpenAbout: () -> Unit, onOpenEqual
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
-        Text("Pengaturan", style = MaterialTheme.typography.headlineLarge)
-        Text(
-            "Sesuaikan tampilan dan pengalaman mendengarkan",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
-        )
+        Text("Pengaturan", style = MaterialTheme.typography.headlineSmall)
 
         SettingsSectionTitle("Tampilan")
         ToggleRow(
@@ -272,7 +266,7 @@ private fun SettingsSectionTitle(title: String) {
         title,
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)
+        modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
     )
 }
 

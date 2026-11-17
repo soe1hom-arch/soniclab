@@ -16,6 +16,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
+import androidx.media3.common.Timeline
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.soniclab.analyzer.R128Meter
@@ -51,7 +52,6 @@ class PlayerController(
     private var fadeJob: Job? = null
     private var sleepTimerJob: Job? = null
     private var recoveredEndedMediaId: String? = null
-    private val manualQueueIds = mutableListOf<Long>()
 
     private val sessionListener = object : MediaController.Listener {
         override fun onDisconnected(controller: MediaController) {
@@ -124,6 +124,11 @@ class PlayerController(
 
         override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
             _uiState.value = _uiState.value.copy(shuffleEnabled = shuffleModeEnabled)
+            syncFromController()
+        }
+
+        override fun onTimelineChanged(timeline: Timeline, reason: Int) {
+            syncFromController()
         }
 
         override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
@@ -158,32 +163,33 @@ class PlayerController(
 
     fun playQueue(tracks: List<Track>, startIndex: Int = 0) {
         if (tracks.isEmpty()) return
-        manualQueueIds.clear()
         val mediaItems = tracks.map { it.toMediaItem() }
         controller?.setMediaItems(mediaItems, startIndex.coerceIn(0, mediaItems.lastIndex), 0L)
         controller?.prepare()
         controller?.play()
     }
 
-    fun addToQueueNext(track: Track) {
-        val c = controller ?: return
+    fun addToQueueNext(track: Track): Boolean {
+        val c = controller ?: return false
+        if (!c.isCommandAvailable(Player.COMMAND_CHANGE_MEDIA_ITEMS)) return false
         if (c.mediaItemCount == 0) {
             playQueue(listOf(track), 0)
-            return
+            return true
         }
         val index = (c.currentMediaItemIndex + 1).coerceAtMost(c.mediaItemCount)
         c.addMediaItems(index, listOf(track.toMediaItem()))
-        manualQueueIds.add(track.id)
+        return true
     }
 
-    fun addToQueueEnd(track: Track) {
-        val c = controller ?: return
+    fun addToQueueEnd(track: Track): Boolean {
+        val c = controller ?: return false
+        if (!c.isCommandAvailable(Player.COMMAND_CHANGE_MEDIA_ITEMS)) return false
         if (c.mediaItemCount == 0) {
             playQueue(listOf(track), 0)
-            return
+            return true
         }
         c.addMediaItems(c.mediaItemCount, listOf(track.toMediaItem()))
-        manualQueueIds.add(track.id)
+        return true
     }
 
     private fun Track.toMediaItem(): MediaItem =
@@ -362,12 +368,12 @@ class PlayerController(
                 dateAddedMs = 0L
             )
         }
-        val queue = buildList {
+        val queue = buildMap {
             for (i in 0 until c.mediaItemCount) {
                 val item = c.getMediaItemAt(i)
                 val meta = item.mediaMetadata
                 item.localConfiguration?.uri?.let { uri ->
-                    add(Track(
+                    put(i, Track(
                         id = item.mediaId.toLongOrNull() ?: -1L,
                         title = meta.title?.toString() ?: "Unknown",
                         artist = meta.artist?.toString() ?: "Unknown Artist",
@@ -383,12 +389,13 @@ class PlayerController(
                 }
             }
         }
-        mediaItem?.mediaId?.toLongOrNull()?.let { currentId -> manualQueueIds.removeAll { it == currentId } }
-        val userQueue = queue.filterIndexed { index, t -> index > c.currentMediaItemIndex && manualQueueIds.contains(t.id) }
+        val timeline = c.currentTimeline
+        val upcoming = upcomingQueueIndices(c.currentMediaItemIndex, c.mediaItemCount) { index ->
+            timeline.getNextWindowIndex(index, Player.REPEAT_MODE_OFF, c.shuffleModeEnabled)
+        }.mapNotNull { index -> queue[index]?.let { QueueEntry(index, it) } }
         _uiState.value = _uiState.value.copy(
             currentTrack = track,
-            queue = queue,
-            userQueue = userQueue,
+            upcomingQueue = upcoming,
             durationMs = c.duration.takeIf { it > 0 } ?: track?.durationMs ?: 0L,
             positionMs = c.currentPosition,
             repeatMode = c.repeatMode,

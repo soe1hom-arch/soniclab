@@ -6,6 +6,7 @@
 package com.soniclab.app.ui.screens
 
 import android.app.Activity
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -105,20 +106,21 @@ fun LibraryScreen(
     val recentIds by vm.recentTrackIds.collectAsStateWithLifecycle(initialValue = emptyList())
     var tab by remember { mutableStateOf(LibraryTab.TRACKS) }
     val selection = vm.selectionLabel()
+    val context = LocalContext.current
 
     Column(modifier = Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-            Text(
-                "Perpustakaan",
-                style = MaterialTheme.typography.headlineLarge,
-                modifier = Modifier.padding(top = 20.dp)
-            )
-            Text(
-                if (tracks.isEmpty()) "Belum ada lagu" else "${tracks.size} lagu",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 2.dp, bottom = 12.dp)
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Perpustakaan", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+                Text(
+                    if (tracks.isEmpty()) "Belum ada lagu" else "${tracks.size} lagu",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             if (tab == LibraryTab.TRACKS) {
                 OutlinedTextField(
                     value = vm.query,
@@ -181,8 +183,19 @@ fun LibraryScreen(
                         currentTrackId = playerState.currentTrack?.id,
                         onOpenPlayer = onOpenPlayer,
                         onOpenStudio = onOpenStudio,
-                        onPlayNext = { container.playerController.addToQueueNext(it) },
-                        onAddToQueue = { container.playerController.addToQueueEnd(it) }
+                        onPlayNext = {
+                            val sent = container.playerController.addToQueueNext(it)
+                            val message = when {
+                                !sent -> "Pemutar belum siap"
+                                playerState.shuffleEnabled -> "Permintaan dikirim; urutan mengikuti mode acak"
+                                else -> "Permintaan antrean dikirim"
+                            }
+                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                        },
+                        onAddToQueue = {
+                            val sent = container.playerController.addToQueueEnd(it)
+                            Toast.makeText(context, if (sent) "Permintaan antrean dikirim" else "Pemutar belum siap", Toast.LENGTH_SHORT).show()
+                        }
                     )
                     LibraryTab.ALBUMS -> AlbumsTab(vm)
                     LibraryTab.ARTISTS -> ArtistsTab(vm)
