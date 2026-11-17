@@ -8,6 +8,7 @@ package com.soniclab.app.ui.screens
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
@@ -60,6 +62,8 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.soniclab.app.di.AppContainer
@@ -97,17 +101,20 @@ fun EqualizerScreen(container: AppContainer) {
     var newPresetName by rememberSaveable { mutableStateOf("") }
     val directOutput by container.settingsRepository.directOutputEnabled
         .collectAsStateWithLifecycle(initialValue = false)
+    val matchingUserPreset = if (preset == null) {
+        userPresets.firstOrNull { vm.matchesUserPreset(it, gains, bass, headroom, playerState.playbackPitch) }
+    } else null
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 "Equalizer",
-                style = MaterialTheme.typography.headlineLarge,
+                style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.weight(1f)
             )
             TextButton(onClick = {
@@ -119,13 +126,6 @@ fun EqualizerScreen(container: AppContainer) {
                 )
             }) { Text("Atur Ulang") }
         }
-        Text(
-            "Atur karakter suara sesuai selera Anda",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 4.dp)
-        )
-
         Surface(
             color = MaterialTheme.colorScheme.surfaceVariant,
             shape = RoundedCornerShape(16.dp),
@@ -138,8 +138,12 @@ fun EqualizerScreen(container: AppContainer) {
                 Column(Modifier.weight(1f)) {
                     Text("Efek Equalizer", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        if (effectsEnabled) "EQ dan efek aktif; limiter keamanan tetap bekerja."
-                        else "Semua efek kreatif dimatikan; limiter keamanan tetap bekerja.",
+                        when {
+                            directOutput -> "Mode Langsung: efek DSP dilewati"
+                            !effectsEnabled -> "Efek dimatikan"
+                            vm.effectsBypassActive -> "A/B: suara asli (efek dilewati)"
+                            else -> "Efek aktif"
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -152,27 +156,6 @@ fun EqualizerScreen(container: AppContainer) {
                     }
                 )
             }
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(Modifier.weight(1f).padding(horizontal = 4.dp)) {
-                Text("Kompensasi Loudness", style = MaterialTheme.typography.titleSmall)
-                Text(
-                    "Menjaga efek tidak terdengar lebih kecil akibat headroom; limiter tetap membatasi peak.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Switch(
-                checked = loudnessMatchEnabled,
-                onCheckedChange = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    vm.setLoudnessMatchEnabled(it)
-                }
-            )
         }
 
         if (directOutput) {
@@ -206,34 +189,26 @@ fun EqualizerScreen(container: AppContainer) {
             }
         }
 
-            Text(
-                "Semua efek & penyetelan langsung diterapkan ke lagu yang sedang diputar (real-time). Ketuk menu untuk membuka penyetelannya.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 8.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            FilterChip(
+                selected = vm.effectsBypassActive,
+                enabled = effectsEnabled && !directOutput,
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    vm.setEffectsBypassed(!vm.effectsBypassActive)
+                },
+                label = { Text(if (vm.effectsBypassActive) "A/B: Asli" else "A/B: Efek") }
             )
-
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                FilterChip(
-                    selected = vm.effectsBypassActive,
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        vm.setEffectsBypassed(!vm.effectsBypassActive)
-                    },
-                    label = { Text(if (vm.effectsBypassActive) "A/B: Asli" else "A/B: Efek") }
-                )
-                Text(
-                    "Bandingkan suara asli dan hasil efek",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            OutputMeter(vm.outputPeakDb, vm.gainReductionDb)
+            Text(
+                "Bandingkan suara asli dan efek",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
 
         SettingSection(
             title = "Prasetel Equalizer",
@@ -250,6 +225,14 @@ fun EqualizerScreen(container: AppContainer) {
                 )
             }
         ) {
+            Text(
+                preset?.let { "Preset EQ: ${it.name}" }
+                    ?: matchingUserPreset?.let { "Sesuai preset: ${it.name}" }
+                    ?: "Penyetelan kustom",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(vertical = 4.dp)
+            )
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 8.dp)) {
                 items(vm.presets) { p ->
                     FilterChip(
@@ -262,6 +245,10 @@ fun EqualizerScreen(container: AppContainer) {
                     )
                 }
             }
+            EqVisualizer(
+                gains = gains,
+                onBandChange = { band, gainMb -> vm.setBandGain(band, gainMb) }
+            )
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Text("Preset Saya", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
                 TextButton(onClick = {
@@ -277,7 +264,7 @@ fun EqualizerScreen(container: AppContainer) {
                     userPresets.forEach { userPreset ->
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                             FilterChip(
-                                selected = false,
+                                selected = matchingUserPreset?.id == userPreset.id,
                                 onClick = { vm.applyUserPreset(userPreset) },
                                 label = { Text(userPreset.name) },
                                 modifier = Modifier.weight(1f)
@@ -327,10 +314,35 @@ fun EqualizerScreen(container: AppContainer) {
                 valueText = String.format(Locale.US, "%.1f dB", headroom),
                 onValueChange = vm::setHeadroom
             )
-            EqVisualizer(
-                gains = gains,
-                onBandChange = { band, gainMb -> vm.setBandGain(band, gainMb) }
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Kompensasi Loudness", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "Menjaga level efek saat headroom digunakan.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = loudnessMatchEnabled,
+                    onCheckedChange = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        vm.setLoudnessMatchEnabled(it)
+                    }
+                )
+            }
+            if (directOutput) {
+                Text(
+                    "Meter DSP tidak tersedia dalam Mode Langsung.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                OutputMeter(vm.outputPeakDb, vm.gainReductionDb)
+            }
         }
 
         SettingSection(
@@ -574,39 +586,41 @@ private fun SettingSection(
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (onReset != null) {
-                TextButton(onClick = onReset) { Text("Atur Ulang") }
-            }
-            IconButton(onClick = { helpExpanded = !helpExpanded }) {
-                Icon(
-                    Icons.Rounded.Info,
-                    contentDescription = if (helpExpanded) "Sembunyikan penjelasan" else "Tampilkan penjelasan",
-                    tint = if (helpExpanded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-        AnimatedVisibility(visible = helpExpanded) {
-            Surface(
-                color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.55f),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
-            ) {
-                Text(
-                    help,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onTertiaryContainer,
-                    modifier = Modifier.padding(12.dp)
-                )
-            }
-        }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
         AnimatedVisibility(visible = expanded) {
-            Column(modifier = Modifier.padding(top = 4.dp)) { content() }
+            Column(modifier = Modifier.padding(top = 4.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (onReset != null) {
+                        TextButton(onClick = onReset) { Text("Atur Ulang") }
+                    }
+                    IconButton(onClick = { helpExpanded = !helpExpanded }) {
+                        Icon(
+                            Icons.Rounded.Info,
+                            contentDescription = if (helpExpanded) "Sembunyikan penjelasan" else "Tampilkan penjelasan",
+                            tint = if (helpExpanded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                AnimatedVisibility(visible = helpExpanded) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.55f),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
+                    ) {
+                        Text(
+                            help,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            modifier = Modifier.padding(12.dp)
+                        )
+                    }
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                content()
+            }
         }
     }
 }
@@ -621,43 +635,52 @@ private fun EqVisualizer(
     onBandChange: (band: Int, gainMb: Int) -> Unit
 ) {
     val freqs = listOf("31", "62", "125", "250", "500", "1k", "2k", "4k", "8k", "16k")
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-        verticalAlignment = Alignment.Bottom
-    ) {
-        gains.forEachIndexed { band, gainMb ->
-            Column(
-                modifier = Modifier.weight(1f),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    String.format(Locale.US, "%+d", gainMb / 100),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (gainMb == 0) MaterialTheme.colorScheme.onSurfaceVariant else CyanAccent
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(150.dp)
-                        .clipToBounds(),
-                    contentAlignment = Alignment.Center
+    Column {
+        Text(
+            "Geser ke samping untuk melihat semua band",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 8.dp)
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(top = 6.dp, bottom = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalAlignment = Alignment.Bottom
+        ) {
+            gains.forEachIndexed { band, gainMb ->
+                Column(
+                    modifier = Modifier.width(48.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Slider(
-                        value = gainMb.toFloat(),
-                        onValueChange = { onBandChange(band, it.toInt()) },
-                        valueRange = -1500f..1500f,
+                    Text(
+                        String.format(Locale.US, "%+d", gainMb / 100),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (gainMb == 0) MaterialTheme.colorScheme.onSurfaceVariant else CyanAccent
+                    )
+                    Box(
                         modifier = Modifier
-                            .width(142.dp)
-                            .height(48.dp)
-                            .rotate(270f)
+                            .fillMaxWidth()
+                            .height(150.dp)
+                            .clipToBounds(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Slider(
+                            value = gainMb.toFloat(),
+                            onValueChange = { onBandChange(band, it.toInt()) },
+                            valueRange = -1500f..1500f,
+                            modifier = Modifier
+                                .requiredWidth(150.dp)
+                                .height(48.dp)
+                                .rotate(270f)
+                                .semantics { contentDescription = "Band ${freqs[band]} Hz" }
+                        )
+                    }
+                    Text(
+                        freqs[band],
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Text(
-                    freqs[band],
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
         }
     }

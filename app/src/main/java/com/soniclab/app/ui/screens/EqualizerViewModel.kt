@@ -27,6 +27,7 @@ import com.soniclab.player.SpatialAudioProcessor
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlin.math.abs
 
 class EqualizerViewModel(private val container: AppContainer) : ViewModel() {
 
@@ -39,7 +40,7 @@ class EqualizerViewModel(private val container: AppContainer) : ViewModel() {
     val loudnessMatchEnabled = container.settingsRepository.loudnessMatchEnabled
     val userPresets = container.settingsRepository.userPresets
 
-    var effectsBypassActive by mutableStateOf(AudioBypassBridge.enabled)
+    var effectsBypassActive by mutableStateOf(AudioBypassBridge.abBypass)
         private set
     var outputPeakDb by mutableFloatStateOf(AudioLimiterBridge.outputPeakDb)
         private set
@@ -286,6 +287,23 @@ class EqualizerViewModel(private val container: AppContainer) : ViewModel() {
 
     val playbackPitch: Float
         get() = container.playerController.uiState.value.playbackPitch
+
+    fun matchesUserPreset(preset: UserPreset, gains: List<Int>, bass: Int, headroom: Float, pitch: Float): Boolean {
+        fun close(a: Float, b: Float) = abs(a - b) < 0.02f
+        return gains.indices.all { gains[it] == (preset.bandGainsMb[it] ?: 0) } &&
+            abs(bass - preset.bassStrength.coerceIn(0, 1000)) <= 1 &&
+            close(balance, preset.balance.coerceIn(-1f, 1f)) &&
+            close(trebleDb, preset.trebleDb.coerceIn(-6f, 6f)) &&
+            spatialMode == preset.spatialMode &&
+            spatial3d == preset.spatial3d && spatial8d == preset.spatial8d && surround == preset.surround &&
+            close(spatialWidth, preset.spatialWidth.coerceIn(0f, 1f)) &&
+            close(rotationSeconds, preset.rotationSeconds.coerceIn(4f, 60f)) &&
+            close(panDepth, preset.panDepth.coerceIn(0f, 1f)) &&
+            close(reverbWet, preset.reverbWet.coerceIn(0f, 1f)) &&
+            close(reverbRoom, preset.reverbRoom.coerceIn(0f, 1f)) &&
+            close(pitch, preset.pitchSemitones.coerceIn(-12f, 12f)) &&
+            close(headroom, preset.headroomDb)
+    }
 
     fun setLimiter(enabled: Boolean) {
         // Kept for callers from older UI versions; the final safety stage is
