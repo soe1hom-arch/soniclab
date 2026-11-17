@@ -96,6 +96,17 @@ class EqualizerViewModel(private val container: AppContainer) : ViewModel() {
     var panDepth by mutableFloatStateOf(AudioSpatialBridge.panDepth)
         private set
 
+    init {
+        viewModelScope.launch {
+            AudioSpatialBridge.state.collect { state ->
+                spatialMode = state.mode
+                spatial3d = state.spatial3d
+                spatial8d = state.spatial8d
+                surround = state.surround
+            }
+        }
+    }
+
     fun applyPreset(preset: Preset) {
         container.audioEffects.applyPreset(preset)
         viewModelScope.launch { container.settingsRepository.setActivePresetId(preset.id) }

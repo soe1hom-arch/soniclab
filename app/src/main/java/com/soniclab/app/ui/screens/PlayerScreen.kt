@@ -86,6 +86,7 @@ import com.soniclab.core.model.Track
 import com.soniclab.core.util.TimeFormat
 import com.soniclab.player.QueueEntry
 import com.soniclab.player.SpatialAudioProcessor
+import com.soniclab.player.SpatialState
 import com.soniclab.visualizer.SpectrumVisualizer
 import java.util.Locale
 import kotlin.math.abs
@@ -107,6 +108,7 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit, onClose: 
     val spectrum by vm.spectrum.collectAsStateWithLifecycle()
     val favorites by vm.favorites.collectAsStateWithLifecycle()
     val sleepTimer by vm.sleepTimerMinutes.collectAsStateWithLifecycle(initialValue = 0)
+    val spatialState by vm.spatialState.collectAsStateWithLifecycle()
     var sheet by remember { mutableStateOf<PlayerSheet?>(null) }
 
     val track = state.currentTrack
@@ -323,7 +325,7 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit, onClose: 
         ) {
             ShortcutButton(Icons.Rounded.Equalizer, "Equalizer", false, onOpenEqualizer)
             ShortcutButton(Icons.Rounded.Speed, "Kecepatan", abs(state.playbackSpeed - 1f) > 0.01f) { sheet = PlayerSheet.Speed }
-            ShortcutButton(Icons.Rounded.SurroundSound, "Spasial", vm.spatialMode != SpatialAudioProcessor.MODE_OFF) { sheet = PlayerSheet.Spatial }
+            ShortcutButton(Icons.Rounded.SurroundSound, "Spasial", spatialState.enabled) { sheet = PlayerSheet.Spatial }
             ShortcutButton(Icons.Rounded.Timer, "Timer", sleepTimer > 0) { sheet = PlayerSheet.Timer }
             ShortcutButton(Icons.Rounded.QueueMusic, "Antrean", state.upcomingQueue.isNotEmpty()) { sheet = PlayerSheet.Queue }
         }
@@ -344,7 +346,7 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit, onClose: 
                 ) {
                     when (current) {
                         PlayerSheet.Speed -> SpeedSheet(state.playbackSpeed, vm, haptic::performHapticFeedback)
-                        PlayerSheet.Spatial -> SpatialSheet(vm, haptic::performHapticFeedback)
+                        PlayerSheet.Spatial -> SpatialSheet(spatialState, vm, haptic::performHapticFeedback)
                         PlayerSheet.Timer -> TimerSheet(sleepTimer) { vm.setSleepTimer(it) }
                         PlayerSheet.Queue -> Unit
                     }
@@ -396,8 +398,11 @@ private fun SpeedSheet(speed: Float, vm: PlayerViewModel, haptic: (HapticFeedbac
 }
 
 @Composable
-private fun SpatialSheet(vm: PlayerViewModel, haptic: (HapticFeedbackType) -> Unit) {
+private fun SpatialSheet(state: SpatialState, vm: PlayerViewModel, haptic: (HapticFeedbackType) -> Unit) {
     Text("Audio spasial", style = MaterialTheme.typography.titleMedium)
+    if (state.mode == SpatialAudioProcessor.MODE_CUSTOM || state.mode == SpatialAudioProcessor.MODE_SURROUND) {
+        Text("Surround atau kombinasi khusus diatur di Equalizer", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
     Spacer(Modifier.height(8.dp))
     Row(
         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -410,7 +415,7 @@ private fun SpatialSheet(vm: PlayerViewModel, haptic: (HapticFeedbackType) -> Un
             SpatialAudioProcessor.MODE_3D_8D to "8D+Tengah"
         ).forEach { (mode, label) ->
             FilterChip(
-                selected = vm.spatialMode == mode,
+                selected = state.mode == mode,
                 onClick = {
                     haptic(HapticFeedbackType.LongPress)
                     vm.selectSpatialMode(mode)
@@ -425,7 +430,7 @@ private fun SpatialSheet(vm: PlayerViewModel, haptic: (HapticFeedbackType) -> Un
 private fun TimerSheet(current: Int, onSelect: (Int) -> Unit) {
     Text("Sleep timer", style = MaterialTheme.typography.titleMedium)
     Text(
-        if (current > 0) "Pemutaran berhenti otomatis dalam $current menit" else "Pemutaran tidak dibatasi waktu",
+        if (current > 0) "Timer aktif: durasi dipilih $current menit" else "Pemutaran tidak dibatasi waktu",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant
     )

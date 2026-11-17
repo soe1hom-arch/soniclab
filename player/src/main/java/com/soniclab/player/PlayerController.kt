@@ -50,7 +50,8 @@ class PlayerController(
     private var requestedSpeed: Float = 1f
     private var crossfadeMs: Long = 0L
     private var fadeJob: Job? = null
-    private var sleepTimerJob: Job? = null
+    private val sleepTimer = SleepTimer(scope, onFinished = { controller?.pause() })
+    val sleepTimerMinutes: StateFlow<Int> = sleepTimer.minutes
     private var recoveredEndedMediaId: String? = null
 
     private val sessionListener = object : MediaController.Listener {
@@ -469,17 +470,7 @@ class PlayerController(
         controller?.volume = to
     }
 
-    fun startSleepTimer(minutes: Int, onFired: () -> Unit = onFiredDefault): Job {
-        sleepTimerJob?.cancel()
-        sleepTimerJob = null
-        if (minutes <= 0) return Job().apply { cancel() }
-        sleepTimerJob = scope.launch {
-            delay(minutes * 60_000L)
-            controller?.pause()
-            onFired()
-        }
-        return sleepTimerJob ?: Job().apply { cancel() }
-    }
+    fun startSleepTimer(minutes: Int) = sleepTimer.start(minutes)
 
     private fun computeReplayGainDb(uri: Uri?): Float? {
         if (uri == null) return null
@@ -501,7 +492,6 @@ class PlayerController(
     private companion object {
         const val MIN_PLAYBACK_SPEED = 0.25f
         const val MAX_PLAYBACK_SPEED = 3f
-        val onFiredDefault: () -> Unit = {}
     }
 }
 

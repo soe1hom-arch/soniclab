@@ -224,7 +224,7 @@ fun SettingsScreen(container: AppContainer, onOpenAbout: () -> Unit, onOpenEqual
         if (sleepTimer > 0) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
                 Icon(Icons.Rounded.Timer, contentDescription = null)
-                Text(" Playback berhenti otomatis dalam $sleepTimer menit")
+                Text(" Timer aktif: durasi dipilih $sleepTimer menit")
             }
         }
 

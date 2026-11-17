@@ -7,12 +7,8 @@ package com.soniclab.app.ui.screens
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.setValue
 import com.soniclab.app.di.AppContainer
 import com.soniclab.player.AudioSpatialBridge
-import com.soniclab.player.SpatialAudioProcessor
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -22,10 +18,8 @@ class PlayerViewModel(private val container: AppContainer) : ViewModel() {
     val activePreset = container.audioEffects.activePreset
     val bandGains = container.audioEffects.bandGains
     val favorites = container.favoritesRepository.favorites
-    val sleepTimerMinutes = container.settingsRepository.sleepTimerMinutes
-
-    var spatialMode by mutableIntStateOf(AudioSpatialBridge.mode)
-        private set
+    val sleepTimerMinutes = container.playerController.sleepTimerMinutes
+    val spatialState = AudioSpatialBridge.state
 
     private var lastAttachedSession = 0
 
@@ -46,7 +40,6 @@ class PlayerViewModel(private val container: AppContainer) : ViewModel() {
     fun toggleFavorite(id: Long) = container.favoritesRepository.toggle(id)
 
     fun setSleepTimer(minutes: Int) {
-        viewModelScope.launch { container.settingsRepository.setSleepTimerMinutes(minutes) }
         container.playerController.startSleepTimer(minutes)
     }
 
@@ -77,7 +70,6 @@ class PlayerViewModel(private val container: AppContainer) : ViewModel() {
 
     fun selectSpatialMode(mode: Int) {
         AudioSpatialBridge.mode = mode
-        spatialMode = AudioSpatialBridge.mode
         viewModelScope.launch {
             container.settingsRepository.setSpatial(
                 AudioSpatialBridge.mode,

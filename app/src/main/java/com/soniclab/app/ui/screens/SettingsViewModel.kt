@@ -14,7 +14,7 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
 
     val amoled = container.settingsRepository.amoledTheme
     val crossfadeSeconds = container.settingsRepository.crossfadeSeconds
-    val sleepTimerMinutes = container.settingsRepository.sleepTimerMinutes
+    val sleepTimerMinutes = container.playerController.sleepTimerMinutes
     val aiEnhanceEnabled = container.settingsRepository.aiEnhanceEnabled
     val autoNormalizeEnabled = container.settingsRepository.autoNormalizeEnabled
     val playbackSpeed = container.settingsRepository.playbackSpeed
@@ -31,8 +31,6 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     fun setSleepTimer(minutes: Int) {
-        viewModelScope.launch { container.settingsRepository.setSleepTimerMinutes(minutes) }
-        // 0 membatalkan timer yang sedang berjalan, >0 memulai/mengganti timer.
         container.playerController.startSleepTimer(minutes)
     }
 
