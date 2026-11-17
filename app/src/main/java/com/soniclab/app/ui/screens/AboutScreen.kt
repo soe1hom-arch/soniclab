@@ -5,12 +5,13 @@
 
 package com.soniclab.app.ui.screens
 
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -32,24 +33,22 @@ import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.Coffee
 import androidx.compose.material.icons.rounded.Copyright
 import androidx.compose.material.icons.rounded.Description
-import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.OfflineBolt
+import androidx.compose.material.icons.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -64,13 +63,6 @@ private const val REPOSITORY_URL = "https://github.com/soe1hom-arch/soniclab"
 private const val DEVELOPER_URL = "https://github.com/soe1hom-arch"
 private const val DONATE_URL = "https://github.com/soe1hom-arch/soniclab/blob/main/DONATE.md"
 
-private val AboutBackgroundTop = Color(0xFF0B0A10)
-private val AboutBackgroundBottom = Color(0xFF15111F)
-private val AboutCardColor = Color(0xFF1B1824)
-private val AboutPrimaryText = Color(0xFFF5F1FA)
-private val AboutSecondaryText = Color(0xFFB8B1C5)
-private val AboutAccent = Color(0xFFC5A6FF)
-
 @Composable
 fun AboutScreen(onBack: () -> Unit, onOpenLicenses: () -> Unit = {}) {
     val context = LocalContext.current
@@ -78,7 +70,7 @@ fun AboutScreen(onBack: () -> Unit, onOpenLicenses: () -> Unit = {}) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(AboutBackgroundTop, AboutBackgroundBottom)))
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
     ) {
         Row(
@@ -86,13 +78,13 @@ fun AboutScreen(onBack: () -> Unit, onOpenLicenses: () -> Unit = {}) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Kembali", tint = AboutPrimaryText)
+                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Kembali", tint = MaterialTheme.colorScheme.onBackground)
             }
             Text(
                 "Tentang Aplikasi",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = AboutPrimaryText
+                color = MaterialTheme.colorScheme.onBackground
             )
         }
 
@@ -132,58 +124,17 @@ fun AboutScreen(onBack: () -> Unit, onOpenLicenses: () -> Unit = {}) {
                 Icons.Rounded.Code,
                 "Kode sumber",
                 "github.com/soe1hom-arch/soniclab",
+                external = true,
                 onClick = { openUrl(context, REPOSITORY_URL) }
             )
         }
 
         AboutSection("TENTANG DEVELOPER") {
-            AboutRow(
-                Icons.Rounded.Person,
-                "soe1hom-arch",
-                "Pengembang SonicLab",
-                onClick = { openUrl(context, DEVELOPER_URL) }
-            )
-            Text(
-                "SonicLab adalah proyek independen untuk menghadirkan pemutar musik dan alat audio " +
-                    "yang praktis, dengan fokus pada pemrosesan lokal. Masukan dan laporan masalah " +
-                    "dapat disampaikan melalui repositori GitHub.",
-                style = MaterialTheme.typography.bodySmall,
-                color = AboutSecondaryText,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            DeveloperProfile(
+                onOpenProfile = { openUrl(context, DEVELOPER_URL) },
+                onDonate = { openUrl(context, DONATE_URL) }
             )
         }
-
-        Button(
-            onClick = { openUrl(context, DONATE_URL) },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-            shape = RoundedCornerShape(18.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = AboutAccent,
-                contentColor = Color(0xFF241637)
-            )
-        ) {
-            Icon(Icons.Rounded.Coffee, contentDescription = null)
-            Spacer(Modifier.size(8.dp))
-            Text("Traktir developer secangkir kopi", fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.size(4.dp))
-            Icon(Icons.Rounded.Favorite, contentDescription = null, modifier = Modifier.size(18.dp))
-        }
-        Text(
-            "Dukungan bersifat sukarela dan tidak membuka fitur berbayar.",
-            style = MaterialTheme.typography.bodySmall,
-            color = AboutSecondaryText,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(Modifier.height(20.dp))
-        Text(
-            "Versi ${BuildConfig.VERSION_NAME} · Build ${BuildConfig.VERSION_CODE}",
-            style = MaterialTheme.typography.labelMedium,
-            color = AboutSecondaryText,
-            modifier = Modifier.fillMaxWidth(),
-            textAlign = TextAlign.Center
-        )
         Spacer(Modifier.height(24.dp))
     }
 }
@@ -191,56 +142,52 @@ fun AboutScreen(onBack: () -> Unit, onOpenLicenses: () -> Unit = {}) {
 @Composable
 private fun HeroSection() {
     Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 24.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
             modifier = Modifier
-                .size(104.dp)
-                .clip(RoundedCornerShape(30.dp))
-                .background(
-                    Brush.linearGradient(
-                        listOf(Color(0xFF281A40), Color(0xFF593795), Color(0xFF9B72D8))
-                    )
-                ),
+                .size(80.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(MaterialTheme.colorScheme.primaryContainer),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 painterResource(R.drawable.ic_launcher_foreground),
                 contentDescription = "Logo SonicLab",
-                modifier = Modifier.size(88.dp),
+                modifier = Modifier.size(68.dp),
                 tint = Color.Unspecified
             )
         }
-        Spacer(Modifier.height(20.dp))
-        Surface(color = Color(0xFF292234), shape = CircleShape) {
+        Spacer(Modifier.height(10.dp))
+        Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = CircleShape) {
             Text(
                 "AUDIO, REFINED",
                 style = MaterialTheme.typography.labelSmall,
-                color = AboutAccent,
+                color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
             )
         }
-        Spacer(Modifier.height(12.dp))
-        Text("SonicLab", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, color = AboutPrimaryText)
+        Spacer(Modifier.height(8.dp))
+        Text("SonicLab", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
         Text(
             "Versi ${BuildConfig.VERSION_NAME} · Build ${BuildConfig.VERSION_CODE}",
             style = MaterialTheme.typography.bodyMedium,
-            color = AboutSecondaryText
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(8.dp))
         Text(
             "Musik lokal. Kendali suara yang lebih personal.",
             style = MaterialTheme.typography.bodyLarge,
-            color = AboutPrimaryText,
+            color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center
         )
         Spacer(Modifier.height(6.dp))
         Text(
             "Pemutar musik dan toolkit audio yang dirancang untuk bekerja langsung di perangkat Anda.",
             style = MaterialTheme.typography.bodyMedium,
-            color = AboutSecondaryText,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
     }
@@ -250,7 +197,7 @@ private fun HeroSection() {
 private fun AboutSection(title: String, content: @Composable () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-        color = AboutCardColor,
+        color = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(24.dp),
         tonalElevation = 0.dp
     ) {
@@ -259,12 +206,12 @@ private fun AboutSection(title: String, content: @Composable () -> Unit) {
                 title,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
-                color = AboutAccent,
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp)
             )
             HorizontalDivider(
                 modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp),
-                color = Color(0xFF373141)
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
             )
             content()
         }
@@ -276,25 +223,27 @@ private fun AboutRow(
     icon: ImageVector,
     title: String,
     subtitle: String = "",
+    external: Boolean = false,
     onClick: (() -> Unit)? = null
 ) {
     val rowContent: @Composable RowScope.() -> Unit = {
-        Icon(icon, contentDescription = null, tint = AboutAccent, modifier = Modifier.size(22.dp))
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
         Column(Modifier.weight(1f).padding(horizontal = 12.dp, vertical = 6.dp)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, color = AboutPrimaryText)
+            Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
             if (subtitle.isNotEmpty()) {
                 Text(
                     subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = AboutSecondaryText
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
         if (onClick != null) {
             Icon(
-                Icons.Rounded.ChevronRight,
-                contentDescription = "Buka $title",
-                tint = AboutSecondaryText
+                if (external) Icons.Rounded.OpenInNew else Icons.Rounded.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp)
             )
         }
     }
@@ -318,10 +267,58 @@ private fun AboutRow(
     }
 }
 
+@Composable
+private fun DeveloperProfile(onOpenProfile: () -> Unit, onDonate: () -> Unit) {
+    Column(Modifier.padding(horizontal = 18.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer) {
+                Icon(
+                    Icons.Rounded.Person,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.padding(12.dp).size(24.dp)
+                )
+            }
+            Column(Modifier.padding(start = 12.dp)) {
+                Text("soe1hom-arch", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                Text("Pengembang SonicLab", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        Text(
+            "SonicLab adalah proyek independen untuk menghadirkan pemutar musik dan alat audio " +
+                "yang praktis, dengan fokus pada pemrosesan lokal. Masukan dan laporan masalah " +
+                "dapat disampaikan melalui repositori GitHub.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)
+        )
+        OutlinedButton(onClick = onOpenProfile, modifier = Modifier.fillMaxWidth()) {
+            Icon(Icons.Rounded.Code, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.size(8.dp))
+            Text("Profil GitHub")
+            Spacer(Modifier.size(8.dp))
+            Icon(Icons.Rounded.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
+        }
+        OutlinedButton(onClick = onDonate, modifier = Modifier.fillMaxWidth()) {
+            Icon(Icons.Rounded.Coffee, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.size(8.dp))
+            Text("Dukung pengembang")
+            Spacer(Modifier.size(8.dp))
+            Icon(Icons.Rounded.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
+        }
+        Text(
+            "Dukungan bersifat sukarela dan tidak membuka fitur berbayar.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
+        )
+    }
+}
+
 private fun openUrl(context: Context, url: String) {
     try {
         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-    } catch (_: Exception) {
-        // No browser available; ignore silently.
+    } catch (_: ActivityNotFoundException) {
+        Toast.makeText(context, "Tidak ada aplikasi untuk membuka tautan", Toast.LENGTH_SHORT).show()
     }
 }
