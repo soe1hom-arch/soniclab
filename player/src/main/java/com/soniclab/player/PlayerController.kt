@@ -178,10 +178,11 @@ class PlayerController(
             return true
         }
         val index = (c.currentMediaItemIndex + 1).coerceAtMost(c.mediaItemCount)
-        c.addMediaItems(index, listOf(track.toMediaItem()))
+        c.addMediaItems(index, listOf(track.toMediaItem(userQueued = true)))
         return true
     }
 
+    // Songs added by the user go after earlier user-queued songs, ahead of the rest of the library context.
     fun addToQueueEnd(track: Track): Boolean {
         val c = controller ?: return false
         if (!c.isCommandAvailable(Player.COMMAND_CHANGE_MEDIA_ITEMS)) return false
@@ -189,11 +190,15 @@ class PlayerController(
             playQueue(listOf(track), 0)
             return true
         }
-        c.addMediaItems(c.mediaItemCount, listOf(track.toMediaItem()))
+        var index = (c.currentMediaItemIndex + 1).coerceAtMost(c.mediaItemCount)
+        while (index < c.mediaItemCount &&
+            c.getMediaItemAt(index).mediaMetadata.extras?.getBoolean(EXTRA_USER_QUEUED) == true
+        ) index++
+        c.addMediaItems(index, listOf(track.toMediaItem(userQueued = true)))
         return true
     }
 
-    private fun Track.toMediaItem(): MediaItem =
+    private fun Track.toMediaItem(userQueued: Boolean = false): MediaItem =
         MediaItem.Builder()
             .setMediaId(id.toString())
             .setUri(uri)
@@ -202,6 +207,9 @@ class PlayerController(
                     .setTitle(title)
                     .setArtist(artist)
                     .setAlbumTitle(album)
+                    .apply {
+                        if (userQueued) setExtras(android.os.Bundle().apply { putBoolean(EXTRA_USER_QUEUED, true) })
+                    }
                     .build()
             )
             .build()
@@ -497,3 +505,5 @@ class PlayerController(
 
 internal fun shouldResumeAfterSkip(playbackState: Int, playWhenReady: Boolean): Boolean =
     playbackState == Player.STATE_ENDED || (playbackState == Player.STATE_IDLE && playWhenReady)
+
+private const val EXTRA_USER_QUEUED = "soniclab.userQueued"

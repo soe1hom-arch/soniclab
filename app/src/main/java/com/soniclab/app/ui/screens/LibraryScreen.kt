@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -48,11 +49,13 @@ import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlayCircle
+import androidx.compose.material.icons.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -491,7 +494,7 @@ private fun ArtistsTab(vm: LibraryViewModel) {
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun TrackRow(
     track: Track,
@@ -562,40 +565,55 @@ private fun TrackRow(
                 tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Box {
-            IconButton(onClick = { menuOpen = true }) {
-                Icon(
-                    imageVector = Icons.Rounded.MoreVert,
-                    contentDescription = "Lainnya",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                DropdownMenuItem(
-                    text = { Text("Putar Berikutnya") },
-                    onClick = {
-                        menuOpen = false
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onPlayNext()
+        IconButton(onClick = { menuOpen = true }) {
+            Icon(
+                imageVector = Icons.Rounded.MoreVert,
+                contentDescription = "Lainnya",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+    if (menuOpen) {
+        ModalBottomSheet(onDismissRequest = { menuOpen = false }) {
+            Column(Modifier.navigationBarsPadding().padding(bottom = 16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    AlbumArt(
+                        albumId = track.albumId,
+                        modifier = Modifier.size(56.dp).clip(RoundedCornerShape(12.dp))
+                    )
+                    Column(Modifier.weight(1f).padding(start = 14.dp)) {
+                        Text(track.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            "${track.artist} • ${TimeFormat.formatDuration(track.durationMs)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
-                )
-                DropdownMenuItem(
-                    text = { Text("Tambahkan ke Antrean") },
-                    onClick = {
-                        menuOpen = false
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onAddToQueue()
-                    }
-                )
-                DropdownMenuItem(
-                    text = { Text("Buka di Studio (Offline)") },
-                    onClick = {
-                        menuOpen = false
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onOpenStudio()
-                    }
-                )
+                }
+                HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                TrackAction(Icons.Rounded.SkipNext, "Putar Berikutnya") { menuOpen = false; onPlayNext() }
+                TrackAction(Icons.Rounded.QueueMusic, "Tambahkan ke Antrean") { menuOpen = false; onAddToQueue() }
+                TrackAction(
+                    if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                    if (isFavorite) "Hapus dari Favorit" else "Tambahkan ke Favorit"
+                ) { menuOpen = false; onFavorite() }
+                TrackAction(Icons.Rounded.GraphicEq, "Buka di Studio (Offline)") { menuOpen = false; onOpenStudio() }
             }
         }
+    }
+
+@Composable
+private fun TrackAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 24.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(start = 20.dp))
     }
 }
