@@ -74,6 +74,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.soniclab.app.di.AppContainer
@@ -110,13 +111,20 @@ fun LibraryScreen(
             Text(
                 "Perpustakaan",
                 style = MaterialTheme.typography.headlineLarge,
-                modifier = Modifier.padding(top = 20.dp, bottom = 12.dp)
+                modifier = Modifier.padding(top = 20.dp)
+            )
+            Text(
+                if (tracks.isEmpty()) "Belum ada lagu" else "${tracks.size} lagu",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp, bottom = 12.dp)
             )
             if (tab == LibraryTab.TRACKS) {
                 OutlinedTextField(
                     value = vm.query,
                     onValueChange = vm::onQueryChange,
                     modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
                     placeholder = { Text("Cari lagu, artis, atau album") },
                     leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
                     trailingIcon = {
@@ -237,8 +245,8 @@ private fun TracksTab(
                                 albumId = recent.albumId,
                                 modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(10.dp))
                             )
-                            Text(recent.title, style = MaterialTheme.typography.labelLarge, maxLines = 1, modifier = Modifier.padding(top = 5.dp))
-                            Text(recent.artist, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                            Text(recent.title, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 5.dp))
+                            Text(recent.artist, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                     }
                 }
@@ -256,12 +264,11 @@ private fun TracksTab(
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        Icons.Rounded.GraphicEq,
-                        contentDescription = "Sedang Diputar",
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer
+                    AlbumArt(
+                        albumId = currentTrack.albumId,
+                        modifier = Modifier.size(48.dp).clip(RoundedCornerShape(10.dp))
                     )
-                    Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
+                    Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                         Text(
                             "Sedang Diputar",
                             style = MaterialTheme.typography.labelMedium,
@@ -271,13 +278,15 @@ private fun TracksTab(
                             currentTrack.title,
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            maxLines = 1
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             currentTrack.artist,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
-                            maxLines = 1
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                     Icon(Icons.Rounded.PlayCircle, contentDescription = "Buka pemutar", tint = MaterialTheme.colorScheme.onSecondaryContainer)
@@ -412,12 +421,13 @@ private fun AlbumsTab(vm: LibraryViewModel) {
                         .clip(RoundedCornerShape(12.dp))
                 )
                 Spacer(Modifier.height(6.dp))
-                Text(album.name, style = MaterialTheme.typography.titleSmall, maxLines = 1)
+                Text(album.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
                     "${album.artist} • ${album.tracks.size} lagu",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
@@ -451,7 +461,7 @@ private fun ArtistsTab(vm: LibraryViewModel) {
                     )
                 }
                 Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                    Text(artist.name, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                    Text(artist.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(
                         "${artist.tracks.size} lagu",
                         style = MaterialTheme.typography.bodySmall,
@@ -485,6 +495,8 @@ private fun TrackRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (isCurrent) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f) else androidx.compose.ui.graphics.Color.Transparent)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = {
@@ -492,12 +504,12 @@ private fun TrackRow(
                     menuOpen = true
                 }
             )
-            .padding(vertical = 6.dp),
+            .padding(start = 8.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         AlbumArt(
             albumId = track.albumId,
-            modifier = Modifier.size(44.dp).clip(RoundedCornerShape(8.dp))
+            modifier = Modifier.size(48.dp).clip(RoundedCornerShape(10.dp))
         )
         Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -506,33 +518,25 @@ private fun TrackRow(
                         imageVector = Icons.Rounded.GraphicEq,
                         contentDescription = "Sedang Diputar",
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(end = 4.dp)
+                        modifier = Modifier.padding(end = 4.dp).size(18.dp)
                     )
                 }
                 Text(
                     track.title,
                     style = MaterialTheme.typography.titleMedium,
                     color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
                 )
             }
             Text(
-                if (isCurrent) "${track.artist} • Sedang diputar"
-                else "${track.artist} • ${TimeFormat.formatDuration(track.durationMs)}",
+                "${track.artist} • ${TimeFormat.formatDuration(track.durationMs)}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (isCurrent) MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
                 else MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1
-            )
-        }
-        IconButton(onClick = {
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-            onClick()
-        }) {
-            Icon(
-                imageVector = Icons.Rounded.PlayCircle,
-                contentDescription = "Putar",
-                tint = MaterialTheme.colorScheme.primary
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
         IconButton(onClick = {
