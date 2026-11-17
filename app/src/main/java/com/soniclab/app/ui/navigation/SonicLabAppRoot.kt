@@ -198,7 +198,8 @@ fun SonicLabAppRoot(container: AppContainer) {
             composable("player") {
                 PlayerScreen(
                     container,
-                    onOpenEqualizer = { navController.navigate("equalizer") }
+                    onOpenEqualizer = { navController.navigate("equalizer") },
+                    onClose = { navController.popBackStack() }
                 )
             }
             composable(

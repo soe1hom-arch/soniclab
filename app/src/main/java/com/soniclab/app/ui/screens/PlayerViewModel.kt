@@ -21,6 +21,8 @@ class PlayerViewModel(private val container: AppContainer) : ViewModel() {
     val spectrum = container.visualizerEngine.spectrum
     val activePreset = container.audioEffects.activePreset
     val bandGains = container.audioEffects.bandGains
+    val favorites = container.favoritesRepository.favorites
+    val sleepTimerMinutes = container.settingsRepository.sleepTimerMinutes
 
     var spatialMode by mutableIntStateOf(AudioSpatialBridge.mode)
         private set
@@ -39,6 +41,13 @@ class PlayerViewModel(private val container: AppContainer) : ViewModel() {
                 }
             }
         }
+    }
+
+    fun toggleFavorite(id: Long) = container.favoritesRepository.toggle(id)
+
+    fun setSleepTimer(minutes: Int) {
+        viewModelScope.launch { container.settingsRepository.setSleepTimerMinutes(minutes) }
+        container.playerController.startSleepTimer(minutes)
     }
 
     fun togglePlayPause() = container.playerController.togglePlayPause()
