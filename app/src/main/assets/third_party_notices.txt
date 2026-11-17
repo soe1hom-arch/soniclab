@@ -3,8 +3,7 @@ SONICLAB — PEMBERITAHUAN PIHAK KETIGA (THIRD-PARTY NOTICES)
 
 Seluruh kode aplikasi SonicLab (Kotlin, Compose, rantai DSP, wrapper native
 Oboe) adalah karya orisinal soe1hom-arch, ditulis dari algoritma dan
-dokumentasi API yang dipublikasikan. Tidak ada kode sumber pihak ketiga yang
-disalin ke dalam aplikasi ini.
+dokumentasi API yang dipublikasikan. Ikon GitHub berasal dari Octicons.
 
 Komponen pihak ketiga yang digunakan (lisensi permissive):
 
@@ -15,6 +14,10 @@ Komponen pihak ketiga yang digunakan (lisensi permissive):
   Jetpack Compose (ui, material3, material-icons-extended, BOM 2024.12.01)
       .................................. Apache-2.0
       Copyright The Android Open Source Project
+
+  GitHub Octicons (mark-github-24) ........ MIT
+      Copyright (c) 2026 GitHub Inc.
+      https://github.com/primer/octicons
 
   AndroidX Navigation (navigation-compose 2.8.5) ... Apache-2.0
       Copyright The Android Open Source Project
@@ -45,6 +48,29 @@ model masa depan di README; tidak dibundel dan tidak digunakan kodenya.
 
 Lisensi lengkap Apache-2.0 menyertai repositori ini (file LICENSE) dan
 tersedia di https://www.apache.org/licenses/LICENSE-2.0.
+
+----------------------------------------------------------------------
+MIT License (GitHub Octicons)
+
+Copyright (c) 2026 GitHub Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
 ----------------------------------------------------------------------
 Apache License

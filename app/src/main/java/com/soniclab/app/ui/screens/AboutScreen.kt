@@ -29,15 +29,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.ChevronRight
-import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.Coffee
 import androidx.compose.material.icons.rounded.Copyright
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.GraphicEq
-import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.OfflineBolt
 import androidx.compose.material.icons.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Security
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -50,6 +49,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -97,12 +97,12 @@ fun AboutScreen(onBack: () -> Unit, onOpenLicenses: () -> Unit = {}) {
                 "Pemutaran lokal, equalizer, tone, reverb, dan efek spasial"
             )
             AboutRow(
-                Icons.Rounded.Info,
+                Icons.Rounded.Tune,
                 "Toolkit audio",
                 "Analisis, normalisasi, pitch/tempo, dan vocal remover stereo"
             )
             AboutRow(
-                Icons.Rounded.OfflineBolt,
+                Icons.Rounded.Security,
                 "Privasi & pemrosesan lokal",
                 "Aplikasi tidak meminta izin internet; audio diproses di perangkat"
             )
@@ -121,9 +121,10 @@ fun AboutScreen(onBack: () -> Unit, onOpenLicenses: () -> Unit = {}) {
                 onClick = onOpenLicenses
             )
             AboutRow(
-                Icons.Rounded.Code,
+                null,
                 "Kode sumber",
                 "github.com/soe1hom-arch/soniclab",
+                iconResource = R.drawable.ic_github,
                 external = true,
                 onClick = { openUrl(context, REPOSITORY_URL) }
             )
@@ -220,14 +221,19 @@ private fun AboutSection(title: String, content: @Composable () -> Unit) {
 
 @Composable
 private fun AboutRow(
-    icon: ImageVector,
+    icon: ImageVector?,
     title: String,
     subtitle: String = "",
+    iconResource: Int? = null,
     external: Boolean = false,
     onClick: (() -> Unit)? = null
 ) {
     val rowContent: @Composable RowScope.() -> Unit = {
-        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+        if (iconResource != null) {
+            Icon(painterResource(iconResource), contentDescription = null, tint = githubIconColor(), modifier = Modifier.size(22.dp))
+        } else if (icon != null) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+        }
         Column(Modifier.weight(1f).padding(horizontal = 12.dp, vertical = 6.dp)) {
             Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
             if (subtitle.isNotEmpty()) {
@@ -293,7 +299,7 @@ private fun DeveloperProfile(onOpenProfile: () -> Unit, onDonate: () -> Unit) {
             modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)
         )
         OutlinedButton(onClick = onOpenProfile, modifier = Modifier.fillMaxWidth()) {
-            Icon(Icons.Rounded.Code, contentDescription = null, modifier = Modifier.size(18.dp))
+            Icon(painterResource(R.drawable.ic_github), contentDescription = null, tint = githubIconColor(), modifier = Modifier.size(18.dp))
             Spacer(Modifier.size(8.dp))
             Text("Profil GitHub")
             Spacer(Modifier.size(8.dp))
@@ -314,6 +320,10 @@ private fun DeveloperProfile(onOpenProfile: () -> Unit, onDonate: () -> Unit) {
         )
     }
 }
+
+@Composable
+private fun githubIconColor(): Color =
+    if (MaterialTheme.colorScheme.surface.luminance() > 0.5f) Color.Black else Color.White
 
 private fun openUrl(context: Context, url: String) {
     try {
