@@ -14,6 +14,7 @@ import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.util.Clock
 import androidx.media3.exoplayer.analytics.PlayerId
 import androidx.media3.exoplayer.audio.AudioSink
+import com.soniclab.ai.AiEnhancer
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -383,5 +384,36 @@ class DspAudioSinkTest {
         assertFalse(sink.handleBuffer(first, 0L, 1))
         assertFalse(sink.handleBuffer(second, 1_000_000L, 1))
     }
-}
 
+    @Test
+    fun encoderPaddingDoesNotStallFollowingBuffers() {
+        val fake = FakeAudioSink()
+        val sink = DspAudioSink(fake, listOf(GainAudioProcessor()))
+        sink.configure(rawFormat(C.ENCODING_PCM_16BIT, 2, 44100, padding = 4), 0, null)
+
+        repeat(3) { i ->
+            val shorts = ShortArray(64) { (it + 1).toShort() }
+            assertTrue("buffer $i must be accepted despite retained padding", sink.handleBuffer(pcm16(*shorts), i * 1000L, 1))
+        }
+        // 3 buffers x 32 frames, last 4 frames are held back as padding
+        assertEquals(96 - 4, fake.fed.sumOf { it.size } / 2)
+    }
+
+    @Test
+    fun consecutiveTracksEachReachEndOfStream() {
+        val fake = FakeAudioSink()
+        val sink = DspAudioSink(fake, listOf(GainAudioProcessor()))
+
+        repeat(3) { track ->
+            fake.ended = false
+            fake.fed.clear()
+            sink.configure(rawFormat(C.ENCODING_PCM_16BIT, 2, 44100, padding = 2), 0, null)
+            assertTrue("track $track input accepted", sink.handleBuffer(pcm16(*ShortArray(40) { 1 }), 0L, 1))
+            assertFalse(sink.isEnded())
+            sink.playToEndOfStream()
+            assertTrue("track $track must report ended so the player advances", sink.isEnded())
+            assertFalse(sink.hasPendingData())
+            assertEquals(18, fake.fed.sumOf { it.size } / 2)
+        }
+    }
+}

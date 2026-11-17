@@ -221,8 +221,18 @@ class PlayerController(
     }
 
     fun seekTo(positionMs: Long) { controller?.seekTo(positionMs) }
-    fun next() { controller?.seekToNextMediaItem() }
-    fun previous() { controller?.seekToPreviousMediaItem() }
+    fun next() = skip { seekToNextMediaItem() }
+    fun previous() = skip { seekToPreviousMediaItem() }
+
+    // After the queue ended (or the player dropped to IDLE on an error) a skip must
+    // start the new track; a deliberate pause stays paused.
+    private fun skip(seek: MediaController.() -> Unit) {
+        val c = controller ?: return
+        val resume = shouldResumeAfterSkip(c.playbackState, c.playWhenReady)
+        c.seek()
+        if (c.playbackState == Player.STATE_IDLE && c.mediaItemCount > 0) c.prepare()
+        if (resume) c.play()
+    }
     fun setRepeatMode(mode: Int) { controller?.repeatMode = mode }
     fun setShuffle(enabled: Boolean) { controller?.shuffleModeEnabled = enabled }
 
@@ -487,3 +497,6 @@ class PlayerController(
         val onFiredDefault: () -> Unit = {}
     }
 }
+
+internal fun shouldResumeAfterSkip(playbackState: Int, playWhenReady: Boolean): Boolean =
+    playbackState == Player.STATE_ENDED || (playbackState == Player.STATE_IDLE && playWhenReady)

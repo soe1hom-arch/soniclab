@@ -110,23 +110,17 @@ class DspAudioSink(
 
         drainToDelegate()
         while (pendingInput?.hasRemaining() == true) {
-            if (pendingOut != null || outputStart < outputEnd) {
-                return false
-            }
+            // Only a chunk already handed to the delegate counts as backpressure.
+            // Bytes held back for encoder padding or partial frames stay in
+            // outputBytes legitimately and must not stall the input.
+            if (pendingOut != null) return false
             if ((outputEnd - outputStart) / outFrameSize >= sampleRate) break
             processNextInputSlice()
             drainToDelegate()
-            if (pendingOut != null || outputStart < outputEnd) {
-                return false
-            }
         }
 
         if (pendingInput?.hasRemaining() == false) pendingInput = null
-
-        // Respect backpressure from the delegate: if a previous output chunk is still
-        // waiting to be written, the wrapper must not claim the current input was drained.
-        val stillBackpressured = pendingOut != null || outputStart < outputEnd
-        return pendingInput == null && !stillBackpressured
+        return pendingInput == null && pendingOut == null
     }
 
     override fun playToEndOfStream() {
