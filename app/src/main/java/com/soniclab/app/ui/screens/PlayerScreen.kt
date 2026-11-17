@@ -8,6 +8,7 @@ package com.soniclab.app.ui.screens
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,13 +20,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Equalizer
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.SkipNext
@@ -36,15 +41,21 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -66,50 +77,98 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit) {
     val state by vm.uiState.collectAsStateWithLifecycle()
     val spectrum by vm.spectrum.collectAsStateWithLifecycle()
     val spatialMode = vm.spatialMode
+    var queueExpanded by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(Modifier.height(24.dp))
-        AlbumArt(
-            albumId = state.currentTrack?.albumId ?: -1L,
-            modifier = Modifier.size(240.dp).clip(RoundedCornerShape(28.dp))
-        )
-        Spacer(Modifier.height(24.dp))
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Spacer(Modifier.height(16.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
             Text(
-                state.currentTrack?.title ?: "Tidak Ada yang Diputar",
-                style = MaterialTheme.typography.headlineMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
+                "SEDANG DIPUTAR",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                letterSpacing = MaterialTheme.typography.labelSmall.letterSpacing * 1.4f
             )
             IconButton(onClick = onOpenEqualizer) {
                 Icon(Icons.Rounded.Equalizer, contentDescription = "Equalizer", tint = MaterialTheme.colorScheme.primary)
             }
         }
-        Text(state.currentTrack?.artist ?: "—", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(state.currentTrack?.album ?: "", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-        state.audioInfo?.let { info ->
-            SonicCard {
-                Text(
-                    buildString {
-                        append(info.codec)
-                        if (info.sampleRateHz > 0) append(" • ${info.sampleRateHz / 1000f} kHz")
-                        append(" • ${info.bitDepth}")
-                        if (info.channels > 0) append(" • ${if (info.channels == 1) "Mono" else "Stereo"}")
-                    },
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
-                    maxLines = 1,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
-                )
+        Spacer(Modifier.height(8.dp))
+        Surface(
+            modifier = Modifier.size(264.dp),
+            shape = RoundedCornerShape(30.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)),
+            tonalElevation = 2.dp
+        ) {
+            AlbumArt(
+                albumId = state.currentTrack?.albumId ?: -1L,
+                modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(30.dp))
+            )
+        }
+        Spacer(Modifier.height(20.dp))
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                state.currentTrack?.title ?: "Tidak Ada yang Diputar",
+                style = MaterialTheme.typography.headlineMedium,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth().height(64.dp)
+            )
+            Text(
+                state.currentTrack?.artist ?: "Pilih lagu dari pustaka Anda",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth().height(24.dp)
+            )
+            Text(
+                state.currentTrack?.album.orEmpty().ifBlank { " " },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth().height(20.dp)
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        Box(
+            modifier = Modifier.fillMaxWidth().height(40.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            state.audioInfo?.let { info ->
+                SonicCard {
+                    Text(
+                        buildString {
+                            append(info.codec)
+                            if (info.sampleRateHz > 0) append(" • ${info.sampleRateHz / 1000f} kHz")
+                            append(" • ${info.bitDepth}")
+                            if (info.channels > 0) append(" • ${if (info.channels == 1) "Mono" else "Stereo"}")
+                        },
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                    )
+                }
             }
         }
 
-        Spacer(Modifier.height(24.dp))
-        SpectrumVisualizer(buckets = spectrum)
+        Spacer(Modifier.height(12.dp))
+        SpectrumVisualizer(buckets = spectrum, modifier = Modifier.height(64.dp))
         Slider(
             value = state.positionMs.toFloat(),
             onValueChange = { vm.seekTo(it.toLong()) },
@@ -150,6 +209,54 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit) {
             }
             IconButton(onClick = { vm.cycleRepeat() }) {
                 Icon(Icons.Rounded.Repeat, contentDescription = "Ulangi", tint = if (state.repeatMode != 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+
+        if (state.userQueue.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = { queueExpanded = !queueExpanded },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Rounded.QueueMusic, contentDescription = null)
+                Text(
+                    "Antrean berikutnya · ${state.userQueue.size}",
+                    modifier = Modifier.weight(1f).padding(start = 10.dp),
+                    textAlign = TextAlign.Start
+                )
+                Icon(
+                    if (queueExpanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
+                    contentDescription = if (queueExpanded) "Ciutkan antrean" else "Tampilkan antrean"
+                )
+            }
+        }
+
+        val currentTrack = state.currentTrack
+        val currentIndex = state.queue.indexOfFirst { it.id == currentTrack?.id }
+        val upcoming = state.userQueue
+        if (queueExpanded && upcoming.isNotEmpty()) {
+            Spacer(Modifier.height(4.dp))
+            upcoming.forEach { track ->
+                val absoluteIndex = if (currentIndex >= 0) {
+                    (currentIndex + 1 until state.queue.size).firstOrNull { state.queue[it].id == track.id } ?: -1
+                } else -1
+                if (absoluteIndex < 0) return@forEach
+                Row(
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable { vm.playQueueAt(absoluteIndex) }.padding(horizontal = 8.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Rounded.MusicNote, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
+                        Text(track.title, style = MaterialTheme.typography.bodyMedium, maxLines = 1, color = MaterialTheme.colorScheme.onSurface)
+                        Text(track.artist, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                    }
+                    IconButton(onClick = { vm.moveQueueItem(absoluteIndex, absoluteIndex - 1) }, enabled = absoluteIndex > currentIndex + 1) {
+                        Icon(Icons.Rounded.KeyboardArrowUp, contentDescription = "Naik")
+                    }
+                    IconButton(onClick = { vm.moveQueueItem(absoluteIndex, absoluteIndex + 1) }, enabled = absoluteIndex < state.queue.lastIndex) {
+                        Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = "Turun")
+                    }
+                }
             }
         }
 
@@ -210,35 +317,6 @@ fun PlayerScreen(container: AppContainer, onOpenEqualizer: () -> Unit) {
             }
         }
 
-        val currentTrack = state.currentTrack
-        val currentIndex = state.queue.indexOfFirst { it.id == currentTrack?.id }
-        val upcoming = state.userQueue
-        if (upcoming.isNotEmpty()) {
-            Text("Antrean Berikutnya (${upcoming.size})", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Start))
-            Spacer(Modifier.height(4.dp))
-            upcoming.forEach { track ->
-                val absoluteIndex = if (currentIndex >= 0) {
-                    (currentIndex + 1 until state.queue.size).firstOrNull { state.queue[it].id == track.id } ?: -1
-                } else -1
-                if (absoluteIndex < 0) return@forEach
-                Row(
-                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable { vm.playQueueAt(absoluteIndex) }.padding(horizontal = 8.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Rounded.MusicNote, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
-                        Text(track.title, style = MaterialTheme.typography.bodyMedium, maxLines = 1, color = MaterialTheme.colorScheme.onSurface)
-                        Text(track.artist, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-                    }
-                    IconButton(onClick = { vm.moveQueueItem(absoluteIndex, absoluteIndex - 1) }, enabled = absoluteIndex > currentIndex + 1) {
-                        Icon(Icons.Rounded.KeyboardArrowUp, contentDescription = "Naik")
-                    }
-                    IconButton(onClick = { vm.moveQueueItem(absoluteIndex, absoluteIndex + 1) }, enabled = absoluteIndex < state.queue.lastIndex) {
-                        Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = "Turun")
-                    }
-                }
-            }
-        }
         Spacer(Modifier.height(24.dp))
     }
 }
