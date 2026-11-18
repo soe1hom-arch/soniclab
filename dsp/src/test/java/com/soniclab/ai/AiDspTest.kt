@@ -39,7 +39,7 @@ class AiDspTest {
 
     @Test
     fun neuralEnhancer_withoutModel_fallsBackToClassicEnhancer() {
-        val e = NeuralEnhancer(null)
+        val e = NeuralEnhancer()
         assertTrue(!e.isAiModelLoaded)
         // Display name must say the DSP fallback is active, not claim AI.
         assertEquals("DSP Enhance (transparan)", e.displayName)

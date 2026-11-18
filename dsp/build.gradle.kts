@@ -46,7 +46,6 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.google.oboe)
-    implementation(libs.org.tensorflow.lite)
 
     testImplementation(libs.junit)
 }

@@ -28,10 +28,6 @@ Komponen pihak ketiga yang digunakan (lisensi permissive):
   Oboe (audio native low-latency 1.9.0) ..... Apache-2.0
       Copyright 2015 The Android Open Source Project
 
-  TensorFlow Lite (runtime 2.16.1) .......... Apache-2.0
-      Copyright The TensorFlow Authors
-      Teks lisensi bawaan mencakup pemberitahuan Caffe (BSD-style).
-
   Kotlin stdlib 2.0.21 + kotlinx-coroutines 1.9.0 ... Apache-2.0
       Copyright JetBrains s.r.o. dan kontributor
 
@@ -48,14 +44,6 @@ Komponen pihak ketiga yang digunakan (lisensi permissive):
   LLVM libc++ (NDK 27.2.12479018) .......... Apache-2.0 with LLVM exceptions
       Copyright LLVM Project contributors; lisensi juga mencakup notice tambahan.
 
-  TensorFlow Lite native, revisions pinned by v2.16.1:
-    XNNPACK, cpuinfo, pthreadpool ........... BSD-style
-    FP16, FXdiv, FarmHash ................... MIT
-    ARM_NEON_2_x86_SSE ...................... Intel BSD-style
-    Eigen ................................... MPL-2.0, BSD, MINPACK notices
-    gemmlowp, ruy, FlatBuffers .............. Apache-2.0
-    OouraFFT v1.0 ........................... notice in readme2d.txt
-
   Kotlin Gradle plugin 2.0.21, Android Gradle plugin 8.7.3 (hanya build)
       ...................................... Apache-2.0
 
@@ -68,11 +56,12 @@ merupakan implementasi orisinal dari teknik yang dipublikasikan — bukan kode
 yang disalin dari pustaka lain. DeepFilterNet hanya disebut sebagai kandidat
 model masa depan di README; tidak dibundel dan tidak digunakan kodenya.
 
+AI Enhance saat ini menggunakan DSP klasik; runtime dan model neural tidak
+disertakan dalam APK.
+
 Lisensi lengkap Apache-2.0 menyertai repositori ini (file LICENSE) dan
 tersedia di https://www.apache.org/licenses/LICENSE-2.0.
-Teks lisensi TensorFlow Lite, LLVM libc++, XNNPACK, cpuinfo, dan pthreadpool
-ditampilkan setelah teks berikut, bersama lisensi native TensorFlow Lite lain
-yang relevan. Sumber Eigen dipatok pada commit aa6964bf3a34fd607837dd8123bc42465185c4f8.
+Teks lisensi LLVM libc++ ditampilkan setelah teks berikut.
 
 ----------------------------------------------------------------------
 MIT License (GitHub Octicons)

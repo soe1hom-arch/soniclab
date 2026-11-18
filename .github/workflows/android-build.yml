@@ -52,12 +52,39 @@ jobs:
       - name: Run unit tests
         run: ./gradlew test --console=plain --no-daemon
 
+      - name: Record release runtime dependencies
+        run: |
+          mkdir -p build/release-audit
+          ./gradlew :app:dependencies \
+            --configuration releaseRuntimeClasspath \
+            --console=plain --no-daemon \
+            > build/release-audit/release-runtime-dependencies.txt
+
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug --console=plain --no-daemon
 
-      - name: Upload APK artifact
+      - name: Build unsigned release APK
+        run: ./gradlew :app:assembleRelease --console=plain --no-daemon
+
+      - name: Record release APK native libraries
+        run: |
+          APK=app/build/outputs/apk/release/app-release-unsigned.apk
+          unzip -l "$APK" | awk '/ lib\/.*\.so$/ {print $4}' \
+            | sort -u > build/release-audit/release-native-libraries.txt
+          sha256sum "$APK" > build/release-audit/release-apk.sha256
+
+      - name: Upload debug APK
         uses: actions/upload-artifact@v7
         with:
           name: soniclab-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Upload release APK and dependency audit
+        uses: actions/upload-artifact@v7
+        with:
+          name: soniclab-release-audit
+          path: |
+            app/build/outputs/apk/release/app-release-unsigned.apk
+            build/release-audit/*
           if-no-files-found: error

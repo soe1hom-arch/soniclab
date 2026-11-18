@@ -20,18 +20,18 @@ No neural models are bundled in this APK right now.
 
 ## What runs today
 
-- **AI Enhance** uses `NeuralEnhancer` — an `AiEnhancer` implementation that
-  loads `models/ai_enhancer_v1.tflite` when present and otherwise falls back
-  to `ClassicEnhancer` (transparent DSP: adaptive gain toward −20 dBFS +
-  soft-knee limiter, no EQ coloring, no hard clip).
+- **AI Enhance** currently uses `ClassicEnhancer` (transparent DSP: adaptive
+  gain toward −20 dBFS + soft-knee limiter, no EQ coloring, no hard clip).
+  No neural inference runtime or model is included in the release build.
 - The Studio vocal remover is a spectral center-channel extractor
   (`SpectralVocalRemover`, STFT + soft ratio mask) — no neural model.
 
 ## Adding a model later
 
-Drop a `.tflite` file at `models/ai_enhancer_v1.tflite` in this directory and
-it will be picked up automatically (the Settings screen reports whether a
-neural model is actually loaded). Contract:
+Before adding a neural model, select a runtime and verify its complete
+redistribution terms and native dependency notices. The model must meet the
+quality requirements above and the Settings screen must report neural
+inference only when a model is actually loaded. Contract:
 
 - Input:  `float32[1][N]` mono PCM samples in [-1, 1]
 - Output: `float32[1][N]` enhanced PCM samples in [-1, 1]

@@ -6,8 +6,8 @@
 package com.soniclab.ai
 
 /**
- * One-tap AI Enhance pipeline. Consumes PCM and returns enhanced PCM.
- * Implementations are strictly on-device (TensorFlow Lite or classic DSP).
+ * One-tap audio enhancement pipeline. Consumes PCM and returns enhanced PCM.
+ * Implementations are strictly on-device.
  */
 interface AiEnhancer {
     val isAiModelLoaded: Boolean

@@ -33,7 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 /**
- * Shows the bundled third-party notices and additional native license texts.
+ * Shows the bundled third-party notices and the NDK libc++ license text.
  */
 @Composable
 fun LicensesScreen(onBack: () -> Unit) {
@@ -44,19 +44,7 @@ fun LicensesScreen(onBack: () -> Unit) {
         notices = runCatching {
             listOf(
                 "third_party_notices.txt",
-                "licenses/tensorflow-lite.txt",
-                "licenses/llvm-libcxx.txt",
-                "licenses/xnnpack.txt",
-                "licenses/cpuinfo.txt",
-                "licenses/pthreadpool.txt",
-                "licenses/fp16.txt",
-                "licenses/fxdiv.txt",
-                "licenses/farmhash.txt",
-                "licenses/arm-neon-2-x86-sse.txt",
-                "licenses/eigen-mpl2.txt",
-                "licenses/eigen-bsd.txt",
-                "licenses/eigen-minpack.txt",
-                "licenses/oourafft-readme.txt"
+                "licenses/llvm-libcxx.txt"
             ).joinToString("\n\n") { path ->
                 context.assets.open(path).bufferedReader().use { it.readText() }
             }
