@@ -236,20 +236,25 @@ class DspAudioSink(
             }
             if (!bytes.hasRemaining()) return
         }
-        val src = ByteArray(bytes.remaining())
-        bytes.get(src)
-        val need = outputEnd + src.size
-        if (need > outputBytes.size) {
-            val grown = ByteArray(need.coerceAtLeast(outputBytes.size * 2))
-            outputBytes.copyInto(grown, 0, outputStart, outputEnd)
-            src.copyInto(grown, outputEnd - outputStart)
-            outputBytes = grown
-            outputEnd = outputEnd - outputStart + src.size
+        check(pendingOut == null)
+        val incoming = bytes.remaining()
+        if (incoming > outputBytes.size - outputEnd) {
+            val buffered = outputEnd - outputStart
+            val required = Math.addExact(buffered, incoming)
+            if (required <= outputBytes.size) {
+                outputBytes.copyInto(outputBytes, 0, outputStart, outputEnd)
+            } else {
+                val capacity = maxOf(required.toLong(), outputBytes.size.toLong() * 2)
+                    .coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+                val grown = ByteArray(capacity)
+                outputBytes.copyInto(grown, 0, outputStart, outputEnd)
+                outputBytes = grown
+            }
+            outputEnd = buffered
             outputStart = 0
-        } else {
-            src.copyInto(outputBytes, outputEnd)
-            outputEnd = need
         }
+        bytes.get(outputBytes, outputEnd, incoming)
+        outputEnd += incoming
     }
 
     private fun drainToDelegate() {

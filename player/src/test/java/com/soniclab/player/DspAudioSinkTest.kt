@@ -400,6 +400,52 @@ class DspAudioSinkTest {
     }
 
     @Test
+    fun outputBufferIsReusedAcrossBackpressuredTracksWithPadding() {
+        val fake = object : FakeAudioSink() {
+            private var pending: ByteBuffer? = null
+
+            override fun handleBuffer(buffer: ByteBuffer, presentationTimeUs: Long, encodedAccessUnitCount: Int): Boolean {
+                if (pending != null) assertTrue("delegate must receive the same buffer", pending === buffer)
+                buffer.order(ByteOrder.LITTLE_ENDIAN)
+                val floats = FloatArray(minOf(buffer.remaining() / 4, 2)) { buffer.float }
+                fed.add(floats)
+                pending = if (buffer.hasRemaining()) buffer else null
+                return pending == null
+            }
+        }
+        val sink = DspAudioSink(fake, listOf(GainAudioProcessor()))
+        val outputBytes = DspAudioSink::class.java.getDeclaredField("outputBytes").apply { isAccessible = true }
+
+        repeat(2) { track ->
+            fake.ended = false
+            fake.fed.clear()
+            sink.configure(rawFormat(C.ENCODING_PCM_16BIT, 2, 44100, padding = 3), 0, null)
+            val expected = mutableListOf<Float>()
+            repeat(64) { chunk ->
+                val samples = ShortArray(16) { (track * 2000 + chunk * 16 + it).toShort() }
+                expected.addAll(samples.map { it / 32768f })
+                val input = pcm16(*samples)
+                var handled = sink.handleBuffer(input, chunk * 1_000L, 1)
+                var attempts = 0
+                while (!handled && attempts++ < 100) {
+                    handled = sink.handleBuffer(input, chunk * 1_000L, 1)
+                }
+                assertTrue("input must drain", handled)
+                assertTrue("output buffer must stay bounded", (outputBytes.get(sink) as ByteArray).size <= 128)
+            }
+            sink.playToEndOfStream()
+            var attempts = 0
+            while (!sink.isEnded() && attempts++ < 100) sink.playToEndOfStream()
+            assertTrue("track must reach end of stream", sink.isEnded())
+            assertArrayEquals(
+                expected.dropLast(6).toFloatArray(),
+                fake.fed.flatMap { it.toList() }.toFloatArray(),
+                1e-7f
+            )
+        }
+    }
+
+    @Test
     fun consecutiveTracksEachReachEndOfStream() {
         val fake = FakeAudioSink()
         val sink = DspAudioSink(fake, listOf(GainAudioProcessor()))
