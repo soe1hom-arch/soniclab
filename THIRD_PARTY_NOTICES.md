@@ -8,7 +8,7 @@ The app displays its bundled notices and license texts in **About → Third-part
 
 ## Dependencies and acknowledgements
 
-Versions below are those declared in the version catalog unless otherwise noted. CI resolves and archives the exact `:app:releaseRuntimeClasspath` dependency report and builds an unsigned release APK for each source revision. The list summarizes component families; the archived report and release APK native-library inventory provide the revision-specific audit inputs.
+The following table summarizes the principal third-party components included in the app. Versions are those declared in the project unless otherwise noted. Transitive dependency versions may vary with dependency updates.
 
 | Component | Version | License | Attribution |
 |---|---|---|---|
@@ -23,20 +23,14 @@ Versions below are those declared in the version catalog unless otherwise noted.
 | Okio | 3.4.0 | Apache-2.0 | Square, Inc. |
 | LLVM libc++ shared runtime (Android NDK) | NDK 27.2.12479018 | Apache-2.0 with LLVM exceptions; additional notices in upstream license | LLVM Project contributors |
 | GitHub Octicons | mark-github-24 | MIT | GitHub Inc. |
-| Kotlin Gradle Plugin / Android Gradle Plugin | 2.0.21 / 8.7.3 | Apache-2.0 | JetBrains s.r.o. / Google (build-time) |
-| JUnit 4 | 4.13.2 | EPL-2.0 | Eclipse Foundation (test-time) |
 
 For complete terms, refer to each component's license and notices distributed with the dependency. The table is an informational summary and is not a substitute for those license texts.
-
-The TensorFlow Lite runtime is intentionally not included: SonicLab currently ships no neural model, so AI Enhance uses the classic DSP fallback. This also excludes TensorFlow Lite's bundled native code, including OouraFFT and the associated redistribution question. The audited unsigned release APK contains `libandroidx.graphics.path.so`, `libc++_shared.so`, `libdatastore_shared_counter.so`, `liboboe.so`, and `libsoniclab_oboe.so` for each of the four packaged ABIs; CI archives the APK hash, native-library list, and complete Gradle runtime dependency report, and fails if TFLite or a `.tflite` model is reintroduced. Revisit runtime selection, model quality, and licenses before adding a model. Recheck the release audit whenever dependencies or build variants change. This inventory is not legal advice.
 
 ## Audio algorithms and standards
 
 SonicLab's audio-processing code is implemented for this project and is informed by the referenced published techniques and standards. References to an algorithm or standard are acknowledgements, not endorsements.
 
-- **SOLA / WSOLA time stretching and pitch processing** — based on published techniques, including Roucos and Wilgus (1985) and Laroche and Dolson (1999). No source code from SoundTouch is included.
+- **SOLA / WSOLA time stretching and pitch processing** — based on published techniques, including Roucos and Wilgus (1985) and Laroche and Dolson (1999).
 - **EBU R128 loudness measurement** — implementation based on EBU R 128 and ITU-R BS.1770, including K-weighting and loudness gating.
 - **Schroeder-style reverb** — based on the classic comb-filter and all-pass network described by Manfred R. Schroeder (1962).
 - **STFT-based vocal separation** — uses a center-channel spectral-mask approach.
-
-No DeepFilterNet model or implementation is bundled. Any future model or dependency will be credited here with its applicable license information.

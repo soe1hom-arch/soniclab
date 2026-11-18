@@ -2,14 +2,14 @@
 
 [![Android Build](https://github.com/soe1hom-arch/soniclab/actions/workflows/android-build.yml/badge.svg)](https://github.com/soe1hom-arch/soniclab/actions/workflows/android-build.yml)
 
-**A thoughtful, offline-first music player and audio toolkit for Android.** SonicLab brings your local music library, expressive playback controls, and practical audio tools into one focused experience—without an account or network access.
+**An offline music player and audio toolkit for Android.** SonicLab plays music stored on your device and includes playback controls and audio tools. It does not require an account or internet access.
 
 > **Project status:** SonicLab is an early-stage project. Builds are available for evaluation through GitHub Actions; a signed public release is not currently published. Audio behavior and feature support can vary by device and source file.
 
-## Designed for your music
+## Features
 
 - **Your local library** — browse songs, albums, and artists; search tracks and save favorites.
-- **A considered playback experience** — manage the queue, shuffle and repeat, adjust playback speed and pitch, set a sleep timer, use crossfade, and control playback from notifications, the lock screen, or Android Auto.
+- **Playback controls** — manage the queue, shuffle and repeat, adjust playback speed and pitch, set a sleep timer, use crossfade, and control playback from notifications, the lock screen, or Android Auto.
 - **Shape the sound** — adjust the software 10-band equalizer, tone, bass, balance, reverb, spatial effects, headroom, and limiter. Optional loudness normalization helps keep levels more consistent.
 - **Useful audio tools** — inspect and convert files, trim, join, reverse, adjust pitch or tempo, normalize loudness, and create an instrumental-style output from supported stereo audio.
 - **Understand what you hear** — view waveform previews and audio format information, and measure loudness using EBU R128.
@@ -17,7 +17,7 @@
 
 ### A note on enhancement
 
-AI Enhance currently uses a transparent DSP fallback when a suitable neural model is not bundled. The Studio vocal remover uses spectral center-channel processing, not a neural source-separation model. Results depend on the material; the vocal remover requires stereo audio and may not cleanly separate every mix.
+Audio enhancement uses classic DSP; no neural model is included. The Studio vocal remover uses spectral center-channel processing. Results depend on the material, and the vocal remover requires stereo audio.
 
 ## Audio processing
 
@@ -68,15 +68,7 @@ The Android Build workflow runs tests and builds a debug APK for pushes to `main
 | `:app` | Jetpack Compose interface, navigation, and visualizers |
 | `:core` | Domain models, local library access, preferences, and repositories |
 | `:player` | Media3 playback service, queue and session control, and real-time DSP integration |
-| `:dsp` | Audio processing, file tools, analysis, and optional on-device enhancement support |
-
-## Support SonicLab
-
-If SonicLab is useful to you, you can support its continued development. Contributions are optional and do not unlock paid features.
-
-[![Buy me a coffee](https://img.shields.io/badge/Support-%E2%98%95%20Buy%20me%20a%20coffee-C5A6FF?style=for-the-badge&logo=buymeacoffee&logoColor=241637)](DONATE.md)
-
-**Before sharing the donation page, the maintainer should replace its example payment links with verified public donation links.** Never publish private payment credentials.
+| `:dsp` | Audio processing, file tools, analysis, and enhancement |
 
 ## Licensing and acknowledgements
 

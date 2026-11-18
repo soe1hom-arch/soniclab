@@ -1,9 +1,8 @@
 SONICLAB — PEMBERITAHUAN PIHAK KETIGA (THIRD-PARTY NOTICES)
 ==========================================================
 
-Seluruh kode aplikasi SonicLab (Kotlin, Compose, rantai DSP, wrapper native
-Oboe) adalah karya orisinal soe1hom-arch, ditulis dari algoritma dan
-dokumentasi API yang dipublikasikan. Ikon GitHub berasal dari Octicons.
+SonicLab menggunakan komponen pihak ketiga berikut. Setiap komponen tetap
+tunduk pada lisensi dan pemberitahuan hak cipta masing-masing.
 
 Komponen pihak ketiga yang digunakan (lisensi permissive):
 
@@ -43,21 +42,6 @@ Komponen pihak ketiga yang digunakan (lisensi permissive):
 
   LLVM libc++ (NDK 27.2.12479018) .......... Apache-2.0 with LLVM exceptions
       Copyright LLVM Project contributors; lisensi juga mencakup notice tambahan.
-
-  Kotlin Gradle plugin 2.0.21, Android Gradle plugin 8.7.3 (hanya build)
-      ...................................... Apache-2.0
-
-  JUnit 4.13.2 (hanya pengujian) ............ EPL-2.0
-      Copyright Eclipse Foundation
-
-Catatan algoritma: SOLA/WSOLA (Roucos & Wilgus 1985; Laroche & Dolson 1999),
-EBU R128 (BS.1770), reverb Schroeder (1962), dan pemisah vokal STFT
-merupakan implementasi orisinal dari teknik yang dipublikasikan — bukan kode
-yang disalin dari pustaka lain. DeepFilterNet hanya disebut sebagai kandidat
-model masa depan di README; tidak dibundel dan tidak digunakan kodenya.
-
-AI Enhance saat ini menggunakan DSP klasik; runtime dan model neural tidak
-disertakan dalam APK.
 
 Lisensi lengkap Apache-2.0 menyertai repositori ini (file LICENSE) dan
 tersedia di https://www.apache.org/licenses/LICENSE-2.0.
