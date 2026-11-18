@@ -70,6 +70,10 @@ The Android Build workflow runs tests and builds a debug APK for pushes to `main
 | `:player` | Media3 playback service, queue and session control, and real-time DSP integration |
 | `:dsp` | Audio processing, file tools, analysis, and enhancement |
 
+## Support SonicLab
+
+If SonicLab is useful to you, you can support its development through [QRIS](DONATE.md). Contributions are optional and do not unlock paid features.
+
 ## Licensing and acknowledgements
 
 SonicLab's original source code is provided under the [Apache License, Version 2.0](LICENSE). Third-party libraries and components remain subject to their own licenses; review the in-app license screen and [third-party notices](THIRD_PARTY_NOTICES.md) for attribution and details.
