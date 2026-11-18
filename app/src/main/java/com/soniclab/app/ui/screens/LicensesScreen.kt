@@ -48,7 +48,15 @@ fun LicensesScreen(onBack: () -> Unit) {
                 "licenses/llvm-libcxx.txt",
                 "licenses/xnnpack.txt",
                 "licenses/cpuinfo.txt",
-                "licenses/pthreadpool.txt"
+                "licenses/pthreadpool.txt",
+                "licenses/fp16.txt",
+                "licenses/fxdiv.txt",
+                "licenses/farmhash.txt",
+                "licenses/arm-neon-2-x86-sse.txt",
+                "licenses/eigen-mpl2.txt",
+                "licenses/eigen-bsd.txt",
+                "licenses/eigen-minpack.txt",
+                "licenses/oourafft-readme.txt"
             ).joinToString("\n\n") { path ->
                 context.assets.open(path).bufferedReader().use { it.readText() }
             }

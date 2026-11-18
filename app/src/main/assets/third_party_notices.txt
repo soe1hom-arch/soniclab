@@ -48,8 +48,13 @@ Komponen pihak ketiga yang digunakan (lisensi permissive):
   LLVM libc++ (NDK 27.2.12479018) .......... Apache-2.0 with LLVM exceptions
       Copyright LLVM Project contributors; lisensi juga mencakup notice tambahan.
 
-  TensorFlow Lite native: XNNPACK, cpuinfo, pthreadpool ... BSD-style
-  dan ruy .................................. Apache-2.0
+  TensorFlow Lite native, revisions pinned by v2.16.1:
+    XNNPACK, cpuinfo, pthreadpool ........... BSD-style
+    FP16, FXdiv, FarmHash ................... MIT
+    ARM_NEON_2_x86_SSE ...................... Intel BSD-style
+    Eigen ................................... MPL-2.0, BSD, MINPACK notices
+    gemmlowp, ruy, FlatBuffers .............. Apache-2.0
+    OouraFFT v1.0 ........................... notice in readme2d.txt
 
   Kotlin Gradle plugin 2.0.21, Android Gradle plugin 8.7.3 (hanya build)
       ...................................... Apache-2.0
@@ -66,7 +71,8 @@ model masa depan di README; tidak dibundel dan tidak digunakan kodenya.
 Lisensi lengkap Apache-2.0 menyertai repositori ini (file LICENSE) dan
 tersedia di https://www.apache.org/licenses/LICENSE-2.0.
 Teks lisensi TensorFlow Lite, LLVM libc++, XNNPACK, cpuinfo, dan pthreadpool
-ditampilkan setelah teks berikut.
+ditampilkan setelah teks berikut, bersama lisensi native TensorFlow Lite lain
+yang relevan. Sumber Eigen dipatok pada commit aa6964bf3a34fd607837dd8123bc42465185c4f8.
 
 ----------------------------------------------------------------------
 MIT License (GitHub Octicons)
