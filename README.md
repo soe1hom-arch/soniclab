@@ -33,7 +33,7 @@ Direct Output bypasses the custom DSP chain and uses Media3's standard audio sin
 
 - Android 8.0 (API 26) or later
 - Android Studio or a compatible Gradle environment for building from source
-- JDK 17 and Android SDK Platform 36 with Build Tools 36.0.0 for development
+- JDK 17, Android SDK Platform 36, Build Tools 36.0.0, NDK 27.2.12479018, and CMake 3.22.1 for development
 
 ## Build from source
 

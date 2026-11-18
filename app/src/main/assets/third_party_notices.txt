@@ -30,9 +30,26 @@ Komponen pihak ketiga yang digunakan (lisensi permissive):
 
   TensorFlow Lite (runtime 2.16.1) .......... Apache-2.0
       Copyright The TensorFlow Authors
+      Teks lisensi bawaan mencakup pemberitahuan Caffe (BSD-style).
 
   Kotlin stdlib 2.0.21 + kotlinx-coroutines 1.9.0 ... Apache-2.0
       Copyright JetBrains s.r.o. dan kontributor
+
+  kotlinx-serialization 1.6.3 dan JetBrains annotations 23.0.0
+      ...................................... Apache-2.0
+      Copyright JetBrains s.r.o. dan kontributor
+
+  Guava 33.3.1-android dan failureaccess 1.0.2 ... Apache-2.0
+      Copyright Google LLC dan kontributor
+
+  Okio 3.4.0 ............................... Apache-2.0
+      Copyright Square, Inc.
+
+  LLVM libc++ (NDK 27.2.12479018) .......... Apache-2.0 with LLVM exceptions
+      Copyright LLVM Project contributors; lisensi juga mencakup notice tambahan.
+
+  TensorFlow Lite native: XNNPACK, cpuinfo, pthreadpool ... BSD-style
+  dan ruy .................................. Apache-2.0
 
   Kotlin Gradle plugin 2.0.21, Android Gradle plugin 8.7.3 (hanya build)
       ...................................... Apache-2.0
@@ -48,6 +65,8 @@ model masa depan di README; tidak dibundel dan tidak digunakan kodenya.
 
 Lisensi lengkap Apache-2.0 menyertai repositori ini (file LICENSE) dan
 tersedia di https://www.apache.org/licenses/LICENSE-2.0.
+Teks lisensi TensorFlow Lite, LLVM libc++, XNNPACK, cpuinfo, dan pthreadpool
+ditampilkan setelah teks berikut.
 
 ----------------------------------------------------------------------
 MIT License (GitHub Octicons)

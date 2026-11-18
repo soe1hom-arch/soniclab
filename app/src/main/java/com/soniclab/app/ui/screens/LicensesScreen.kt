@@ -33,8 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 /**
- * Shows the bundled third-party notices (assets/third_party_notices.txt):
- * every linked component, its license, and the full Apache-2.0 text.
+ * Shows the bundled third-party notices and additional native license texts.
  */
 @Composable
 fun LicensesScreen(onBack: () -> Unit) {
@@ -43,9 +42,16 @@ fun LicensesScreen(onBack: () -> Unit) {
 
     LaunchedEffect(Unit) {
         notices = runCatching {
-            context.assets.open("third_party_notices.txt")
-                .bufferedReader()
-                .use { it.readText() }
+            listOf(
+                "third_party_notices.txt",
+                "licenses/tensorflow-lite.txt",
+                "licenses/llvm-libcxx.txt",
+                "licenses/xnnpack.txt",
+                "licenses/cpuinfo.txt",
+                "licenses/pthreadpool.txt"
+            ).joinToString("\n\n") { path ->
+                context.assets.open(path).bufferedReader().use { it.readText() }
+            }
         }.getOrDefault("Gagal membaca lisensi pihak ketiga.")
     }
 
