@@ -28,7 +28,7 @@ Versions below are those declared in the version catalog unless otherwise noted.
 
 For complete terms, refer to each component's license and notices distributed with the dependency. The table is an informational summary and is not a substitute for those license texts.
 
-The TensorFlow Lite runtime is intentionally not included: SonicLab currently ships no neural model, so AI Enhance uses the classic DSP fallback. This also excludes TensorFlow Lite's bundled native code, including OouraFFT and the associated unresolved redistribution question. Revisit runtime selection, model quality, licenses, and the complete native dependency inventory before adding a model. CI's release audit covers Gradle runtime dependencies and shared libraries in the unsigned APK; recheck it whenever dependencies or build variants change. This inventory is not legal advice.
+The TensorFlow Lite runtime is intentionally not included: SonicLab currently ships no neural model, so AI Enhance uses the classic DSP fallback. This also excludes TensorFlow Lite's bundled native code, including OouraFFT and the associated redistribution question. The audited unsigned release APK contains `libandroidx.graphics.path.so`, `libc++_shared.so`, `libdatastore_shared_counter.so`, `liboboe.so`, and `libsoniclab_oboe.so` for each of the four packaged ABIs; CI archives the APK hash, native-library list, and complete Gradle runtime dependency report, and fails if TFLite or a `.tflite` model is reintroduced. Revisit runtime selection, model quality, and licenses before adding a model. Recheck the release audit whenever dependencies or build variants change. This inventory is not legal advice.
 
 ## Audio algorithms and standards
 

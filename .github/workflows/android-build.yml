@@ -69,6 +69,15 @@ jobs:
       - name: Record release APK native libraries
         run: |
           APK=app/build/outputs/apk/release/app-release-unsigned.apk
+          if grep -Eiq 'org\.tensorflow:tensorflow-lite' \
+            build/release-audit/release-runtime-dependencies.txt; then
+            echo "TensorFlow Lite runtime must not be reintroduced without a license audit." >&2
+            exit 1
+          fi
+          if unzip -l "$APK" | grep -Eiq 'libtensorflowlite_jni\.so|assets/.*\.tflite'; then
+            echo "TensorFlow Lite binaries/models must not be packaged without a license audit." >&2
+            exit 1
+          fi
           unzip -l "$APK" | awk '/ lib\/.*\.so$/ {print $4}' \
             | sort -u > build/release-audit/release-native-libraries.txt
           sha256sum "$APK" > build/release-audit/release-apk.sha256
