@@ -17,7 +17,7 @@
 
 ### A note on enhancement
 
-AI Enhance currently uses a transparent DSP fallback when a suitable neural model is not bundled. The Studio vocal remover uses spectral center-channel processing, not a neural source-separation model. Results depend on the material; the vocal remover requires stereo audio and may not cleanly separate every mix.
+AI Enhance currently uses the transparent classic-DSP enhancer; this APK includes neither a neural model nor a neural inference runtime. The Studio vocal remover uses spectral center-channel processing, not a neural source-separation model. Results depend on the material; the vocal remover requires stereo audio and may not cleanly separate every mix.
 
 ## Audio processing
 
@@ -59,7 +59,7 @@ Optional focused checks:
 ./gradlew :app:lintDebug
 ```
 
-The Android Build workflow runs tests and builds a debug APK for pushes to `main` and pull requests. Successful workflow runs may provide a downloadable debug artifact in [GitHub Actions](https://github.com/soe1hom-arch/soniclab/actions). Debug artifacts are for evaluation and are not signed public releases.
+The Android Build workflow runs tests, builds a debug APK, and builds an unsigned release APK for dependency and native-library auditing on pushes to `main` and pull requests. Successful runs may provide downloadable debug and release-audit artifacts in [GitHub Actions](https://github.com/soe1hom-arch/soniclab/actions). Neither artifact is a signed public release.
 
 ## Project structure
 
