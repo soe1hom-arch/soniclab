@@ -47,6 +47,12 @@ Lisensi lengkap Apache-2.0 menyertai repositori ini (file LICENSE) dan
 tersedia di https://www.apache.org/licenses/LICENSE-2.0.
 Teks lisensi LLVM libc++ ditampilkan setelah teks berikut.
 
+      LLVM libc++ shared runtime (Android NDK)
+Copyright (c) LLVM Project contributors
+
+Licensed under the Apache License, Version 2.0 with LLVM Exceptions.
+Full license text: licenses/llvm-libc++-license.txt
+
 ----------------------------------------------------------------------
 MIT License (GitHub Octicons)
 
