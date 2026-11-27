@@ -150,25 +150,25 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
     }
 
     private fun initHrtf() {
-    if (hrtfReady) return
+        if (hrtfReady) return
 
-    hrtfEngine = try {
-        HrtfSpatialEngine.create(
-            sampleRate = sampleRateHz,
-            hrtfAssetPath = HRTF_ASSET_PATH
+        hrtfEngine = try {
+            HrtfSpatialEngine.create(
+                sampleRate = sampleRateHz,
+                hrtfAssetPath = HRTF_ASSET_PATH
+            )
+        } catch (error: Exception) {
+            Log.e("SonicLabSpatial", "HRTF init failed", error)
+            null
+        }
+
+        hrtfReady = hrtfEngine != null
+
+        Log.d(
+            "SonicLabSpatial",
+            "HRTF ready=$hrtfReady sampleRate=$sampleRateHz"
         )
-    } catch (error: Exception) {
-        Log.e("SonicLabSpatial", "HRTF init failed", error)
-        null
     }
-
-    hrtfReady = hrtfEngine != null
-
-    Log.d(
-        "SonicLabSpatial",
-        "HRTF ready=$hrtfReady sampleRate=$sampleRateHz"
-    )
-}
 
     private fun process3D(
         input: FloatArray,
@@ -200,18 +200,14 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
     }
 
     private fun process8D(
-    input: FloatArray,
-    out: FloatArray,
-    frames: Int
-) {
-    Log.d(
-        "SonicLabSpatial",
-        "process8D frames=$frames hrtf=${hrtfEngine != null}"
-    )
-
-    val phaseStep = phaseStep()
-    ...
-}
+        input: FloatArray,
+        out: FloatArray,
+        frames: Int
+    ) {
+        Log.d(
+            "SonicLabSpatial",
+            "process8D frames=$frames hrtf=${hrtfEngine != null}"
+        )
 
         val phaseStep = phaseStep()
 
