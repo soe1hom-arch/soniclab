@@ -17,6 +17,7 @@ The following table summarizes the principal third-party components included in 
 | AndroidX Navigation Compose | 2.8.5 | Apache-2.0 | The Android Open Source Project |
 | AndroidX Media3 (Common, ExoPlayer, Session, UI) | 1.5.0 | Apache-2.0 | The Android Open Source Project |
 | Oboe | 1.9.0 | Apache-2.0 | Google / The Android Open Source Project |
+| libmysofa | 1.3.5 (CMake FetchContent) | BSD-3-Clause | Symonics GmbH / Christian Hoene |
 | Kotlin libraries, kotlinx.coroutines, and kotlinx.serialization | 2.0.21 / 1.9.0 / 1.6.3 | Apache-2.0 | JetBrains s.r.o. and contributors |
 | JetBrains annotations | 23.0.0 | Apache-2.0 | JetBrains s.r.o. |
 | Guava and failureaccess | 33.3.1-android / 1.0.2 | Apache-2.0 | Google LLC and contributors |
@@ -35,8 +36,8 @@ SonicLab's audio-processing code is implemented for this project and is informed
 - **EBU R128 loudness measurement** — implementation based on EBU R 128 and ITU-R BS.1770, including K-weighting and loudness gating.
 - **Schroeder-style reverb** — based on the classic comb-filter and all-pass network described by Manfred R. Schroeder (1962).
 - **STFT-based vocal separation** — uses a center-channel spectral-mask approach.
-- **Binaural spatial audio / HRTF-style rendering** — the native 8D engine uses published binaural audio concepts, including interaural time difference (ITD), interaural level difference (ILD), crossfeed, and early-reflection-style room processing. These techniques are informed by research on head-related transfer functions and binaural hearing.
+- **Binaural spatial audio / HRTF rendering** — the native 8D engine loads the bundled SOFA dataset with libmysofa and convolves mono programme audio with measured left/right impulse responses. The virtual source position is updated from the 8D rotation phase.
 - **Head-Related Transfer Functions (HRTF)** — the project acknowledges the SOFA (Spatially Oriented Format for Acoustics) convention and the broader HRTF research community. SOFA is a standard format for storing spatial acoustic data, including HRIR/HRTF measurements.
 - **SOFA specification** — the SOFA convention and its associated APIs are maintained by the SOFA community; see the SOFA specifications and software resources at https://www.sofaconventions.org/.
-- **Binaural synthesis / convolution** — the future HRTF convolution path is informed by standard binaural synthesis practice, in which an audio signal is convolved with left/right head-related impulse responses (HRIRs). FFT-based convolution is commonly used for efficient implementation.
+- **Binaural synthesis / convolution** — the current native implementation uses time-domain FIR convolution with left/right head-related impulse responses (HRIRs) obtained from the SOFA dataset.
 - **SONICOM Acoustic HRTFs 48k** — SonicLab includes the SONICOM Acoustic HRTFs 48k dataset, specifically `P0014_FreeFieldCompMinPhase_NoITD_48kHz.sofa`, for binaural HRTF processing. The dataset is licensed under the MIT License; see the bundled license notice for complete terms and attribution.
