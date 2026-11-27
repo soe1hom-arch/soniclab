@@ -33,6 +33,7 @@ class PlaybackService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
+        AudioSpatialBridge.initialize(applicationContext)
         buildSession()
     }
 
