@@ -1,1 +1,4 @@
-
+HRTF data: SADIE II D1 (KU100)
+Source: University of York / SOFA Acoustics
+License: Apache License 2.0
+Dataset: D1_48K_24bit_256tap_FIR_SOFA.sofa
