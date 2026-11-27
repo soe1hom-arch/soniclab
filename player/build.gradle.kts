@@ -9,19 +9,42 @@ plugins {
 android {
     namespace = "com.soniclab.player"
     compileSdk = 36
-    defaultConfig { minSdk = 26 }
+
+    defaultConfig {
+        minSdk = 26
+
+        externalNativeBuild {
+            cmake {
+                cppFlags += "-std=c++17"
+                arguments += "-DANDROID_STL=c++_shared"
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
 }
 
 dependencies {
     implementation(project(":core"))
     implementation(project(":dsp"))
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.kotlinx.coroutines.android)
+
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.session)
     implementation(libs.androidx.media3.ui)
