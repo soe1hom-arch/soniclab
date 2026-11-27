@@ -1,6 +1,6 @@
 # Support SonicLab
 
-Thank you for using SonicLab! If you find it helpful, consider supporting its ongoing development. All contributions are completely voluntary and do not unlock any extra features or services.
+Thank you for using the SonicLab project! If you find it helpful, consider supporting its ongoing development. All contributions are completely voluntary and do not unlock any extra features or services.
 
 ## Donate with QRIS
 
