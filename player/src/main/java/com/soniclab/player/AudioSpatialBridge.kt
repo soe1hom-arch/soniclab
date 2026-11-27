@@ -5,6 +5,8 @@
 
 package com.soniclab.player
 
+import android.content.Context
+import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -19,6 +21,19 @@ data class SpatialState(val mode: Int, val spatial3d: Boolean, val spatial8d: Bo
  */
 object AudioSpatialBridge {
     val processor = SpatialAudioProcessor()
+
+    /** Loads the bundled SOFA file once and supplies its bytes to the processor. */
+    fun initialize(context: Context) {
+        val appContext = context.applicationContext
+        try {
+            val sofaBytes = appContext.assets.open("hrtf/hrtf_48k.sofa").use { it.readBytes() }
+            processor.setSofaData(sofaBytes)
+            Log.i("SonicLabHRTF", "SOFA_ASSET_FOUND: hrtf/hrtf_48k.sofa (${sofaBytes.size} bytes)")
+        } catch (error: Exception) {
+            processor.setSofaData(null)
+            Log.e("SonicLabHRTF", "SOFA_ASSET_READ_FAILED: hrtf/hrtf_48k.sofa", error)
+        }
+    }
     private val _state = MutableStateFlow(snapshot())
     val state = _state.asStateFlow()
 
