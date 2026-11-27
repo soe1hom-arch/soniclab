@@ -1,8 +1,10 @@
 package com.soniclab.player
 
 class HrtfSpatialEngine private constructor(
-    private val nativeHandle: Long
+    nativeHandle: Long
 ) {
+    @Volatile
+    private var handle: Long = nativeHandle
 
     fun process(
         input: FloatArray,
@@ -12,24 +14,20 @@ class HrtfSpatialEngine private constructor(
         elevationDegrees: Float,
         reverbWet: Float
     ): Boolean {
-        if (nativeHandle == 0L) {
-            return false
-        }
-
+        val currentHandle = handle
+        if (currentHandle == 0L) return false
         return nativeProcess(
-            nativeHandle,
-            input,
-            output,
-            frames,
-            azimuthDegrees,
-            elevationDegrees,
-            reverbWet
+            currentHandle, input, output, frames,
+            azimuthDegrees, elevationDegrees, reverbWet
         )
     }
 
+    @Synchronized
     fun release() {
-        if (nativeHandle != 0L) {
-            nativeDestroy(nativeHandle)
+        val currentHandle = handle
+        if (currentHandle != 0L) {
+            handle = 0L
+            nativeDestroy(currentHandle)
         }
     }
 
@@ -39,49 +37,35 @@ class HrtfSpatialEngine private constructor(
 
         @Synchronized
         private fun ensureLibraryLoaded(): Boolean {
-            if (libraryLoaded) {
-                return true
-            }
-
+            if (libraryLoaded) return true
             return try {
                 System.loadLibrary("soniclab_hrtf")
                 libraryLoaded = true
                 true
             } catch (error: UnsatisfiedLinkError) {
+                android.util.Log.e("SonicLabHRTF", "Native HRTF library unavailable", error)
                 false
             } catch (error: SecurityException) {
+                android.util.Log.e("SonicLabHRTF", "Native HRTF library access denied", error)
                 false
             }
         }
 
-        fun create(
-            sampleRate: Int,
-            hrtfAssetPath: String
-        ): HrtfSpatialEngine? {
-            if (!ensureLibraryLoaded()) {
-                return null
-            }
-
+        fun create(sampleRate: Int, sofaData: ByteArray): HrtfSpatialEngine? {
+            if (sofaData.isEmpty() || !ensureLibraryLoaded()) return null
             return try {
-                val handle = nativeCreate(sampleRate, hrtfAssetPath)
-
-                if (handle != 0L) {
-                    HrtfSpatialEngine(handle)
-                } else {
-                    null
-                }
+                val handle = nativeCreate(sampleRate, sofaData)
+                if (handle != 0L) HrtfSpatialEngine(handle) else null
             } catch (error: UnsatisfiedLinkError) {
+                android.util.Log.e("SonicLabHRTF", "Native HRTF creation failed", error)
                 null
             } catch (error: Exception) {
+                android.util.Log.e("SonicLabHRTF", "HRTF creation failed", error)
                 null
             }
         }
 
-        private external fun nativeCreate(
-            sampleRate: Int,
-            hrtfAssetPath: String
-        ): Long
-
+        private external fun nativeCreate(sampleRate: Int, sofaData: ByteArray): Long
         private external fun nativeProcess(
             handle: Long,
             input: FloatArray,
@@ -91,7 +75,6 @@ class HrtfSpatialEngine private constructor(
             elevationDegrees: Float,
             reverbWet: Float
         ): Boolean
-
         private external fun nativeDestroy(handle: Long)
     }
 }
