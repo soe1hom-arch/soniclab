@@ -5,21 +5,13 @@
 
 package com.soniclab.player
 
+import android.util.Log
 import androidx.media3.common.audio.AudioProcessor
 import kotlin.math.abs
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
-/**
- * Real-time 3D / 8D spatial audio on the playback path.
- *
- * - 3D: mid/side stereo widening.
- * - 8D: slow LFO-rotated pan with a feedback echo.
- * - 8D+Tengah: rotated audio with a center anchor.
- * - Surround: 3D widening with a gentle room echo.
- * - HRTF: native binaural rendering, used when the native engine is ready.
- */
 class SpatialAudioProcessor : PcmAudioProcessor() {
 
     var mode: Int = MODE_OFF
@@ -165,10 +157,16 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
                 hrtfAssetPath = HRTF_ASSET_PATH
             )
         } catch (error: Exception) {
+            Log.e("SonicLabHRTF", "HRTF init failed", error)
             null
         }
 
         hrtfReady = hrtfEngine != null
+
+        Log.d(
+            "SonicLabHRTF",
+            "HRTF ready=$hrtfReady sampleRate=$sampleRateHz"
+        )
     }
 
     private fun process3D(
@@ -206,6 +204,11 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
     ) {
         val phaseStep = phaseStep()
         val engine = hrtfEngine
+
+        Log.d(
+            "SonicLabHRTF",
+            "process8D frames=$frames hrtf=${engine != null}"
+        )
 
         if (engine != null) {
             val azimuth = ((phase / (2.0 * PI)) * 360.0).toFloat()
