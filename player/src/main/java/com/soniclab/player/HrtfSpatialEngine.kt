@@ -8,10 +8,17 @@ class HrtfSpatialEngine private constructor(
             System.loadLibrary("soniclab_hrtf")
         }
 
-        fun create(sampleRate: Int, hrtfAssetPath: String): HrtfSpatialEngine {
+        fun create(
+            sampleRate: Int,
+            hrtfAssetPath: String
+        ): HrtfSpatialEngine? {
             val handle = nativeInit(sampleRate, hrtfAssetPath)
-            require(handle != 0L) { "Gagal memuat HRTF engine" }
-            return HrtfSpatialEngine(handle)
+
+            return if (handle != 0L) {
+                HrtfSpatialEngine(handle)
+            } else {
+                null
+            }
         }
 
         private external fun nativeInit(
