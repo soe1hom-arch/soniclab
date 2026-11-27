@@ -1,4 +1,4 @@
-package com.soniclab.player.audio
+package com.soniclab.player
 
 class HrtfSpatialEngine private constructor(
     private val nativeHandle: Long
