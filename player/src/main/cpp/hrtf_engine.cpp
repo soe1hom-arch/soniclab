@@ -3,8 +3,14 @@
 
 #include <jni.h>
 #include <android/log.h>
+#include <mysofa.h>
+
+#include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
+#include <memory>
+#include <new>
 #include <vector>
 
 #define LOG_TAG "SonicLabHRTF"
@@ -14,328 +20,224 @@
 namespace {
 
 constexpr float kPi = 3.14159265358979323846f;
-constexpr int kMaxDelaySamples = 2048;
+constexpr int kDelayBufferSize = 4096;
+constexpr float kSourceDistanceMeters = 1.0f;
 
 struct BinauralEngine {
+    MYSOFA_EASY *sofa = nullptr;
     int sampleRate = 48000;
-
-    float leftDelay[kMaxDelaySamples] = {};
-    float rightDelay[kMaxDelaySamples] = {};
+    int filterLength = 0;
+    std::vector<float> targetLeft;
+    std::vector<float> targetRight;
+    std::vector<float> activeLeft;
+    std::vector<float> activeRight;
+    std::vector<float> history;
+    std::vector<float> delayLeft;
+    std::vector<float> delayRight;
+    int historyWrite = 0;
     int delayWrite = 0;
-
-    float leftLow = 0.0f;
-    float rightLow = 0.0f;
-
-    float reverbDelayL[kMaxDelaySamples] = {};
-    float reverbDelayR[kMaxDelaySamples] = {};
-    int reverbWrite = 0;
-
-    float smoothAzimuth = 0.0f;
+    float delayLeftSamples = 0.0f;
+    float delayRightSamples = 0.0f;
+    float lastAzimuth = 10000.0f;
+    float lastElevation = 10000.0f;
+    float reverbStateLeft = 0.0f;
+    float reverbStateRight = 0.0f;
 };
-
-float wrapAngle(float degrees) {
-    float value = degrees;
-
-    while (value < -180.0f) {
-        value += 360.0f;
-    }
-
-    while (value >= 180.0f) {
-        value -= 360.0f;
-    }
-
-    return value;
-}
-
-float delayRead(
-    const float *buffer,
-    int writePosition,
-    int delaySamples
-) {
-    if (delaySamples <= 0) {
-        return 0.0f;
-    }
-
-    int readPosition = writePosition - delaySamples;
-
-    if (readPosition < 0) {
-        readPosition += kMaxDelaySamples;
-    }
-
-    return buffer[readPosition];
-}
-
-void delayWriteSample(
-    float *buffer,
-    int writePosition,
-    float value
-) {
-    buffer[writePosition] = value;
-}
-
-float onePoleLowpass(
-    float previous,
-    float input,
-    float coefficient
-) {
-    return previous + coefficient * (input - previous);
-}
-
-void processFrame(
-    BinauralEngine &engine,
-    float inputLeft,
-    float inputRight,
-    float azimuthDegrees,
-    float reverbWet,
-    float &outputLeft,
-    float &outputRight
-) {
-    const float azimuth = wrapAngle(azimuthDegrees);
-
-    engine.smoothAzimuth +=
-        0.08f * (azimuth - engine.smoothAzimuth);
-
-    const float radians =
-        engine.smoothAzimuth * kPi / 180.0f;
-
-    const float itdSeconds =
-        0.00065f * sinf(radians);
-
-    const int itdSamples = static_cast<int>(
-        fabsf(itdSeconds) * static_cast<float>(engine.sampleRate)
-    );
-
-    float leftGain = 1.0f;
-    float rightGain = 1.0f;
-
-    if (radians > 0.0f) {
-        rightGain = cosf(radians * 0.5f);
-        leftGain = 1.0f;
-    } else {
-        leftGain = cosf(-radians * 0.5f);
-        rightGain = 1.0f;
-    }
-
-    const float mono = (inputLeft + inputRight) * 0.5f;
-
-    float delayedLeft = mono;
-    float delayedRight = mono;
-
-    if (itdSamples > 0) {
-        if (radians > 0.0f) {
-            delayedRight = delayRead(
-                engine.rightDelay,
-                engine.delayWrite,
-                itdSamples
-            );
-        } else {
-            delayedLeft = delayRead(
-                engine.leftDelay,
-                engine.delayWrite,
-                itdSamples
-            );
-        }
-    }
-
-    const float rearAmount =
-        fabsf(radians) > kPi * 0.5f
-            ? (fabsf(radians) - kPi * 0.5f) / (kPi * 0.5f)
-            : 0.0f;
-
-    const float lowpassCoefficient =
-        0.35f - 0.18f * rearAmount;
-
-    engine.leftLow = onePoleLowpass(
-        engine.leftLow,
-        delayedLeft,
-        lowpassCoefficient
-    );
-
-    engine.rightLow = onePoleLowpass(
-        engine.rightLow,
-        delayedRight,
-        lowpassCoefficient
-    );
-
-    float left = delayedLeft * leftGain;
-    float right = delayedRight * rightGain;
-
-    left += engine.rightLow * 0.16f;
-    right += engine.leftLow * 0.16f;
-
-    const float reverbDelaySamples =
-        static_cast<float>(engine.sampleRate) * 0.037f;
-
-    const int reverbDelay = static_cast<int>(reverbDelaySamples);
-
-    const float reverbLeft = delayRead(
-        engine.reverbDelayL,
-        engine.reverbWrite,
-        reverbDelay
-    );
-
-    const float reverbRight = delayRead(
-        engine.reverbDelayR,
-        engine.reverbWrite,
-        reverbDelay
-    );
-
-    const float wet =
-        reverbWet < 0.0f ? 0.0f :
-        reverbWet > 0.5f ? 0.5f :
-        reverbWet;
-
-    left += reverbLeft * wet;
-    right += reverbRight * wet;
-
-    delayWriteSample(
-        engine.reverbDelayL,
-        engine.reverbWrite,
-        left * 0.22f
-    );
-
-    delayWriteSample(
-        engine.reverbDelayR,
-        engine.reverbWrite,
-        right * 0.22f
-    );
-
-    delayWriteSample(
-        engine.leftDelay,
-        engine.delayWrite,
-        mono
-    );
-
-    delayWriteSample(
-        engine.rightDelay,
-        engine.delayWrite,
-        mono
-    );
-
-    engine.delayWrite =
-        (engine.delayWrite + 1) % kMaxDelaySamples;
-
-    engine.reverbWrite =
-        (engine.reverbWrite + 1) % kMaxDelaySamples;
-
-    outputLeft = left;
-    outputRight = right;
-}
 
 BinauralEngine *asEngine(jlong handle) {
     return reinterpret_cast<BinauralEngine *>(handle);
+}
+
+float readFractionalDelay(const std::vector<float> &buffer, int write, float delay) {
+    const float bounded = std::clamp(delay, 0.0f, static_cast<float>(kDelayBufferSize - 2));
+    float position = static_cast<float>(write) - bounded;
+    while (position < 0.0f) position += static_cast<float>(kDelayBufferSize);
+    while (position >= static_cast<float>(kDelayBufferSize)) position -= static_cast<float>(kDelayBufferSize);
+    const int index0 = static_cast<int>(position);
+    const int index1 = (index0 + 1) % kDelayBufferSize;
+    const float fraction = position - static_cast<float>(index0);
+    return buffer[index0] * (1.0f - fraction) + buffer[index1] * fraction;
+}
+
+bool updateFilter(BinauralEngine &engine, float azimuthDegrees, float elevationDegrees) {
+    if (engine.sofa == nullptr || engine.filterLength <= 0) return false;
+    const float azimuth = std::remainder(azimuthDegrees, 360.0f);
+    const float elevation = std::clamp(elevationDegrees, -90.0f, 90.0f);
+    if (std::fabs(azimuth - engine.lastAzimuth) < 0.25f &&
+        std::fabs(elevation - engine.lastElevation) < 0.25f) {
+        return true;
+    }
+
+    float position[3] = {azimuth, elevation, kSourceDistanceMeters};
+    mysofa_s2c(position);
+    float delayLSeconds = 0.0f;
+    float delayRSeconds = 0.0f;
+    mysofa_getfilter_float(
+        engine.sofa, position[0], position[1], position[2],
+        engine.targetLeft.data(), engine.targetRight.data(),
+        &delayLSeconds, &delayRSeconds
+    );
+
+    if (!std::isfinite(delayLSeconds) || !std::isfinite(delayRSeconds)) return false;
+    for (int i = 0; i < engine.filterLength; ++i) {
+        if (!std::isfinite(engine.targetLeft[i]) || !std::isfinite(engine.targetRight[i])) return false;
+    }
+
+    engine.delayLeftSamples = std::clamp(delayLSeconds * engine.sampleRate, 0.0f, 100.0f);
+    engine.delayRightSamples = std::clamp(delayRSeconds * engine.sampleRate, 0.0f, 100.0f);
+    engine.lastAzimuth = azimuth;
+    engine.lastElevation = elevation;
+    return true;
+}
+
+void processOne(BinauralEngine &engine, float input, float wet, float &left, float &right) {
+    engine.history[engine.historyWrite] = input;
+
+    float sumL = 0.0f;
+    float sumR = 0.0f;
+    int historyIndex = engine.historyWrite;
+    for (int tap = 0; tap < engine.filterLength; ++tap) {
+        sumL += engine.activeLeft[tap] * engine.history[historyIndex];
+        sumR += engine.activeRight[tap] * engine.history[historyIndex];
+        if (--historyIndex < 0) historyIndex = engine.filterLength - 1;
+    }
+
+    engine.delayLeft[engine.delayWrite] = sumL;
+    engine.delayRight[engine.delayWrite] = sumR;
+    left = readFractionalDelay(engine.delayLeft, engine.delayWrite, engine.delayLeftSamples);
+    right = readFractionalDelay(engine.delayRight, engine.delayWrite, engine.delayRightSamples);
+
+    // Keep the optional room component subtle; the spatial filtering itself is
+    // exclusively produced by the measured SOFA impulse responses above.
+    const float reverb = std::clamp(wet, 0.0f, 0.25f);
+    engine.reverbStateLeft = engine.reverbStateLeft * 0.72f + right * 0.08f;
+    engine.reverbStateRight = engine.reverbStateRight * 0.72f + left * 0.08f;
+    left += engine.reverbStateLeft * reverb;
+    right += engine.reverbStateRight * reverb;
+
+    engine.historyWrite = (engine.historyWrite + 1) % engine.filterLength;
+    engine.delayWrite = (engine.delayWrite + 1) % kDelayBufferSize;
 }
 
 } // namespace
 
 extern "C" JNIEXPORT jlong JNICALL
 Java_com_soniclab_player_HrtfSpatialEngine_nativeCreate(
-    JNIEnv *env,
-    jobject,
-    jint sampleRate,
-    jstring hrtfAssetPath
+    JNIEnv *env, jobject, jint sampleRate, jbyteArray sofaData
 ) {
-    const char *assetPath =
-        env->GetStringUTFChars(hrtfAssetPath, nullptr);
-
-    if (assetPath == nullptr) {
+    if (sofaData == nullptr || sampleRate < 8000 || sampleRate > 192000) {
+        LOGE("Invalid HRTF initialization arguments: sampleRate=%d", sampleRate);
         return 0;
     }
 
-    LOGI(
-        "Binaural HRTF engine initialized. sampleRate=%d asset=%s",
-        sampleRate,
-        assetPath
+    const jsize dataSize = env->GetArrayLength(sofaData);
+    if (dataSize <= 0) {
+        LOGE("SOFA asset is empty");
+        return 0;
+    }
+
+    std::vector<char> data(static_cast<size_t>(dataSize));
+    env->GetByteArrayRegion(sofaData, 0, dataSize, reinterpret_cast<jbyte *>(data.data()));
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+        LOGE("Unable to copy SOFA bytes from Java");
+        return 0;
+    }
+
+    int filterLength = 0;
+    int error = MYSOFA_OK;
+    MYSOFA_EASY *sofa = mysofa_open_data_no_norm(
+        data.data(), static_cast<long>(data.size()), static_cast<float>(sampleRate),
+        &filterLength, &error
     );
-
-    env->ReleaseStringUTFChars(hrtfAssetPath, assetPath);
-
-    if (sampleRate < 8000 || sampleRate > 192000) {
+    if (sofa == nullptr || filterLength <= 0) {
+        LOGE("SOFA load failed: error=%d filterLength=%d bytes=%d", error, filterLength, dataSize);
+        if (sofa != nullptr) mysofa_close(sofa);
         return 0;
     }
 
-    auto *engine = new BinauralEngine();
-    engine->sampleRate = sampleRate;
+    auto engine = std::unique_ptr<BinauralEngine>(new (std::nothrow) BinauralEngine());
+    if (!engine) {
+        mysofa_close(sofa);
+        LOGE("Not enough memory for HRTF engine");
+        return 0;
+    }
 
-    return reinterpret_cast<jlong>(engine);
+    engine->sofa = sofa;
+    engine->sampleRate = sampleRate;
+    engine->filterLength = filterLength;
+    engine->targetLeft.resize(filterLength);
+    engine->targetRight.resize(filterLength);
+    engine->activeLeft.resize(filterLength);
+    engine->activeRight.resize(filterLength);
+    engine->history.assign(filterLength, 0.0f);
+    engine->delayLeft.assign(kDelayBufferSize, 0.0f);
+    engine->delayRight.assign(kDelayBufferSize, 0.0f);
+
+    if (!updateFilter(*engine, 0.0f, 0.0f)) {
+        LOGE("SOFA loaded but initial HRTF filter query failed");
+        mysofa_close(sofa);
+        return 0;
+    }
+    engine->activeLeft = engine->targetLeft;
+    engine->activeRight = engine->targetRight;
+
+    LOGI("SOFA_LOADED: bytes=%d sampleRate=%d filterLength=%d", dataSize, sampleRate, filterLength);
+    return reinterpret_cast<jlong>(engine.release());
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
 Java_com_soniclab_player_HrtfSpatialEngine_nativeProcess(
-    JNIEnv *env,
-    jobject,
-    jlong handle,
-    jfloatArray input,
-    jfloatArray output,
-    jint frames,
-    jfloat azimuthDegrees,
-    jfloat elevationDegrees,
-    jfloat reverbWet
+    JNIEnv *env, jobject, jlong handle, jfloatArray input, jfloatArray output,
+    jint frames, jfloat azimuthDegrees, jfloat elevationDegrees, jfloat reverbWet
 ) {
     auto *engine = asEngine(handle);
-
-    if (engine == nullptr || frames <= 0) {
-        return false;
-    }
-
-    jsize inputLength = env->GetArrayLength(input);
-    jsize outputLength = env->GetArrayLength(output);
-
-    if (inputLength < frames * 2 || outputLength < frames * 2) {
-        return false;
-    }
+    if (engine == nullptr || input == nullptr || output == nullptr || frames <= 0) return JNI_FALSE;
+    const jsize inputLength = env->GetArrayLength(input);
+    const jsize outputLength = env->GetArrayLength(output);
+    if (inputLength < frames || outputLength < frames * 2) return JNI_FALSE;
 
     jfloat *inputData = env->GetFloatArrayElements(input, nullptr);
     jfloat *outputData = env->GetFloatArrayElements(output, nullptr);
-
     if (inputData == nullptr || outputData == nullptr) {
-        if (inputData != nullptr) {
-            env->ReleaseFloatArrayElements(input, inputData, JNI_ABORT);
-        }
+        if (inputData != nullptr) env->ReleaseFloatArrayElements(input, inputData, JNI_ABORT);
+        if (outputData != nullptr) env->ReleaseFloatArrayElements(output, outputData, 0);
+        return JNI_FALSE;
+    }
 
-        if (outputData != nullptr) {
-            env->ReleaseFloatArrayElements(output, outputData, JNI_ABORT);
-        }
+    if (!updateFilter(*engine, azimuthDegrees, elevationDegrees)) {
+        env->ReleaseFloatArrayElements(input, inputData, JNI_ABORT);
+        env->ReleaseFloatArrayElements(output, outputData, JNI_ABORT);
+        LOGE("HRTF filter lookup failed during processing");
+        return JNI_FALSE;
+    }
 
-        return false;
+    // Smooth filter changes over a short interval to avoid clicks while the
+    // virtual source rotates through the measured HRTF field.
+    constexpr float kFilterSmoothing = 0.18f;
+    for (int tap = 0; tap < engine->filterLength; ++tap) {
+        engine->activeLeft[tap] += kFilterSmoothing * (engine->targetLeft[tap] - engine->activeLeft[tap]);
+        engine->activeRight[tap] += kFilterSmoothing * (engine->targetRight[tap] - engine->activeRight[tap]);
     }
 
     for (int frame = 0; frame < frames; ++frame) {
-        const int inputIndex = frame * 2;
-        const int outputIndex = frame * 2;
-
         float left = 0.0f;
         float right = 0.0f;
-
-        processFrame(
-            *engine,
-            inputData[inputIndex],
-            inputData[inputIndex + 1],
-            azimuthDegrees,
-            reverbWet,
-            left,
-            right
-        );
-
-        outputData[outputIndex] = left;
-        outputData[outputIndex + 1] = right;
+        processOne(*engine, inputData[frame], reverbWet, left, right);
+        outputData[frame * 2] = left;
+        outputData[frame * 2 + 1] = right;
     }
 
     env->ReleaseFloatArrayElements(input, inputData, JNI_ABORT);
     env->ReleaseFloatArrayElements(output, outputData, 0);
-
-    return true;
+    return JNI_TRUE;
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_soniclab_player_HrtfSpatialEngine_nativeDestroy(
-    JNIEnv *,
-    jobject,
-    jlong handle
-) {
+Java_com_soniclab_player_HrtfSpatialEngine_nativeDestroy(JNIEnv *, jobject, jlong handle) {
     auto *engine = asEngine(handle);
-
     if (engine != nullptr) {
+        if (engine->sofa != nullptr) mysofa_close(engine->sofa);
         delete engine;
     }
 }
