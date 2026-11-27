@@ -56,8 +56,7 @@ float delayRead(
         return 0.0f;
     }
 
-    int readPosition =
-        writePosition - delaySamples;
+    int readPosition = writePosition - delaySamples;
 
     if (readPosition < 0) {
         readPosition += kMaxDelaySamples;
@@ -93,14 +92,12 @@ void processFrame(
 ) {
     const float azimuth = wrapAngle(azimuthDegrees);
 
-    // Smooth rotation to prevent zipper noise when azimuth changes.
     engine.smoothAzimuth +=
         0.08f * (azimuth - engine.smoothAzimuth);
 
     const float radians =
         engine.smoothAzimuth * kPi / 180.0f;
 
-    // Interaural time difference: maximum around 0.65 ms.
     const float itdSeconds =
         0.00065f * sinf(radians);
 
@@ -108,7 +105,6 @@ void processFrame(
         fabsf(itdSeconds) * static_cast<float>(engine.sampleRate)
     );
 
-    // Interaural level difference.
     float leftGain = 1.0f;
     float rightGain = 1.0f;
 
@@ -122,7 +118,6 @@ void processFrame(
 
     const float mono = (inputLeft + inputRight) * 0.5f;
 
-    // Delay the ear farther from the source.
     float delayedLeft = mono;
     float delayedRight = mono;
 
@@ -142,7 +137,6 @@ void processFrame(
         }
     }
 
-    // Rear sources are darker and slightly more diffuse.
     const float rearAmount =
         fabsf(radians) > kPi * 0.5f
             ? (fabsf(radians) - kPi * 0.5f) / (kPi * 0.5f)
@@ -166,11 +160,9 @@ void processFrame(
     float left = delayedLeft * leftGain;
     float right = delayedRight * rightGain;
 
-    // Crossfeed keeps the image natural on headphones.
     left += engine.rightLow * 0.16f;
     right += engine.leftLow * 0.16f;
 
-    // Gentle early-reflection style room tail.
     const float reverbDelaySamples =
         static_cast<float>(engine.sampleRate) * 0.037f;
 
@@ -208,7 +200,6 @@ void processFrame(
         right * 0.22f
     );
 
-    // Store mono input for future ITD reads.
     delayWriteSample(
         engine.leftDelay,
         engine.delayWrite,
@@ -271,7 +262,7 @@ Java_com_soniclab_player_HrtfSpatialEngine_nativeCreate(
 
 extern "C" JNIEXPORT jboolean JNICALL
 Java_com_soniclab_player_HrtfSpatialEngine_nativeProcess(
-    JNIEnv *,
+    JNIEnv *env,
     jobject,
     jlong handle,
     jfloatArray input,
@@ -331,11 +322,7 @@ Java_com_soniclab_player_HrtfSpatialEngine_nativeProcess(
     }
 
     env->ReleaseFloatArrayElements(input, inputData, JNI_ABORT);
-    env->ReleaseFloatArrayElements(
-        output,
-        outputData,
-        0
-    );
+    env->ReleaseFloatArrayElements(output, outputData, 0);
 
     return true;
 }
