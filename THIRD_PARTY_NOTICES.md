@@ -34,3 +34,7 @@ SonicLab's audio-processing code is implemented for this project and is informed
 - **EBU R128 loudness measurement** — implementation based on EBU R 128 and ITU-R BS.1770, including K-weighting and loudness gating.
 - **Schroeder-style reverb** — based on the classic comb-filter and all-pass network described by Manfred R. Schroeder (1962).
 - **STFT-based vocal separation** — uses a center-channel spectral-mask approach.
+- **Binaural spatial audio / HRTF-style rendering** — the native 8D engine uses published binaural audio concepts, including interaural time difference (ITD), interaural level difference (ILD), crossfeed, and early-reflection-style room processing. These techniques are informed by research on head-related transfer functions and binaural hearing.
+- **Head-Related Transfer Functions (HRTF)** — the project acknowledges the SOFA (Spatially Oriented Format for Acoustics) convention and the broader HRTF research community. SOFA is a standard format for storing spatial acoustic data, including HRIR/HRTF measurements.
+- **SOFA specification** — the SOFA convention and its associated APIs are maintained by the SOFA community; see the SOFA specifications and software resources at https://www.sofaconventions.org/.
+- **Binaural synthesis / convolution** — the future HRTF convolution path is informed by standard binaural synthesis practice, in which an audio signal is convolved with left/right head-related impulse responses (HRIRs). FFT-based convolution is commonly used for efficient implementation.
