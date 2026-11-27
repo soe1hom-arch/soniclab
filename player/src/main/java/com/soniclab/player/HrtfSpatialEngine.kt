@@ -41,6 +41,7 @@ class HrtfSpatialEngine private constructor(
             return try {
                 System.loadLibrary("soniclab_hrtf")
                 libraryLoaded = true
+                android.util.Log.i("SonicLabHRTF", "NATIVE_LIBRARY_LOADED: soniclab_hrtf")
                 true
             } catch (error: UnsatisfiedLinkError) {
                 android.util.Log.e("SonicLabHRTF", "Native HRTF library unavailable", error)
