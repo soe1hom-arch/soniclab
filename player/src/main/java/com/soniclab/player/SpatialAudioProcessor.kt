@@ -88,7 +88,7 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
         hrtfReady = false
         hrtfInitAttempted = false
         sofaData = data
-        Log.i("SonicLabHRTF", "SOFA asset ${if (data.isNullOrEmpty()) "unavailable" else "provided (${data.size} bytes)"}")
+        Log.i("SonicLabHRTF", "SOFA asset ${if ((data == null || data.isEmpty())) "unavailable" else "provided (${data.size} bytes)"}")
     }
 
     override fun outputFormat(input: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
@@ -176,7 +176,7 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
         if (hrtfReady || hrtfInitAttempted) return
         hrtfInitAttempted = true
         val data = sofaData
-        if (data.isNullOrEmpty()) {
+        if (data == null || data.isEmpty()) {
             Log.e("SonicLabHRTF", "SOFA_NOT_AVAILABLE: packaged asset bytes were not supplied")
             return
         }
