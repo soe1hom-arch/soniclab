@@ -4,20 +4,45 @@ class HrtfSpatialEngine private constructor(
     private val nativeHandle: Long
 ) {
     companion object {
-        init {
-            System.loadLibrary("soniclab_hrtf")
-        }
+        @Volatile
+        private var libraryLoaded = false
 
         fun create(
             sampleRate: Int,
             hrtfAssetPath: String
         ): HrtfSpatialEngine? {
-            val handle = nativeInit(sampleRate, hrtfAssetPath)
+            if (!loadNativeLibrary()) {
+                return null
+            }
 
-            return if (handle != 0L) {
-                HrtfSpatialEngine(handle)
-            } else {
+            return try {
+                val handle = nativeInit(sampleRate, hrtfAssetPath)
+
+                if (handle != 0L) {
+                    HrtfSpatialEngine(handle)
+                } else {
+                    null
+                }
+            } catch (error: UnsatisfiedLinkError) {
                 null
+            } catch (error: Exception) {
+                null
+            }
+        }
+
+        private fun loadNativeLibrary(): Boolean {
+            if (libraryLoaded) {
+                return true
+            }
+
+            return try {
+                System.loadLibrary("soniclab_hrtf")
+                libraryLoaded = true
+                true
+            } catch (error: UnsatisfiedLinkError) {
+                false
+            } catch (error: Exception) {
+                false
             }
         }
 
