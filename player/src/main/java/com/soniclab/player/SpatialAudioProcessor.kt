@@ -5,8 +5,8 @@
 
 package com.soniclab.player
 
-import androidx.media3.common.audio.AudioProcessor
-import com.soniclab.player.audio.HrtfSpatialEngine
+import androidx.media3.common.AudioProcessor
+import com.soniclab.player.HrtfSpatialEngine
 import kotlin.math.abs
 import kotlin.math.PI
 import kotlin.math.cos
