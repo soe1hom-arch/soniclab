@@ -1,4 +1,5 @@
-HRTF data: SADIE II D1 (KU100)
-Source: University of York / SOFA Acoustics
-License: Apache License 2.0
-Dataset: D1_48K_24bit_256tap_FIR_SOFA.sofa
+HRTF data: SONICOM Acoustic HRTFs 48 kHz
+File: P0014_FreeFieldCompMinPhase_NoITD_48kHz.sofa
+Source: SONICOM HRTF Dataset / Audio Experience Design, Imperial College London
+Format: SOFA
+Sample rate: 48 kHz
