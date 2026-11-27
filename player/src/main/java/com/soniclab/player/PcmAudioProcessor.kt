@@ -50,6 +50,7 @@ abstract class PcmAudioProcessor : AudioProcessor {
     protected open fun onFormatChanged() {}
     protected open fun onFlush() {}
     protected open fun onEndOfStream() {}
+    protected open fun onReset() {}
 
     override fun configure(inputFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
         if (inputFormat.encoding != C.ENCODING_PCM_16BIT &&
@@ -127,6 +128,7 @@ abstract class PcmAudioProcessor : AudioProcessor {
 
     override fun reset() {
         flush()
+        onReset()
         inputChannels = 0
         outputChannels = 0
         encoding = C.ENCODING_PCM_16BIT
