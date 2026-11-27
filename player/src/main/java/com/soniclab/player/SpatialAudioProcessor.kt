@@ -5,10 +5,8 @@
 
 package com.soniclab.player
 
-import android.content.Context
 import android.util.Log
 import androidx.media3.common.audio.AudioProcessor
-import java.io.File
 import kotlin.math.abs
 import kotlin.math.PI
 import kotlin.math.cos
@@ -54,9 +52,6 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
         }
 
     @Volatile
-    private var appContext: Context? = null
-
-    @Volatile
     var spatial3d: Boolean = false
 
     @Volatile
@@ -82,31 +77,6 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
 
     private var hrtfEngine: HrtfSpatialEngine? = null
     private var hrtfReady = false
-
-    fun setApplicationContext(context: Context) {
-        appContext = context.applicationContext
-    }
-
-    private fun copyHrtfToInternalStorage(): String? {
-        val context = appContext ?: return null
-
-        return try {
-            val outputFile = File(context.filesDir, "hrtf_48k.sofa")
-
-            if (!outputFile.exists() || outputFile.length() == 0L) {
-                context.assets.open(HRTF_ASSET_PATH).use { input ->
-                    outputFile.outputStream().use { output ->
-                        input.copyTo(output)
-                    }
-                }
-            }
-
-            outputFile.absolutePath
-        } catch (error: Exception) {
-            Log.e("SonicLabHRTF", "Failed to copy HRTF asset", error)
-            null
-        }
-    }
 
     override fun outputFormat(input: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
         return if (input.channelCount == 1) {
@@ -181,18 +151,10 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
     private fun initHrtf() {
         if (hrtfReady) return
 
-        val hrtfPath = copyHrtfToInternalStorage()
-
-        if (hrtfPath == null) {
-            Log.e("SonicLabHRTF", "HRTF asset path unavailable")
-            hrtfReady = false
-            return
-        }
-
         hrtfEngine = try {
             HrtfSpatialEngine.create(
                 sampleRate = sampleRateHz,
-                hrtfAssetPath = hrtfPath
+                hrtfAssetPath = HRTF_ASSET_PATH
             )
         } catch (error: Exception) {
             Log.e("SonicLabHRTF", "HRTF init failed", error)
@@ -203,7 +165,7 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
 
         Log.i(
             "SonicLabHRTF",
-            "HRTF create result=$hrtfReady sampleRate=$sampleRateHz path=$hrtfPath"
+            "HRTF create result=$hrtfReady sampleRate=$sampleRateHz"
         )
     }
 
@@ -240,6 +202,10 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
         out: FloatArray,
         frames: Int
     ) {
+        if (!hrtfReady) {
+            initHrtf()
+        }
+
         val phaseStep = phaseStep()
         val engine = hrtfEngine
 
