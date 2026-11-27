@@ -23,6 +23,7 @@ The following table summarizes the principal third-party components included in 
 | Okio | 3.4.0 | Apache-2.0 | Square, Inc. |
 | LLVM libc++ shared runtime (Android NDK) | NDK 27.2.12479018 | Apache-2.0 with LLVM exceptions; additional notices in upstream license | LLVM Project contributors |
 | GitHub Octicons | mark-github-24 | MIT | GitHub Inc. |
+| SONICOM Acoustic HRTFs 48k | 2021-2025 | MIT | Engel, I., Daugintis, R., Vicente, T., Hogg, A., Pauwels, J., Tournier, A., Meyer, J., Martin, V., Marggraf-Turley, N., Webb, J., Pirard, L., La Magna, N., Turvey, O., Poole, K., and Picinali, L. |
 
 For complete terms, refer to each component's license and notices distributed with the dependency. The table is an informational summary and is not a substitute for those license texts.
 
