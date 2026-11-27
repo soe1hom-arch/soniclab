@@ -5,14 +5,21 @@
 
 package com.soniclab.player
 
-import android.util.Log
-import androidx.media3.common.C
 import androidx.media3.common.audio.AudioProcessor
 import kotlin.math.abs
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
+/**
+ * Real-time 3D / 8D spatial audio on the playback path.
+ *
+ * - 3D: mid/side stereo widening.
+ * - 8D: slow LFO-rotated pan with a feedback echo.
+ * - 8D+Tengah: rotated audio with a center anchor.
+ * - Surround: 3D widening with a gentle room echo.
+ * - HRTF: native binaural rendering, used when the native engine is ready.
+ */
 class SpatialAudioProcessor : PcmAudioProcessor() {
 
     var mode: Int = MODE_OFF
@@ -158,16 +165,10 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
                 hrtfAssetPath = HRTF_ASSET_PATH
             )
         } catch (error: Exception) {
-            Log.e("SonicLabSpatial", "HRTF init failed", error)
             null
         }
 
         hrtfReady = hrtfEngine != null
-
-        Log.d(
-            "SonicLabSpatial",
-            "HRTF ready=$hrtfReady sampleRate=$sampleRateHz"
-        )
     }
 
     private fun process3D(
@@ -191,7 +192,6 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
 
             val mid = (left + right) * 0.5f
             val side = (left - right) * 0.5f
-
             val midGain = 1f + (width - 1f) * PRESENCE_GUARD
 
             out[outputIndex++] = mid * midGain + side * width
@@ -204,13 +204,7 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
         out: FloatArray,
         frames: Int
     ) {
-        Log.d(
-            "SonicLabSpatial",
-            "process8D frames=$frames hrtf=${hrtfEngine != null}"
-        )
-
         val phaseStep = phaseStep()
-
         val engine = hrtfEngine
 
         if (engine != null) {
@@ -297,7 +291,6 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
             repeat(frames) {
                 val value = input[inputIndex++]
                 val gains = panGains()
-
                 val anchor = value * CENTER_ANCHOR
 
                 val echoLeft = readDelay(delayBufferL)
@@ -328,10 +321,8 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
         repeat(frames) {
             val left = input[inputIndex++]
             val right = input[inputIndex++]
-
             val mid = (left + right) * 0.5f
             val gains = panGains()
-
             val anchor = mid * CENTER_ANCHOR
 
             val echoLeft = readDelay(delayBufferL)
@@ -495,14 +486,14 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
         const val MODE_CUSTOM = 5
 
         const val DEFAULT_WIDTH_STRENGTH = 0.35f
-        const val DEFAULT_ROTATION_SECONDS = 8f
-        const val DEFAULT_PAN_DEPTH = 0.75f
+        const val DEFAULT_ROTATION_SECONDS = 14f
+        const val DEFAULT_PAN_DEPTH = 0.4f
 
-        private const val CENTER_ANCHOR = 0.18f
+        private const val CENTER_ANCHOR = 0.45f
         private const val WIDTH_MAX = 1.8f
         private const val PRESENCE_GUARD = 0.35f
-        private const val ECHO_DELAY_SECONDS = 0.12f
-        private const val ECHO_FEEDBACK = 0.06f
+        private const val ECHO_DELAY_SECONDS = 0.38f
+        private const val ECHO_FEEDBACK = 0.1f
         private const val SPATIAL_OUTPUT_GAIN = 0.82f
         private const val SOFT_CLIP_THRESHOLD = 0.98f
 
