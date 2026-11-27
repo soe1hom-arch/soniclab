@@ -9,6 +9,7 @@ plugins {
 android {
     namespace = "com.soniclab.player"
     compileSdk = 36
+    ndkVersion = "27.2.12479018"
 
     defaultConfig {
         minSdk = 26
@@ -16,7 +17,7 @@ android {
         externalNativeBuild {
             cmake {
                 cppFlags += "-std=c++17"
-                arguments += "-DANDROID_STL=c++_shared"
+                arguments += "-DANDROID_STL=c++_static"
             }
         }
     }
