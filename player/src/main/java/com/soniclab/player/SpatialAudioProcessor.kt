@@ -139,19 +139,19 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
     }
 
     private fun initHrtf() {
-        if (hrtfReady) return
+    if (hrtfReady) return
 
-        hrtfEngine = try {
-            HrtfSpatialEngine.create(
-                sampleRate = sampleRateHz.toInt(),
-                hrtfAssetPath = HRTF_ASSET_PATH
-            )
-        } catch (e: Exception) {
-            null
-        }
-
-        hrtfReady = hrtfEngine != null
+    hrtfEngine = try {
+        HrtfSpatialEngine.create(
+            sampleRate = sampleRateHz.toInt(),
+            hrtfAssetPath = HRTF_ASSET_PATH
+        )
+    } catch (e: Exception) {
+        null
     }
+
+    hrtfReady = hrtfEngine != null
+}
 
     private fun process3D(input: FloatArray, out: FloatArray, frames: Int) {
         val width = 1f + widthStrength.coerceIn(0f, 1f) * WIDTH_MAX
