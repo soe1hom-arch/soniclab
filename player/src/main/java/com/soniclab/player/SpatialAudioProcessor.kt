@@ -445,6 +445,6 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
         private const val SPATIAL_OUTPUT_GAIN = 0.82f
         private const val SOFT_CLIP_THRESHOLD = 0.98f
 
-        private const val HRTF_ASSET_PATH = "hrtf/mit_kemar_44100.sofa"
+        private const val HRTF_ASSET_PATH = "hrtf/hrtf_48k.sofa"
     }
 }
