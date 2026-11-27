@@ -5,47 +5,44 @@
 
 package com.soniclab.player
 
-import androidx.media3.common.AudioProcessor
-import com.soniclab.player.HrtfSpatialEngine
+import androidx.media3.common.C
+import androidx.media3.common.audio.AudioProcessor
 import kotlin.math.abs
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
-/**
- * Real-time 3D / 8D spatial audio on the playback path.
- *
- * - 3D: mid/side stereo widening — pushes the image "out of the head".
- * - 8D: HRTF/binaural rotation when available; otherwise LFO pan + echo.
- * - 8D+Tengah: 8D rotation with a center anchor.
- * - Surround: 3D widening with a gentle room echo, no rotation.
- */
 class SpatialAudioProcessor : PcmAudioProcessor() {
 
     var mode: Int = MODE_OFF
         set(value) {
             field = value
+
             when (value) {
                 MODE_OFF -> {
                     spatial3d = false
                     spatial8d = false
                     surround = false
                 }
+
                 MODE_3D -> {
                     spatial3d = true
                     spatial8d = false
                     surround = false
                 }
+
                 MODE_8D -> {
                     spatial3d = false
                     spatial8d = true
                     surround = false
                 }
+
                 MODE_3D_8D -> {
                     spatial3d = true
                     spatial8d = true
                     surround = false
                 }
+
                 MODE_SURROUND -> {
                     spatial3d = true
                     spatial8d = false
@@ -72,7 +69,6 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
     @Volatile
     var panDepth: Float = DEFAULT_PAN_DEPTH
 
-    // 8D state, touched only on the audio thread.
     private var phase = 0.0
     private var delayBufferL = FloatArray(0)
     private var delayBufferR = FloatArray(0)
@@ -84,14 +80,19 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
 
     override fun outputFormat(input: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
         return if (input.channelCount == 1) {
-            AudioProcessor.AudioFormat(input.sampleRate, 2, input.encoding)
+            AudioProcessor.AudioFormat(
+                input.sampleRate,
+                2,
+                input.encoding
+            )
         } else {
             input
         }
     }
 
-    override fun isEffectActive(): Boolean =
-        spatial3d || spatial8d || surround || inputChannels == 1
+    override fun isEffectActive(): Boolean {
+        return spatial3d || spatial8d || surround || inputChannels == 1
+    }
 
     override fun processSamples(input: FloatArray, frames: Int): FloatArray {
         val out = if (inputChannels == 1 && outputChannels == 2) {
@@ -106,7 +107,11 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
             spatial3d && surround -> processSurround(input, out, frames, widen = true)
             surround -> processSurround(input, out, frames, widen = false)
             spatial3d -> process3D(input, out, frames)
-            else -> if (out !== input) duplicateMono(input, out, frames)
+            else -> {
+                if (out !== input) {
+                    duplicateMono(input, out, frames)
+                }
+            }
         }
 
         if (spatial3d || spatial8d || surround) {
@@ -118,15 +123,20 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
         return out
     }
 
-    private fun softClip(v: Float): Float {
-        val a = abs(v)
-        if (a <= SOFT_CLIP_THRESHOLD) return v
+    private fun softClip(value: Float): Float {
+        val absolute = abs(value)
 
-        val overflow = (a - SOFT_CLIP_THRESHOLD) / (1f - SOFT_CLIP_THRESHOLD)
+        if (absolute <= SOFT_CLIP_THRESHOLD) {
+            return value
+        }
+
+        val overflow =
+            (absolute - SOFT_CLIP_THRESHOLD) / (1f - SOFT_CLIP_THRESHOLD)
+
         val shaped = SOFT_CLIP_THRESHOLD +
                 (1f - SOFT_CLIP_THRESHOLD) * (overflow / (1f + overflow))
 
-        return if (v >= 0f) shaped else -shaped
+        return if (value >= 0f) shaped else -shaped
     }
 
     override fun onFormatChanged() {
@@ -139,21 +149,25 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
     }
 
     private fun initHrtf() {
-    if (hrtfReady) return
+        if (hrtfReady) return
 
-    hrtfEngine = try {
-        HrtfSpatialEngine.create(
-            sampleRate = sampleRateHz.toInt(),
-            hrtfAssetPath = HRTF_ASSET_PATH
-        )
-    } catch (e: Exception) {
-        null
+        hrtfEngine = try {
+            HrtfSpatialEngine.create(
+                sampleRate = sampleRateHz,
+                hrtfAssetPath = HRTF_ASSET_PATH
+            )
+        } catch (error: Exception) {
+            null
+        }
+
+        hrtfReady = hrtfEngine != null
     }
 
-    hrtfReady = hrtfEngine != null
-}
-
-    private fun process3D(input: FloatArray, out: FloatArray, frames: Int) {
+    private fun process3D(
+        input: FloatArray,
+        out: FloatArray,
+        frames: Int
+    ) {
         val width = 1f + widthStrength.coerceIn(0f, 1f) * WIDTH_MAX
 
         if (inputChannels == 1) {
@@ -161,26 +175,32 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
             return
         }
 
-        var i = 0
-        var o = 0
+        var inputIndex = 0
+        var outputIndex = 0
 
         repeat(frames) {
-            val l = input[i++]
-            val r = input[i++]
-            val mid = (l + r) * 0.5f
-            val side = (l - r) * 0.5f
+            val left = input[inputIndex++]
+            val right = input[inputIndex++]
+
+            val mid = (left + right) * 0.5f
+            val side = (left - right) * 0.5f
 
             val midGain = 1f + (width - 1f) * PRESENCE_GUARD
 
-            out[o++] = mid * midGain + side * width
-            out[o++] = mid * midGain - side * width
+            out[outputIndex++] = mid * midGain + side * width
+            out[outputIndex++] = mid * midGain - side * width
         }
     }
 
-    private fun process8D(input: FloatArray, out: FloatArray, frames: Int) {
+    private fun process8D(
+        input: FloatArray,
+        out: FloatArray,
+        frames: Int
+    ) {
         val phaseStep = phaseStep()
 
         val engine = hrtfEngine
+
         if (engine != null) {
             val azimuth = ((phase / (2.0 * PI)) * 360.0).toFloat()
 
@@ -198,120 +218,127 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
         }
 
         if (inputChannels == 1) {
-            var i = 0
-            var o = 0
+            var inputIndex = 0
+            var outputIndex = 0
 
             repeat(frames) {
-                val v = input[i++]
-                val (gainL, gainR) = panGains()
-                phase += phaseStep
+                val value = input[inputIndex++]
+                val gains = panGains()
 
-                val readPos =
-                    (delayWritePos - delayReadOffset + delayBufferL.size) % delayBufferL.size
+                val echoLeft = readDelay(delayBufferL)
+                val echoRight = readDelay(delayBufferR)
 
-                val echoL = delayBufferL[readPos]
-                val echoR = delayBufferR[readPos]
+                val outLeft = value * gains.first + echoLeft * ECHO_FEEDBACK
+                val outRight = value * gains.second + echoRight * ECHO_FEEDBACK
 
-                val outL = v * gainL + echoL * ECHO_FEEDBACK
-                val outR = v * gainR + echoR * ECHO_FEEDBACK
+                delayBufferL[delayWritePos] = outLeft
+                delayBufferR[delayWritePos] = outRight
 
-                delayBufferL[delayWritePos] = outL
-                delayBufferR[delayWritePos] = outR
-                delayWritePos = (delayWritePos + 1) % delayBufferL.size
+                advanceDelayPosition()
 
-                out[o++] = outL
-                out[o++] = outR
+                out[outputIndex++] = outLeft
+                out[outputIndex++] = outRight
+
+                phase = (phase + phaseStep) % (2.0 * PI)
             }
 
             return
         }
 
-        var i = 0
-        var o = 0
+        var inputIndex = 0
+        var outputIndex = 0
 
         repeat(frames) {
-            val l = input[i++]
-            val r = input[i++]
-            val (gainL, gainR) = panGains()
-            phase += phaseStep
+            val left = input[inputIndex++]
+            val right = input[inputIndex++]
+            val gains = panGains()
 
-            val readPos =
-                (delayWritePos - delayReadOffset + delayBufferL.size) % delayBufferL.size
+            val echoLeft = readDelay(delayBufferL)
+            val echoRight = readDelay(delayBufferR)
 
-            val echoL = delayBufferL[readPos]
-            val echoR = delayBufferR[readPos]
+            val outLeft = left * gains.first + echoLeft * ECHO_FEEDBACK
+            val outRight = right * gains.second + echoRight * ECHO_FEEDBACK
 
-            val outL = l * gainL + echoL * ECHO_FEEDBACK
-            val outR = r * gainR + echoR * ECHO_FEEDBACK
+            delayBufferL[delayWritePos] = outLeft
+            delayBufferR[delayWritePos] = outRight
 
-            delayBufferL[delayWritePos] = outL
-            delayBufferR[delayWritePos] = outR
-            delayWritePos = (delayWritePos + 1) % delayBufferL.size
+            advanceDelayPosition()
 
-            out[o++] = outL
-            out[o++] = outR
+            out[outputIndex++] = outLeft
+            out[outputIndex++] = outRight
+
+            phase = (phase + phaseStep) % (2.0 * PI)
         }
     }
 
-    private fun process3D8D(input: FloatArray, out: FloatArray, frames: Int) {
+    private fun process3D8D(
+        input: FloatArray,
+        out: FloatArray,
+        frames: Int
+    ) {
         val phaseStep = phaseStep()
 
         if (inputChannels == 1) {
-            var i = 0
-            var o = 0
+            var inputIndex = 0
+            var outputIndex = 0
 
             repeat(frames) {
-                val v = input[i++]
-                val (gainL, gainR) = panGains()
-                phase += phaseStep
+                val value = input[inputIndex++]
+                val gains = panGains()
 
-                val anchor = v * CENTER_ANCHOR
-                val readPos =
-                    (delayWritePos - delayReadOffset + delayBufferL.size) % delayBufferL.size
+                val anchor = value * CENTER_ANCHOR
 
-                val echoL = delayBufferL[readPos]
-                val echoR = delayBufferR[readPos]
+                val echoLeft = readDelay(delayBufferL)
+                val echoRight = readDelay(delayBufferR)
 
-                val outL = v * gainL + anchor + echoL * ECHO_FEEDBACK
-                val outR = v * gainR + anchor + echoR * ECHO_FEEDBACK
+                val outLeft =
+                    value * gains.first + anchor + echoLeft * ECHO_FEEDBACK
+                val outRight =
+                    value * gains.second + anchor + echoRight * ECHO_FEEDBACK
 
-                delayBufferL[delayWritePos] = outL
-                delayBufferR[delayWritePos] = outR
-                delayWritePos = (delayWritePos + 1) % delayBufferL.size
+                delayBufferL[delayWritePos] = outLeft
+                delayBufferR[delayWritePos] = outRight
 
-                out[o++] = outL
-                out[o++] = outR
+                advanceDelayPosition()
+
+                out[outputIndex++] = outLeft
+                out[outputIndex++] = outRight
+
+                phase = (phase + phaseStep) % (2.0 * PI)
             }
 
             return
         }
 
-        var i = 0
-        var o = 0
+        var inputIndex = 0
+        var outputIndex = 0
 
         repeat(frames) {
-            val l = input[i++]
-            val r = input[i++]
-            val mid = (l + r) * 0.5f
-            val (gainL, gainR) = panGains()
-            phase += phaseStep
+            val left = input[inputIndex++]
+            val right = input[inputIndex++]
+
+            val mid = (left + right) * 0.5f
+            val gains = panGains()
 
             val anchor = mid * CENTER_ANCHOR
-            val readPos =
-                (delayWritePos - delayReadOffset + delayBufferL.size) % delayBufferL.size
 
-            val echoL = delayBufferL[readPos]
-            val echoR = delayBufferR[readPos]
+            val echoLeft = readDelay(delayBufferL)
+            val echoRight = readDelay(delayBufferR)
 
-            val outL = l * gainL + anchor + echoL * ECHO_FEEDBACK
-            val outR = r * gainR + anchor + echoR * ECHO_FEEDBACK
+            val outLeft =
+                left * gains.first + anchor + echoLeft * ECHO_FEEDBACK
+            val outRight =
+                right * gains.second + anchor + echoRight * ECHO_FEEDBACK
 
-            delayBufferL[delayWritePos] = outL
-            delayBufferR[delayWritePos] = outR
-            delayWritePos = (delayWritePos + 1) % delayBufferL.size
+            delayBufferL[delayWritePos] = outLeft
+            delayBufferR[delayWritePos] = outRight
 
-            out[o++] = outL
-            out[o++] = outR
+            advanceDelayPosition()
+
+            out[outputIndex++] = outLeft
+            out[outputIndex++] = outRight
+
+            phase = (phase + phaseStep) % (2.0 * PI)
         }
     }
 
@@ -325,58 +352,58 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
         val midGain = 1f + (width - 1f) * PRESENCE_GUARD
 
         if (inputChannels == 1) {
-            var i = 0
-            var o = 0
+            var inputIndex = 0
+            var outputIndex = 0
 
             repeat(frames) {
-                val v = input[i++]
-                val readPos =
-                    (delayWritePos - delayReadOffset + delayBufferL.size) % delayBufferL.size
+                val value = input[inputIndex++]
 
-                val echoL = delayBufferL[readPos]
-                val echoR = delayBufferR[readPos]
+                val echoLeft = readDelay(delayBufferL)
+                val echoRight = readDelay(delayBufferR)
 
-                val outL = v + echoL * ECHO_FEEDBACK
-                val outR = v + echoR * ECHO_FEEDBACK
+                val outLeft = value + echoLeft * ECHO_FEEDBACK
+                val outRight = value + echoRight * ECHO_FEEDBACK
 
-                delayBufferL[delayWritePos] = outL
-                delayBufferR[delayWritePos] = outR
-                delayWritePos = (delayWritePos + 1) % delayBufferL.size
+                delayBufferL[delayWritePos] = outLeft
+                delayBufferR[delayWritePos] = outRight
 
-                out[o++] = outL
-                out[o++] = outR
+                advanceDelayPosition()
+
+                out[outputIndex++] = outLeft
+                out[outputIndex++] = outRight
             }
 
             return
         }
 
-        var i = 0
-        var o = 0
+        var inputIndex = 0
+        var outputIndex = 0
 
         repeat(frames) {
-            val l = input[i++]
-            val r = input[i++]
-            val mid = (l + r) * 0.5f
-            val side = (l - r) * 0.5f
+            val left = input[inputIndex++]
+            val right = input[inputIndex++]
 
-            val widL = if (widen) mid * midGain + side * width else l
-            val widR = if (widen) mid * midGain - side * width else r
+            val mid = (left + right) * 0.5f
+            val side = (left - right) * 0.5f
 
-            val readPos =
-                (delayWritePos - delayReadOffset + delayBufferL.size) % delayBufferL.size
+            val widenedLeft =
+                if (widen) mid * midGain + side * width else left
+            val widenedRight =
+                if (widen) mid * midGain - side * width else right
 
-            val echoL = delayBufferL[readPos]
-            val echoR = delayBufferR[readPos]
+            val echoLeft = readDelay(delayBufferL)
+            val echoRight = readDelay(delayBufferR)
 
-            val outL = widL + echoL * ECHO_FEEDBACK
-            val outR = widR + echoR * ECHO_FEEDBACK
+            val outLeft = widenedLeft + echoLeft * ECHO_FEEDBACK
+            val outRight = widenedRight + echoRight * ECHO_FEEDBACK
 
-            delayBufferL[delayWritePos] = outL
-            delayBufferR[delayWritePos] = outR
-            delayWritePos = (delayWritePos + 1) % delayBufferL.size
+            delayBufferL[delayWritePos] = outLeft
+            delayBufferR[delayWritePos] = outRight
 
-            out[o++] = outL
-            out[o++] = outR
+            advanceDelayPosition()
+
+            out[outputIndex++] = outLeft
+            out[outputIndex++] = outRight
         }
     }
 
@@ -389,8 +416,29 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
     }
 
     private fun phaseStep(): Double {
-        val sampleRate = sampleRateHz.coerceAtLeast(1f)
-        return (2.0 * PI) / (rotationSeconds.coerceIn(4f, 60f) * sampleRate)
+        val sampleRate = sampleRateHz.coerceAtLeast(1)
+        val rotation = rotationSeconds.coerceIn(4f, 60f)
+
+        return (2.0 * PI) / (rotation * sampleRate)
+    }
+
+    private fun readDelay(buffer: FloatArray): Float {
+        if (buffer.isEmpty()) {
+            return 0f
+        }
+
+        val readPosition =
+            (delayWritePos - delayReadOffset + buffer.size) % buffer.size
+
+        return buffer[readPosition]
+    }
+
+    private fun advanceDelayPosition() {
+        if (delayBufferL.isEmpty() || delayBufferR.isEmpty()) {
+            return
+        }
+
+        delayWritePos = (delayWritePos + 1) % delayBufferL.size
     }
 
     private fun duplicateMono(
@@ -398,12 +446,13 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
         out: FloatArray,
         frames: Int
     ) {
-        var o = 0
+        var outputIndex = 0
 
         for (frame in 0 until frames) {
-            val v = input[frame]
-            out[o++] = v
-            out[o++] = v
+            val value = input[frame]
+
+            out[outputIndex++] = value
+            out[outputIndex++] = value
         }
     }
 
