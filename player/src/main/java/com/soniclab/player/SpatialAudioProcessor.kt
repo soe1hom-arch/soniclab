@@ -77,6 +77,19 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
 
     private var hrtfEngine: HrtfSpatialEngine? = null
     private var hrtfReady = false
+    private var hrtfInitAttempted = false
+    @Volatile
+    private var sofaData: ByteArray? = null
+
+    /** Supplies the packaged SOFA asset from the application AssetManager. */
+    fun setSofaData(data: ByteArray?) {
+        hrtfEngine?.release()
+        hrtfEngine = null
+        hrtfReady = false
+        hrtfInitAttempted = false
+        sofaData = data
+        Log.i("SonicLabHRTF", "SOFA asset ${if (data.isNullOrEmpty()) "unavailable" else "provided (${data.size} bytes)"}")
+    }
 
     override fun outputFormat(input: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
         return if (input.channelCount == 1) {
@@ -141,32 +154,42 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
 
     override fun onFormatChanged() {
         resetDsp()
-        initHrtf()
+        hrtfEngine?.release()
+        hrtfEngine = null
+        hrtfReady = false
+        hrtfInitAttempted = false
+        if (spatial8d) initHrtf()
     }
 
     override fun onFlush() {
         resetDsp()
     }
 
+    override fun onReset() {
+        hrtfEngine?.release()
+        hrtfEngine = null
+        hrtfReady = false
+        hrtfInitAttempted = false
+    }
+
     private fun initHrtf() {
-        if (hrtfReady) return
+        if (hrtfReady || hrtfInitAttempted) return
+        hrtfInitAttempted = true
+        val data = sofaData
+        if (data.isNullOrEmpty()) {
+            Log.e("SonicLabHRTF", "SOFA_NOT_AVAILABLE: packaged asset bytes were not supplied")
+            return
+        }
 
         hrtfEngine = try {
-            HrtfSpatialEngine.create(
-                sampleRate = sampleRateHz,
-                hrtfAssetPath = HRTF_ASSET_PATH
-            )
+            HrtfSpatialEngine.create(sampleRate = sampleRateHz, sofaData = data)
         } catch (error: Exception) {
-            Log.e("SonicLabHRTF", "HRTF init failed", error)
+            Log.e("SonicLabHRTF", "HRTF initialization failed", error)
             null
         }
 
         hrtfReady = hrtfEngine != null
-
-        Log.i(
-            "SonicLabHRTF",
-            "HRTF create result=$hrtfReady sampleRate=$sampleRateHz"
-        )
+        Log.i("SonicLabHRTF", "HRTF_READY=$hrtfReady sampleRate=$sampleRateHz sofaBytes=${data.size}")
     }
 
     private fun process3D(
@@ -202,23 +225,25 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
         out: FloatArray,
         frames: Int
     ) {
-        if (!hrtfReady) {
-            initHrtf()
-        }
+        if (!hrtfReady && !hrtfInitAttempted) initHrtf()
 
         val phaseStep = phaseStep()
         val engine = hrtfEngine
-
-        Log.d(
-            "SonicLabHRTF",
-            "process8D frames=$frames hrtf=${engine != null}"
-        )
+        val azimuth = ((phase / (2.0 * PI)) * 360.0).toFloat()
 
         if (engine != null) {
-            val azimuth = ((phase / (2.0 * PI)) * 360.0).toFloat()
+            // SOFA HRTFs describe a point source. Convert stereo programme
+            // material to a centred mono source before binaural convolution.
+            val engineInput = FloatArray(frames) { frame ->
+                if (inputChannels == 1) {
+                    input[frame]
+                } else {
+                    (input[frame * 2] + input[frame * 2 + 1]) * 0.5f
+                }
+            }
 
-            engine.process(
-                input = input,
+            val processed = engine.process(
+                input = engineInput,
                 output = out,
                 frames = frames,
                 azimuthDegrees = azimuth,
@@ -226,60 +251,55 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
                 reverbWet = 0.15f
             )
 
-            phase = (phase + phaseStep) % (2.0 * PI)
-            return
+            if (processed) {
+                phase = (phase + phaseStep * frames) % (2.0 * PI)
+                return
+            }
+
+            Log.e("SonicLabHRTF", "HRTF_PROCESSING_FAILED; disabling native engine and using fallback")
+            engine.release()
+            hrtfEngine = null
+            hrtfReady = false
+            hrtfInitAttempted = true
         }
 
+        // Fallback is intentionally retained so playback remains audible if
+        // the native SOFA engine cannot initialize on a device.
         if (inputChannels == 1) {
             var inputIndex = 0
             var outputIndex = 0
-
             repeat(frames) {
                 val value = input[inputIndex++]
                 val gains = panGains()
-
                 val echoLeft = readDelay(delayBufferL)
                 val echoRight = readDelay(delayBufferR)
-
                 val outLeft = value * gains.first + echoLeft * ECHO_FEEDBACK
                 val outRight = value * gains.second + echoRight * ECHO_FEEDBACK
-
                 delayBufferL[delayWritePos] = outLeft
                 delayBufferR[delayWritePos] = outRight
-
                 advanceDelayPosition()
-
                 out[outputIndex++] = outLeft
                 out[outputIndex++] = outRight
-
                 phase = (phase + phaseStep) % (2.0 * PI)
             }
-
             return
         }
 
         var inputIndex = 0
         var outputIndex = 0
-
         repeat(frames) {
             val left = input[inputIndex++]
             val right = input[inputIndex++]
             val gains = panGains()
-
             val echoLeft = readDelay(delayBufferL)
             val echoRight = readDelay(delayBufferR)
-
             val outLeft = left * gains.first + echoLeft * ECHO_FEEDBACK
             val outRight = right * gains.second + echoRight * ECHO_FEEDBACK
-
             delayBufferL[delayWritePos] = outLeft
             delayBufferR[delayWritePos] = outRight
-
             advanceDelayPosition()
-
             out[outputIndex++] = outLeft
             out[outputIndex++] = outRight
-
             phase = (phase + phaseStep) % (2.0 * PI)
         }
     }
@@ -289,66 +309,21 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
         out: FloatArray,
         frames: Int
     ) {
-        val phaseStep = phaseStep()
+        // 8D remains the actual binaural SOFA path; 3D contributes stereo
+        // width after HRTF rendering instead of replacing HRTF with pan/echo.
+        process8D(input, out, frames)
 
-        if (inputChannels == 1) {
-            var inputIndex = 0
-            var outputIndex = 0
-
-            repeat(frames) {
-                val value = input[inputIndex++]
-                val gains = panGains()
-                val anchor = value * CENTER_ANCHOR
-
-                val echoLeft = readDelay(delayBufferL)
-                val echoRight = readDelay(delayBufferR)
-
-                val outLeft =
-                    value * gains.first + anchor + echoLeft * ECHO_FEEDBACK
-                val outRight =
-                    value * gains.second + anchor + echoRight * ECHO_FEEDBACK
-
-                delayBufferL[delayWritePos] = outLeft
-                delayBufferR[delayWritePos] = outRight
-
-                advanceDelayPosition()
-
-                out[outputIndex++] = outLeft
-                out[outputIndex++] = outRight
-
-                phase = (phase + phaseStep) % (2.0 * PI)
-            }
-
-            return
-        }
-
-        var inputIndex = 0
-        var outputIndex = 0
-
+        val width = 1f + widthStrength.coerceIn(0f, 1f) * WIDTH_MAX
+        val midGain = 1f + (width - 1f) * PRESENCE_GUARD
+        var index = 0
         repeat(frames) {
-            val left = input[inputIndex++]
-            val right = input[inputIndex++]
+            val left = out[index]
+            val right = out[index + 1]
             val mid = (left + right) * 0.5f
-            val gains = panGains()
-            val anchor = mid * CENTER_ANCHOR
-
-            val echoLeft = readDelay(delayBufferL)
-            val echoRight = readDelay(delayBufferR)
-
-            val outLeft =
-                left * gains.first + anchor + echoLeft * ECHO_FEEDBACK
-            val outRight =
-                right * gains.second + anchor + echoRight * ECHO_FEEDBACK
-
-            delayBufferL[delayWritePos] = outLeft
-            delayBufferR[delayWritePos] = outRight
-
-            advanceDelayPosition()
-
-            out[outputIndex++] = outLeft
-            out[outputIndex++] = outRight
-
-            phase = (phase + phaseStep) % (2.0 * PI)
+            val side = (left - right) * 0.5f
+            out[index] = mid * midGain + side * width
+            out[index + 1] = mid * midGain - side * width
+            index += 2
         }
     }
 
@@ -496,7 +471,6 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
         const val DEFAULT_ROTATION_SECONDS = 14f
         const val DEFAULT_PAN_DEPTH = 0.4f
 
-        private const val CENTER_ANCHOR = 0.45f
         private const val WIDTH_MAX = 1.8f
         private const val PRESENCE_GUARD = 0.35f
         private const val ECHO_DELAY_SECONDS = 0.38f
@@ -504,6 +478,5 @@ class SpatialAudioProcessor : PcmAudioProcessor() {
         private const val SPATIAL_OUTPUT_GAIN = 0.82f
         private const val SOFT_CLIP_THRESHOLD = 0.98f
 
-        private const val HRTF_ASSET_PATH = "hrtf/hrtf_48k.sofa"
     }
 }
