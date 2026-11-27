@@ -40,18 +40,29 @@ Komponen pihak ketiga yang digunakan (lisensi permissive):
   Okio 3.4.0 ............................... Apache-2.0
       Copyright Square, Inc.
 
-  LLVM libc++ (NDK 27.2.12479018) .......... Apache-2.0 with LLVM exceptions
-      Copyright LLVM Project contributors; lisensi juga mencakup notice tambahan.
+SONICOM Acoustic HRTFs 48k
+Copyright (c) 2021-2025 Engel, I., Daugintis, R., Vicente, T., Hogg, A.,
+Pauwels, J., Tournier, A., Meyer, J., Martin, V., Marggraf-Turley, N.,
+Webb, J., Pirard, L., La Magna, N., Turvey, O., Poole, K., and
+Picinali, L.
 
-Lisensi lengkap Apache-2.0 menyertai repositori ini (file LICENSE) dan
-tersedia di https://www.apache.org/licenses/LICENSE-2.0.
-Teks lisensi LLVM libc++ ditampilkan setelah teks berikut.
+Licensed under the MIT License.
+Full license text: licenses/sonicom-hrtf-dataset-license.txt
 
-      LLVM libc++ shared runtime (Android NDK)
+Dataset DOI: 10.60887/2x5fmfnjx320yt7a
+Dataset URL: https://ecosystem.soniccom.eu/databases/3
+Used file: P0014_FreeFieldCompMinPhase_NoITD_48kHz.sofa
+
+
+  LLVM libc++ shared runtime (Android NDK)
 Copyright (c) LLVM Project contributors
 
 Licensed under the Apache License, Version 2.0 with LLVM Exceptions.
 Full license text: licenses/llvm-libc++-license.txt
+
+Lisensi lengkap Apache-2.0 menyertai repositori ini (file LICENSE) dan
+tersedia di https://www.apache.org/licenses/LICENSE-2.0.
+Teks lisensi LLVM libc++ ditampilkan setelah teks berikut.
 
 ----------------------------------------------------------------------
 MIT License (GitHub Octicons)
